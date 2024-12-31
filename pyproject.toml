@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=. --cov-report=term-missing"
+markers = [
+    "unit: mark test as a unit test",
+    "integration: mark test as an integration test",
+    "bot: mark test as a bot-related test",
+    "garmin: mark test as a Garmin service test",
+    "security: mark test as a security-related test",
+]
+
+[project]
+name = "tele_garmin"
+version = "0.1.0"
+description = "Telegram bot for Garmin data analysis"
+requires-python = ">=3.8"
+authors = [
+    {name = "Developer"}
+]
+dependencies = [
+    "python-telegram-bot==20.3",
+    "garminconnect",
+    "anthropic",
+    "pandas",
+    "cryptography>=41.0.0",
+    "python-dotenv==1.0.0"
+]
+
+[tool.setuptools]
+packages = ["bot", "core", "services", "utils"]

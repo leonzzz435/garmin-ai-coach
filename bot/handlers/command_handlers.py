@@ -5,12 +5,13 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from bot.formatters import escape_markdown
+from core.security import SecureCredentialManager
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /start command."""
     user_name = update.effective_user.first_name
     await update.message.reply_text(
-        f"Hey {user_name}\! 🏃‍♂️ Welcome to your AI Training Assistant\!\n\n" +
+        escape_markdown(f"Hey {user_name}! 🏃‍♂️ Welcome to your AI Training Assistant!\n\n") +
         "*Available Commands:*\n\n" +
         "🔐 *Getting Started:*\n" +
         "• `/login` \\- Connect your Garmin account \\(credentials stored securely\\)\n\n" +
@@ -64,8 +65,6 @@ async def roadmap(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def clear_credentials(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /clear_credentials command."""
-    from core.security import SecureCredentialManager
-    
     user_id = update.effective_user.id
     cred_manager = SecureCredentialManager(user_id)
     
