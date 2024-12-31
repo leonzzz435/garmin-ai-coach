@@ -20,14 +20,14 @@ def summarize_activities(activities: List[Dict[str, Any]]) -> str:
             if 'error' in activity:
                 logger.error(f"Activity {idx} has error: {activity['error']}")
                 continue
-            logger.info(f"Activity {idx} type: {activity.get('activityType')}, name: {activity.get('activityName')}")
+            logger.info(f"Activity {idx} type: {activity['activity_type']}, name: {activity['activity_name']}")
         
         # Basic statistics
         total_stats = {
             'total_activities': len(activities),
-            'total_distance': sum(a.get('summary', {}).get('distance', 0) for a in activities) / 1000,  # km
-            'total_duration': sum(a.get('summary', {}).get('duration', 0) for a in activities) / 3600,  # hours
-            'total_calories': sum(a.get('summary', {}).get('calories', 0) for a in activities)
+            'total_distance': sum((a['summary']['distance'] or 0) if a['summary'] else 0 for a in activities) / 1000,  # km
+            'total_duration': sum((a['summary']['duration'] or 0) if a['summary'] else 0 for a in activities) / 3600,  # hours
+            'total_calories': sum((a['summary']['calories'] or 0) if a['summary'] else 0 for a in activities)
         }
         
         summary = f"""# Recent Activities Summary
@@ -52,20 +52,20 @@ def summarize_activities(activities: List[Dict[str, Any]]) -> str:
 def _format_activity(activity: Dict[str, Any]) -> str:
     """Format a single activity for the report."""
     try:
-        if 'error' in activity:
+        if activity.get('error'):
             return f"### Error in activity\n- Error: {activity['error'].get('message', 'Unknown error')}\n"
         
-        summary = activity.get('summary', {})
-        base = f"""### {activity.get('activityName', 'Unknown')} ({activity.get('startTime', 'Unknown')})
-- Type: {activity.get('activityType', 'Unknown')}
-- Distance: {summary.get('distance', 0) / 1000:.2f} km
-- Duration: {summary.get('duration', 0) / 3600:.2f} hours
-- Avg HR: {summary.get('averageHR', 'N/A')} bpm
-- Max HR: {summary.get('maxHR', 'N/A')} bpm
-- Calories: {summary.get('calories', 0)}
+        summary = activity['summary'] if activity.get('summary') else {}
+        base = f"""### {activity['activity_name'] or 'Unknown'} ({activity['start_time'] or 'Unknown'})
+- Type: {activity['activity_type'] or 'Unknown'}
+- Distance: {(summary.get('distance', 0) or 0) / 1000:.2f} km
+- Duration: {(summary.get('duration', 0) or 0) / 3600:.2f} hours
+- Avg HR: {summary.get('average_hr') or 'N/A'} bpm
+- Max HR: {summary.get('max_hr') or 'N/A'} bpm
+- Calories: {summary.get('calories', 0) or 0}
 """
         
-        if activity.get('activityType') == 'multisport' and 'childActivities' in activity:
+        if activity.get('activity_type') == 'multisport' and activity.get('childActivities'):
             base += "\n#### Child Activities\n"
             for child in activity['childActivities']:
                 try:
@@ -74,7 +74,7 @@ def _format_activity(activity: Dict[str, Any]) -> str:
                     logger.error(f"Error formatting child activity: {str(e)}")
                     base += "Error formatting child activity\n"
         
-        if 'hr_zones' in activity:
+        if activity.get('hr_zones'):
             try:
                 base += "\n#### Heart Rate Zones\n"
                 base += _format_hr_zones(activity['hr_zones'])
@@ -91,12 +91,12 @@ def _format_child_activity(child: Dict[str, Any]) -> str:
     """Format a child activity for multisport activities."""
     try:
         summary = child.get('summary', {})
-        return f"""##### {child.get('activityType', 'Unknown').capitalize()}
-- Distance: {summary.get('distance', 0) / 1000:.2f} km
-- Duration: {summary.get('duration', 0) / 3600:.2f} hours
-- Avg HR: {summary.get('averageHR', 'N/A')} bpm
-- Max HR: {summary.get('maxHR', 'N/A')} bpm
-- Calories: {summary.get('calories', 0)}
+        return f"""##### {child.get('activity_type', 'Unknown').capitalize()}
+- Distance: {(summary.get('distance', 0) or 0) / 1000:.2f} km
+- Duration: {(summary.get('duration', 0) or 0) / 3600:.2f} hours
+- Avg HR: {summary.get('average_hr') or 'N/A'} bpm
+- Max HR: {summary.get('max_hr') or 'N/A'} bpm
+- Calories: {summary.get('calories', 0) or 0}
 
 """
     except Exception as e:
@@ -112,8 +112,8 @@ def _format_hr_zones(zones: List[Dict[str, Any]]) -> str:
         result = "| Zone | Time (minutes) |\n|------|----------------|\n"
         for zone in zones:
             try:
-                zone_number = zone.get('zoneNumber', 'N/A')
-                minutes = zone.get('secsInZone', 0) / 60
+                zone_number = zone.get('zone_number') or 'N/A'
+                minutes = (zone.get('secs_in_zone', 0) or 0) / 60
                 result += f"| {zone_number} | {minutes:.1f} |\n"
             except Exception as e:
                 logger.error(f"Error formatting HR zone: {str(e)}")
@@ -130,11 +130,10 @@ def summarize_training_volume(activities: List[Dict[str, Any]]) -> str:
         processed_activities = []
         for activity in activities:
             try:
-                summary = activity.get('summary', {})
                 processed_activities.append({
-                    'startTime': activity.get('startTime'),
-                    'duration': summary.get('duration', 0),
-                    'distance': summary.get('distance', 0)
+                    'startTime': activity.get('start_time'),
+                    'duration': activity.get('summary', {}).get('duration', 0),
+                    'distance': activity.get('summary', {}).get('distance', 0)
                 })
             except Exception as e:
                 logger.error(f"Error processing activity for volume summary: {str(e)}")
@@ -175,14 +174,14 @@ def summarize_training_intensity(activities: List[Dict[str, Any]]) -> str:
         
         for activity in activities:
             try:
-                if activity.get('activityType') == "multisport" and 'childActivities' in activity:
+                if activity.get('activity_type') == "multisport" and activity.get('childActivities'):
                     for child in activity['childActivities']:
                         try:
-                            intensity_data.extend(_extract_intensity_data(child, activity.get('startTime', 'Unknown')))
+                            intensity_data.extend(_extract_intensity_data(child, activity.get('start_time', 'Unknown')))
                         except Exception as e:
                             logger.error(f"Error processing child activity intensity: {str(e)}")
                 else:
-                    intensity_data.extend(_extract_intensity_data(activity, activity.get('startTime', 'Unknown')))
+                    intensity_data.extend(_extract_intensity_data(activity, activity.get('start_time', 'Unknown')))
             except Exception as e:
                 logger.error(f"Error processing activity intensity: {str(e)}")
                 continue
@@ -218,8 +217,8 @@ def summarize_training_intensity(activities: List[Dict[str, Any]]) -> str:
 def _extract_intensity_data(activity: Dict[str, Any], date: str) -> List[Dict[str, Any]]:
     """Extract intensity data from an activity."""
     try:
-        if 'hr_zones' not in activity:
-            logger.warning(f"No HR zones found for activity type: {activity.get('activityType', 'Unknown')}")
+        if not activity.get('hr_zones'):
+            logger.warning(f"No HR zones found for activity type: {activity.get('activity_type', 'Unknown')}")
             return []
         
         result = []
@@ -227,9 +226,9 @@ def _extract_intensity_data(activity: Dict[str, Any], date: str) -> List[Dict[st
             try:
                 result.append({
                     'date': date,
-                    'activity_type': activity.get('activityType', 'Unknown'),
-                    'zone': zone.get('zoneNumber', 0),
-                    'minutes': zone.get('secsInZone', 0) / 60
+                    'activity_type': activity.get('activity_type', 'Unknown'),
+                    'zone': zone.get('zone_number', 0),
+                    'minutes': zone.get('secs_in_zone', 0) / 60
                 })
             except Exception as e:
                 logger.error(f"Error processing HR zone: {str(e)}")

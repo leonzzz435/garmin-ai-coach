@@ -1,0 +1,33 @@
+"""Report generation service for athlete data analysis.
+
+This package provides functionality for generating formatted reports
+from athlete training data, including activities, metrics, and analysis.
+"""
+
+from .generator import ReportGenerator
+from .utils import (
+    summarize_activities,
+    summarize_training_volume,
+    summarize_training_intensity,
+    summarize_recovery,
+    summarize_training_load,
+    summarize_vo2max_evolution,
+    summarize_readiness_evolution,
+    summarize_race_predictions_weekly,
+    summarize_hill_score_weekly,
+    summarize_endurance_score_weekly
+)
+
+__all__ = [
+    'ReportGenerator',
+    'summarize_activities',
+    'summarize_training_volume',
+    'summarize_training_intensity',
+    'summarize_recovery',
+    'summarize_training_load',
+    'summarize_vo2max_evolution',
+    'summarize_readiness_evolution',
+    'summarize_race_predictions_weekly',
+    'summarize_hill_score_weekly',
+    'summarize_endurance_score_weekly'
+]
