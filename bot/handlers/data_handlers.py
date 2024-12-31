@@ -92,7 +92,7 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 )
             return  # No need for LLM calls when using stored report
         else:
-            # Generate new report
+            # Generate new analysis using enhanced framework
             extractor = TriathlonCoachDataExtractor(email, password)
             config = ExtractionConfig(
                 activities_range=TimeRange.RECENT.value,
@@ -101,60 +101,31 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 include_metrics=True
             )
             data = extractor.extract_data(config)
-            report = ReportGenerator(data)
-            activities_report = report.generate_activities_report()
             
             await update.message.reply_text(
-                "✅ Data retrieved successfully\\!\n" +
-                "🔄 Processing your training data\\.\\.\\.\n" +
-                "🧠 Generating personalized insights\\.\\.\\.\n" +
-                "💾 Saving report for quick access to workouts\\!",
+                "✨ *Enhanced AI Analysis Starting*\n\n"
+                "✅ Data retrieved successfully\\!\n"
+                "🧠 Multiple AI agents analyzing your training patterns\\.\\.\\.\n"
+                "📊 Processing metrics, activities, and recovery data\\.\\.\\.",
                 parse_mode=ParseMode.MARKDOWN_V2
             )
 
-        # Initialize Anthropic client with API key from bot_data
-        anthropic_api_key = context.bot_data.get('anthropic_api_key')
-        if not anthropic_api_key:
-            logger.error("Anthropic API key not found in bot_data")
-            await update.message.reply_text(
-                "❌ Configuration error\\. Please contact support\\.",
-                parse_mode=ParseMode.MARKDOWN_V2
+            # Initialize enhanced analyzer
+            from services.ai.enhanced_framework import EnhancedAnalyzer
+            analyzer = EnhancedAnalyzer(data)
+            
+            # Get enhanced analysis
+            analysis_result = analyzer.analyze()
+            
+            # Format the analysis into a comprehensive report
+            final_report = (
+                f"🎯 *Enhanced Training Analysis*\n\n"
+                f"{analysis_result.get('metrics_analysis', '')}\n\n"
+                f"{analysis_result.get('activity_analysis', '')}\n\n"
+                f"{analysis_result.get('physio_analysis', '')}\n\n"
+                f"*Key Insights & Recommendations*\n"
+                f"{analysis_result.get('synthesis', '')}"
             )
-            return
-        client = anthropic.Anthropic(api_key=anthropic_api_key)
-
-        # Analyze activities
-        prompt_1 = data_extraction_prompt_01 % activities_report
-        message_pre = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=4096,
-            temperature=0,
-            system=system,
-            messages=[
-                {"role": "user", "content": prompt_1}
-            ]
-        )
-        activity_report = message_pre.content[0].text
-
-        # Generate comprehensive analysis with metrics
-        if report:  # We have a fresh fetch with raw data
-            metrics_report = report.generate_metrics_report()
-            prompt_2 = data_extraction_prompt_02 % metrics_report
-        else:  # Using stored data
-            prompt_2 = data_extraction_prompt_02 % "Note: Using stored activities report. For detailed metrics analysis, please use /generate to fetch fresh data."
-
-        message_pre_final = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=4096,
-            temperature=0,
-            system=system,
-            messages=[
-                {"role": "user", "content": prompt_1},
-                {"role": "assistant", "content": activity_report},
-                {"role": "user", "content": prompt_2}
-            ]
-        )
-        final_report = message_pre_final.content[0].text
 
         # Store the final LLM-processed athlete report
         report_manager.store_report(final_report)  # This stores the formatted analysis, not raw data
@@ -200,34 +171,52 @@ async def workout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=ParseMode.MARKDOWN_V2
     )
     
-    # Initialize Anthropic client for workout generation
-    anthropic_api_key = context.bot_data.get('anthropic_api_key')
-    if not anthropic_api_key:
-        logger.error("Anthropic API key not found in bot_data")
+    try:
+        # Parse stored data back into GarminData format
+        from services.ai.enhanced_framework import EnhancedAnalyzer
+        
         await update.message.reply_text(
-            "❌ Configuration error\\. Please contact support\\.",
+            "🧠 *AI Workout Generation*\n\n"
+            "✨ Analyzing your training state\\.\\.\\.\n"
+            "📊 Considering recent activities and recovery\\.\\.\\.\n"
+            "🎯 Generating personalized recommendations\\.\\.\\.",
             parse_mode=ParseMode.MARKDOWN_V2
         )
-        return
-
-    client = anthropic.Anthropic(api_key=anthropic_api_key)
-    
-    # Generate workout recommendations based on stored report
-    message = client.messages.create(
-        model="claude-3-5-sonnet-20241022",
-        max_tokens=4096,
-        temperature=0,
-        system=workout_system,
-        messages=[
-            {"role": "user", "content": workout_generation_prompt % stored_data}
-        ]
-    )
-    workout_plan = message.content[0].text
-    
-    # Format and send the workout plan
-    final_messages = format_and_send_report(workout_plan)
-    for msg in final_messages:
+        
+        analyzer = EnhancedAnalyzer(json.loads(stored_data))
+        analysis_result = analyzer.analyze()
+        
+        # Format the workout recommendations
+        workout_plan = (
+            "🎯 *Personalized Workout Recommendations*\n\n"
+            f"{analysis_result.get('synthesis', '')}\n\n"
+            "Based on your recent training patterns and current fitness state, "
+            "here are your discipline-specific workouts:\n\n"
+            f"{analysis_result.get('workout_recommendations', '')}"
+        )
+        
+        # Format and send the workout plan
+        final_messages = format_and_send_report(workout_plan)
+        for msg in final_messages:
+            await update.message.reply_text(
+                msg,
+                parse_mode=ParseMode.MARKDOWN_V2
+            )
+            
+    except json.JSONDecodeError:
+        logger.error("Error parsing stored report data", exc_info=True)
         await update.message.reply_text(
-            msg,
+            "❌ Error processing stored report\\.\n"
+            "Please use /generate to create a new analysis\\.",
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
+    except Exception as e:
+        logger.error(f"Error generating workout plan: {str(e)}", exc_info=True)
+        error_msg = escape_markdown(
+            f"❌ Error generating workout plan: {str(e)}\n\n"
+            "Please try again or use /generate for a fresh analysis."
+        )
+        await update.message.reply_text(
+            error_msg,
             parse_mode=ParseMode.MARKDOWN_V2
         )
