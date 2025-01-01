@@ -75,7 +75,7 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             ))
             
             # Process and analyze data
-            analyzer = EnhancedAnalyzer(data)
+            analyzer = EnhancedAnalyzer(data, str(user_id))
             result = analyzer.analyze()
             
             # Store both raw data and analysis result
@@ -133,7 +133,7 @@ async def workout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         # Generate workout recommendations
         from services.ai.enhanced_framework import EnhancedAnalyzer
-        analyzer = EnhancedAnalyzer(raw_data)
+        analyzer = EnhancedAnalyzer(raw_data, str(user_id))
         result = analyzer.generate_workouts(report)
         final_messages = format_and_send_report(str(result))
         for msg in final_messages:
