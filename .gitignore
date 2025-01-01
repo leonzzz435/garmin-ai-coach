@@ -26,6 +26,10 @@ ENV/
 env/
 .env
 
+# stuff
+stuff/
+cline_docs/
+
 # IDE
 .idea/
 .vscode/
