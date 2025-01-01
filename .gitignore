@@ -29,6 +29,8 @@ env/
 # stuff
 stuff/
 cline_docs/
+analysis/
+workouts/
 
 # IDE
 .idea/

@@ -8,9 +8,7 @@ from .prompts import (
     physiological_agent_prompt,
     synthesis_agent_prompt,
     workout_system,
-    workout_generation_prompt,
-    advanced_thinking_prompt
-)
+    workout_generation_prompt,)
 
 __all__ = [
     'create_ai_client',
@@ -21,5 +19,4 @@ __all__ = [
     'synthesis_agent_prompt',
     'workout_system',
     'workout_generation_prompt',
-    'advanced_thinking_prompt'
 ]
