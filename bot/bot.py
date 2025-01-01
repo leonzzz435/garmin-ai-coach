@@ -14,15 +14,14 @@ from bot.handlers.command_handlers import (
     start,
     help,
     roadmap,
-    clear_credentials
+    clear_credentials,
+    races,
+    delrace
 )
 from bot.handlers.conversation_handlers import (
-    start_login,
-    process_email,
-    process_password,
-    cancel,
-    EXPECTING_EMAIL,
-    EXPECTING_PASSWORD
+    login_handler,
+    add_race_handler,
+    edit_race_handler
 )
 from bot.handlers.data_handlers import (
     generate,
@@ -53,34 +52,18 @@ class TelegramBot:
         # Store API key in bot_data for handlers to access
         self.app.bot_data['anthropic_api_key'] = self.config.anthropic_api_key
         
-        # Set up conversation handler for login
-        login_handler = ConversationHandler(
-            entry_points=[CommandHandler("login", start_login)],
-            states={
-                EXPECTING_EMAIL: [
-                    MessageHandler(
-                        filters.TEXT & ~filters.COMMAND,
-                        process_email
-                    )
-                ],
-                EXPECTING_PASSWORD: [
-                    MessageHandler(
-                        filters.TEXT & ~filters.COMMAND,
-                        process_password
-                    )
-                ]
-            },
-            fallbacks=[CommandHandler("cancel", cancel)]
-        )
-        
         # Add handlers
         self.app.add_handler(login_handler)  # Must be added first
+        self.app.add_handler(add_race_handler)
+        self.app.add_handler(edit_race_handler)
         self.app.add_handler(CommandHandler("start", start))
         self.app.add_handler(CommandHandler("generate", generate))
         self.app.add_handler(CommandHandler("roadmap", roadmap))
         self.app.add_handler(CommandHandler("help", help))
         self.app.add_handler(CommandHandler("clear_credentials", clear_credentials))
         self.app.add_handler(CommandHandler("workout", workout))
+        self.app.add_handler(CommandHandler("races", races))
+        self.app.add_handler(CommandHandler("delrace", delrace))
         
         # Error handler
         self.app.add_error_handler(error_handler)
