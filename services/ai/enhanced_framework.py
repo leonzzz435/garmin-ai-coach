@@ -13,16 +13,23 @@ from core.config import get_config
 
 from services.garmin import GarminData
 from .prompts import (
-    enhanced_system,
     metrics_agent_prompt,
     activity_agent_prompt,
     physiological_agent_prompt,
     synthesis_agent_prompt,
-    workout_system,
-    workout_generation_prompt
+    workout_agent_prompt,
 )
 
 logger = logging.getLogger(__name__)
+
+class GetReportTool(BaseTool):
+    """Tool for providing the analysis report."""
+    name: str = "get_report"
+    description: str = "Retrieve the generated analysis report for further processing"
+    report: str  # The report data
+
+    def _run(self) -> Dict[str, Any]:
+        return {"report": self.report}
 
 class GetMetricsTool(BaseTool):
     """Tool for retrieving training metrics data."""
@@ -119,7 +126,7 @@ class EnhancedAnalyzer:
         return Agent(
             role="Workout Generation Specialist",
             goal="Generate personalized workout plans",
-            backstory=workout_system,
+            backstory=workout_agent_prompt,
             verbose=True,
             llm=self.llm
         )
@@ -130,18 +137,24 @@ class EnhancedAnalyzer:
             # Ensure output directory exists
             Path("workouts").mkdir(exist_ok=True)
             
+            # Create a workout agent
+            workout_agent = self.create_workout_agent()
+            
+            report_tool = GetReportTool(report=report)
+            
             # Create workout generation task
             workout_task = Task(
                 name="workout_generation",
-                description=workout_generation_prompt % report,
-                agent=self.create_workout_agent(),
+                description="Generate personalized workout plans for swimming, cycling, running, and strength training.",
+                agent=workout_agent,
+                tools=[report_tool],
                 expected_output="Detailed workout plans for each discipline",
                 output_file="workouts/generated.md"
             )
             
             # Run workout generation
             crew = Crew(
-                agents=[workout_task.agent],
+                agents=[workout_agent],
                 tasks=[workout_task],
                 verbose=True
             )
