@@ -20,7 +20,7 @@ def escape_markdown(text: str) -> str:
 
 def format_and_send_report(report_text: str) -> list:
     """
-    Format and split report into chunks while escaping special characters.
+    Format and split report into chunks while preserving logical blocks.
     
     Args:
         report_text: The report text to format and split
@@ -29,5 +29,24 @@ def format_and_send_report(report_text: str) -> list:
         list: List of chunks ready to be sent via Telegram
     """
     max_length = 4000  # Telegram character limit
-    escaped_text = escape_markdown(report_text)  # Escape MarkdownV2 characters
-    return [escaped_text[i:i + max_length] for i in range(0, len(escaped_text), max_length)]
+    chunks = []
+    current_chunk = ""
+    
+    # Split on double newlines to preserve logical blocks
+    blocks = report_text.split('\n\n')
+    
+    for block in blocks:
+        # If adding this block would exceed limit, start new chunk
+        if len(current_chunk) + len(block) + 2 > max_length:
+            chunks.append(escape_markdown(current_chunk))
+            current_chunk = block
+        else:
+            if current_chunk:
+                current_chunk += '\n\n'
+            current_chunk += block
+    
+    # Add final chunk if any
+    if current_chunk:
+        chunks.append(escape_markdown(current_chunk))
+    
+    return chunks

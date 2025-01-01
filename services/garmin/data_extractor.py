@@ -500,9 +500,17 @@ class TriathlonCoachDataExtractor(DataExtractor):
         user_summary = self.garmin.client.get_user_summary(end_date.isoformat())
         vo2_max = user_summary.get('vo2Max')
 
-        # Get HRV data
-        hrv_data = self.garmin.client.get_hrv_data(end_date.isoformat())
-        hrv_summary = hrv_data.get('hrvSummary', {})
+        # Get HRV data with error handling
+        try:
+            hrv_data = self.garmin.client.get_hrv_data(end_date.isoformat())
+            if hrv_data is None:
+                logger.warning("HRV data is None, using empty dict for hrvSummary")
+                hrv_summary = {}
+            else:
+                hrv_summary = hrv_data.get('hrvSummary', {})
+        except Exception as e:
+            logger.error(f"Error fetching HRV data: {str(e)}")
+            hrv_summary = {}
         hrv = {
             'weekly_avg': hrv_summary.get('weeklyAvg'),
             'last_night_avg': hrv_summary.get('lastNightAvg'),

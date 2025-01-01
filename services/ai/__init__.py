@@ -1,23 +1,22 @@
-"""AI service module for handling AI client and prompt management."""
+"""AI service module for handling AI client and agentic framework."""
 
 from .client import create_ai_client
 from .prompts import (
-    system,
-    data_extraction_prompt_01,
-    data_extraction_prompt_02,
-    training_generation_prompt,
+    enhanced_system,
+    metrics_agent_prompt,
+    activity_agent_prompt,
+    physiological_agent_prompt,
+    synthesis_agent_prompt,
     workout_system,
-    workout_generation_prompt,
-    advanced_thinking_prompt
-)
+    workout_generation_prompt,)
 
 __all__ = [
     'create_ai_client',
-    'system',
-    'data_extraction_prompt_01',
-    'data_extraction_prompt_02',
-    'training_generation_prompt',
+    'enhanced_system',
+    'metrics_agent_prompt',
+    'activity_agent_prompt',
+    'physiological_agent_prompt',
+    'synthesis_agent_prompt',
     'workout_system',
     'workout_generation_prompt',
-    'advanced_thinking_prompt'
 ]

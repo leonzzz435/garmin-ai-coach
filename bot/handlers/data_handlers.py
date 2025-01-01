@@ -3,38 +3,13 @@
 import logging
 import datetime
 import json
-import anthropic
+from dataclasses import asdict
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from core.security import SecureCredentialManager, SecureReportManager
-from services.garmin import (
-    TriathlonCoachDataExtractor,
-    ExtractionConfig,
-    TimeRange,
-    GarminData
-)
-from services.report import (
-    ReportGenerator,
-    summarize_activities,
-    summarize_training_volume,
-    summarize_training_intensity,
-    summarize_recovery,
-    summarize_training_load,
-    summarize_vo2max_evolution,
-    summarize_readiness_evolution,
-    summarize_race_predictions_weekly,
-    summarize_hill_score_weekly,
-    summarize_endurance_score_weekly
-)
-from services.ai.prompts import (
-    data_extraction_prompt_01,
-    data_extraction_prompt_02,
-    system,
-    workout_system,
-    workout_generation_prompt
-)
+from services.garmin import TriathlonCoachDataExtractor, ExtractionConfig, TimeRange, GarminData
 from bot.formatters import format_and_send_report, escape_markdown
 
 # Configure logging
@@ -57,115 +32,67 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     email, password = stored_credentials
     
-    # Inform user about the process steps upfront
+    # Inform user about processing
     await update.message.reply_text(
-        "🔍 Starting your training analysis\\.\\.\\.\n" +
-        "1️⃣ Connecting to Garmin\\.\\.\\.\n" +
-        "2️⃣ Fetching your activities and metrics\\.\\.\\.\n" +
-        "3️⃣ This process may take up to 2 minutes to ensure thorough insights\\! 💪",
+        "🔍 Starting analysis\\.\\.\\.\n" +
+        "This may take a few minutes\\.",
         parse_mode=ParseMode.MARKDOWN_V2
     )
 
     try:
-        # Check if we have a recent report
-        report_manager = SecureReportManager(user_id)
-        stored_report = report_manager.get_report()
+        # Check for cached data
+        data_manager = SecureReportManager(user_id)
+        cached_data = data_manager.get_report()
         
-        report = None
-        if stored_report:
-            # Use existing report
-            stored_data, timestamp = stored_report
+        if cached_data:
+            # Use cached data
+            data, timestamp = cached_data
             # Calculate how old the report is
             age_minutes = int((datetime.datetime.now() - timestamp).total_seconds() / 60)
             await update.message.reply_text(
-                "📋 Using your existing training report from " +
-                f"{age_minutes} minutes ago\\.\n" +
-                "This helps reduce API calls and processing time\\! 🚀",
+                "📋 Using existing data from " +
+                f"{age_minutes} minutes ago\\.",
                 parse_mode=ParseMode.MARKDOWN_V2
             )
-            # Use stored report directly - it's already the final LLM-generated report
-            final_messages = format_and_send_report(stored_data)
+            # Parse and format the data
+            stored_data = json.loads(data)
+            final_messages = format_and_send_report(stored_data['report'])
             for msg in final_messages:
                 await update.message.reply_text(
                     msg,
                     parse_mode=ParseMode.MARKDOWN_V2
                 )
-            return  # No need for LLM calls when using stored report
+            return
         else:
-            # Generate new report
+            # Get and process data
+            from services.ai.enhanced_framework import EnhancedAnalyzer
             extractor = TriathlonCoachDataExtractor(email, password)
-            config = ExtractionConfig(
-                activities_range=TimeRange.RECENT.value,
+            data = extractor.extract_data(ExtractionConfig(
+                activities_range=TimeRange.EXTENDED.value,
                 metrics_range=TimeRange.EXTENDED.value,
                 include_detailed_activities=True,
                 include_metrics=True
-            )
-            data = extractor.extract_data(config)
-            report = ReportGenerator(data)
-            activities_report = report.generate_activities_report()
+            ))
             
-            await update.message.reply_text(
-                "✅ Data retrieved successfully\\!\n" +
-                "🔄 Processing your training data\\.\\.\\.\n" +
-                "🧠 Generating personalized insights\\.\\.\\.\n" +
-                "💾 Saving report for quick access to workouts\\!",
-                parse_mode=ParseMode.MARKDOWN_V2
-            )
-
-        # Initialize Anthropic client with API key from bot_data
-        anthropic_api_key = context.bot_data.get('anthropic_api_key')
-        if not anthropic_api_key:
-            logger.error("Anthropic API key not found in bot_data")
-            await update.message.reply_text(
-                "❌ Configuration error\\. Please contact support\\.",
-                parse_mode=ParseMode.MARKDOWN_V2
-            )
-            return
-        client = anthropic.Anthropic(api_key=anthropic_api_key)
-
-        # Analyze activities
-        prompt_1 = data_extraction_prompt_01 % activities_report
-        message_pre = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=4096,
-            temperature=0,
-            system=system,
-            messages=[
-                {"role": "user", "content": prompt_1}
-            ]
-        )
-        activity_report = message_pre.content[0].text
-
-        # Generate comprehensive analysis with metrics
-        if report:  # We have a fresh fetch with raw data
-            metrics_report = report.generate_metrics_report()
-            prompt_2 = data_extraction_prompt_02 % metrics_report
-        else:  # Using stored data
-            prompt_2 = data_extraction_prompt_02 % "Note: Using stored activities report. For detailed metrics analysis, please use /generate to fetch fresh data."
-
-        message_pre_final = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=4096,
-            temperature=0,
-            system=system,
-            messages=[
-                {"role": "user", "content": prompt_1},
-                {"role": "assistant", "content": activity_report},
-                {"role": "user", "content": prompt_2}
-            ]
-        )
-        final_report = message_pre_final.content[0].text
-
-        # Store the final LLM-processed athlete report
-        report_manager.store_report(final_report)  # This stores the formatted analysis, not raw data
-        final_messages = format_and_send_report(final_report)
+            # Process and analyze data
+            analyzer = EnhancedAnalyzer(data)
+            result = analyzer.analyze()
+            
+            # Store both raw data and analysis result
+            data_manager.store_report(json.dumps({
+                'raw_data': asdict(data),
+                'report': str(result)
+            }))
+            
+            # Format and send the result
+            final_messages = format_and_send_report(str(result))
         for msg in final_messages:
             await update.message.reply_text(
                 msg,
                 parse_mode=ParseMode.MARKDOWN_V2
             )
     except Exception as e:
-        logger.error(f"Error in generate command: {str(e)}", exc_info=True)
+        logger.error(f"Error processing data: {str(e)}", exc_info=True)
         error_msg = escape_markdown(f"🔄 Connection issue: {str(e)}\n\nPlease try again\\.")
         await update.message.reply_text(
             error_msg,
@@ -176,58 +103,48 @@ async def workout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle the /workout command."""
     user_id = update.effective_user.id
     
-    # Check if we have a recent report
-    report_manager = SecureReportManager(user_id)
-    stored_report = report_manager.get_report()
+    # Check for cached data
+    data_manager = SecureReportManager(user_id)
+    cached_data = data_manager.get_report()
     
-    if not stored_report:
-        # No stored report, ask user to generate first
+    if not cached_data:
+        # No cached data available
         await update.message.reply_text(
-            "❌ No recent training report found\\.\n" +
-            "Please use /generate first to analyze your training data\\!",
+            "❌ No recent data found\\.\n" +
+            "Please use /generate first\\!",
             parse_mode=ParseMode.MARKDOWN_V2
         )
         return
         
-    # Use existing report
-    stored_data, timestamp = stored_report
+    # Use cached data
+    data, timestamp = cached_data
     # Calculate how old the report is
     age_minutes = int((datetime.datetime.now() - timestamp).total_seconds() / 60)
     await update.message.reply_text(
-        "📋 Using your existing training report from " +
-        f"{age_minutes} minutes ago\\.\n" +
-        "To get fresh insights, use /generate first, then /workout\\! 🔄",
+        "📋 Using existing data from " +
+        f"{age_minutes} minutes ago\\.",
         parse_mode=ParseMode.MARKDOWN_V2
     )
     
-    # Initialize Anthropic client for workout generation
-    anthropic_api_key = context.bot_data.get('anthropic_api_key')
-    if not anthropic_api_key:
-        logger.error("Anthropic API key not found in bot_data")
+    try:
+        stored_data = json.loads(data)
+        raw_data = GarminData(**stored_data['raw_data'])
+        report = stored_data['report']
+        
+        # Generate workout recommendations
+        from services.ai.enhanced_framework import EnhancedAnalyzer
+        analyzer = EnhancedAnalyzer(raw_data)
+        result = analyzer.generate_workouts(report)
+        final_messages = format_and_send_report(str(result))
+        for msg in final_messages:
+            await update.message.reply_text(
+                msg,
+                parse_mode=ParseMode.MARKDOWN_V2
+            )
+    except Exception as e:
+        logger.error(f"Error processing data: {str(e)}", exc_info=True)
+        error_msg = escape_markdown(f"❌ Error: {str(e)}\n\nPlease try again\\.")
         await update.message.reply_text(
-            "❌ Configuration error\\. Please contact support\\.",
-            parse_mode=ParseMode.MARKDOWN_V2
-        )
-        return
-
-    client = anthropic.Anthropic(api_key=anthropic_api_key)
-    
-    # Generate workout recommendations based on stored report
-    message = client.messages.create(
-        model="claude-3-5-sonnet-20241022",
-        max_tokens=4096,
-        temperature=0,
-        system=workout_system,
-        messages=[
-            {"role": "user", "content": workout_generation_prompt % stored_data}
-        ]
-    )
-    workout_plan = message.content[0].text
-    
-    # Format and send the workout plan
-    final_messages = format_and_send_report(workout_plan)
-    for msg in final_messages:
-        await update.message.reply_text(
-            msg,
+            error_msg,
             parse_mode=ParseMode.MARKDOWN_V2
         )
