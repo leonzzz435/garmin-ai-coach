@@ -3,10 +3,10 @@
 import logging
 import datetime
 import json
+from dataclasses import asdict
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
-from dataclasses import asdict
 
 from core.security import SecureCredentialManager, SecureReportManager
 from services.garmin import TriathlonCoachDataExtractor, ExtractionConfig, TimeRange, GarminData
@@ -67,7 +67,12 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             # Get and process data
             from services.ai.enhanced_framework import EnhancedAnalyzer
             extractor = TriathlonCoachDataExtractor(email, password)
-            data = extractor.extract_data(ExtractionConfig(TimeRange.RECENT.value))
+            data = extractor.extract_data(ExtractionConfig(
+                activities_range=TimeRange.EXTENDED.value,
+                metrics_range=TimeRange.EXTENDED.value,
+                include_detailed_activities=True,
+                include_metrics=True
+            ))
             
             # Process and analyze data
             analyzer = EnhancedAnalyzer(data)
