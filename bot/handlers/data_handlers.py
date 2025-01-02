@@ -68,7 +68,7 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             from services.ai.enhanced_framework import EnhancedAnalyzer
             extractor = TriathlonCoachDataExtractor(email, password)
             data = extractor.extract_data(ExtractionConfig(
-                activities_range=TimeRange.EXTENDED.value,
+                activities_range=TimeRange.RECENT.value,
                 metrics_range=TimeRange.EXTENDED.value,
                 include_detailed_activities=True,
                 include_metrics=True

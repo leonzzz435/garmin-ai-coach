@@ -131,12 +131,15 @@ class EnhancedAnalyzer:
         )
         
         # Initialize specialized agents
+        # Configure agents with rate limiting
         self.metrics_agent = Agent(
             role="Metrics Analysis Specialist",
             goal="Analyze training metrics and patterns",
             backstory=metrics_agent_prompt,
             verbose=True,
-            llm=self.llm
+            llm=self.llm,
+            max_rpm=5,  # Limit requests per minute
+            max_retry_limit=10  # Increase retries for rate limits
         )
         
         self.activity_agent = Agent(
@@ -144,7 +147,9 @@ class EnhancedAnalyzer:
             goal="Analyze workout execution and patterns",
             backstory=activity_agent_prompt,
             verbose=True,
-            llm=self.llm
+            llm=self.llm,
+            max_rpm=5,
+            max_retry_limit=10
         )
         
         self.physio_agent = Agent(
@@ -152,7 +157,9 @@ class EnhancedAnalyzer:
             goal="Analyze physiological responses and adaptations",
             backstory=physiological_agent_prompt,
             verbose=True,
-            llm=self.llm
+            llm=self.llm,
+            max_rpm=5,
+            max_retry_limit=10
         )
         
         self.synthesis_agent = Agent(
@@ -160,7 +167,9 @@ class EnhancedAnalyzer:
             goal="Synthesize analyses into actionable insights",
             backstory=synthesis_agent_prompt,
             verbose=True,
-            llm=self.llm
+            llm=self.llm,
+            max_rpm=5,
+            max_retry_limit=10
         )
 
     def create_workout_agent(self) -> Agent:
@@ -170,7 +179,9 @@ class EnhancedAnalyzer:
             goal="Generate personalized workout plans",
             backstory=workout_agent_prompt,
             verbose=True,
-            llm=self.llm
+            llm=self.llm,
+            max_rpm=5,
+            max_retry_limit=10
         )
 
     def generate_workouts(self, report: str) -> str:
@@ -220,31 +231,35 @@ class EnhancedAnalyzer:
             # Create analysis tasks
             tasks = []
             
+            # Create competition tool
+            competitions_tool = GetCompetitionsTool(user_id=self.user_id)
+            current_date_tool = GetCurrentDateTool()
+
             # Add tasks with their respective tools
             tasks.append(Task(
                 name="metrics_analysis",
-                description="Analyze training metrics and identify patterns",
+                description="Analyze training metrics and identify patterns in relation to competition goals",
                 agent=self.metrics_agent,
-                tools=[GetMetricsTool(data=self.data)],
-                expected_output="Metrics analysis with patterns and trends",
+                tools=[GetMetricsTool(data=self.data), competitions_tool, current_date_tool],
+                expected_output="Competition-aware metrics analysis with patterns and trends",
                 output_file="analysis/metrics.md"
             ))
 
             tasks.append(Task(
                 name="activity_analysis",
-                description="Analyze workout execution and identify patterns",
+                description="Analyze workout execution and identify patterns considering race preparation",
                 agent=self.activity_agent,
-                tools=[GetActivitiesTool(data=self.data)],
-                expected_output="Activity patterns and execution analysis",
+                tools=[GetActivitiesTool(data=self.data), competitions_tool, current_date_tool],
+                expected_output="Race-specific activity patterns and execution analysis",
                 output_file="analysis/activities.md"
             ))
 
             tasks.append(Task(
                 name="physio_analysis",
-                description="Analyze physiological responses and adaptations",
+                description="Analyze physiological responses and adaptations in context of competition schedule",
                 agent=self.physio_agent,
-                tools=[GetPhysioTool(data=self.data)],
-                expected_output="Recovery and adaptation analysis",
+                tools=[GetPhysioTool(data=self.data), competitions_tool, current_date_tool],
+                expected_output="Competition-aware recovery and adaptation analysis",
                 output_file="analysis/physiology.md"
             ))
 
@@ -261,10 +276,11 @@ class EnhancedAnalyzer:
                 # Create synthesis task using analysis tasks as context
                 synthesis_task = Task(
                     name="synthesis",
-                    description="Synthesize analysis results into comprehensive report",
+                    description="Synthesize analysis results into comprehensive report with competition context",
                     agent=self.synthesis_agent,
                     context=tasks,
-                    expected_output="Comprehensive synthesis with insights",
+                    tools=[competitions_tool, current_date_tool],
+                    expected_output="Competition-aware comprehensive synthesis with insights",
                     output_file="analysis/synthesis.md",
                     async_execution=True
                 )
