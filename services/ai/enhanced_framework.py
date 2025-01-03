@@ -12,8 +12,6 @@ from crewai.tools import BaseTool
 from core.security.competitions import SecureCompetitionManager
 from .model_config import ModelSelector
 from .config.ai_settings import ai_settings, AgentRole
-import agentops
-
 from services.garmin import GarminData
 from .prompts import (
     metrics_agent_prompt,
@@ -24,10 +22,6 @@ from .prompts import (
 )
 
 logger = logging.getLogger(__name__)
-
-# Initialize AgentOps if enabled
-if ai_settings.agentops_enabled and ai_settings.agentops_api_key:
-    agentops.init(ai_settings.agentops_api_key)
 
 class GetReportTool(BaseTool):
     """Tool for providing the analysis report."""
