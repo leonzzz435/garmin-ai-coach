@@ -5,8 +5,8 @@ from typing import Dict, Any, List, Optional
 
 class TimeRange(Enum):
     """Time ranges for data extraction"""
-    RECENT = 21  # 3 weeks
-    EXTENDED = 56  # 8 weeks
+    RECENT = 7  # 3 weeks
+    EXTENDED = 14  # 8 weeks
 
 @dataclass
 class ExtractionConfig:
