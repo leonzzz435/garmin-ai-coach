@@ -7,10 +7,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from dataclasses import asdict
-from crewai import Agent, Task, Crew, LLM
+from crewai import Agent, Task, Crew
 from crewai.tools import BaseTool
-from core.config import get_config
 from core.security.competitions import SecureCompetitionManager
+from .model_config import ModelSelector
+from .config.ai_settings import ai_settings, AgentRole
+import agentops
 
 from services.garmin import GarminData
 from .prompts import (
@@ -23,8 +25,9 @@ from .prompts import (
 
 logger = logging.getLogger(__name__)
 
-import agentops
-agentops.init("31106bb1-bcb6-42cf-8123-328cfd226526")
+# Initialize AgentOps if enabled
+if ai_settings.agentops_enabled and ai_settings.agentops_api_key:
+    agentops.init(ai_settings.agentops_api_key)
 
 class GetReportTool(BaseTool):
     """Tool for providing the analysis report."""
@@ -120,34 +123,24 @@ class EnhancedAnalyzer:
     """Enhanced analysis system using specialized AI agents."""
     
     def __init__(self, garmin_data: GarminData, user_id: str):
-        """Initialize the enhanced analyzer with athlete data and user ID."""
+        """
+        Initialize the enhanced analyzer with athlete data and user ID.
+        
+        Args:
+            garmin_data: Athlete's Garmin data
+            user_id: User identifier
+        """
         self.data = asdict(garmin_data)
         self.user_id = user_id
         logger.info("Initializing EnhancedAnalyzer with data keys: %s", list(self.data.keys()))
         
-        # Configure Claude LLM
-        # self.llm = LLM(
-        #     model="claude-3-5-sonnet-20241022",
-        #     base_url="https://api.anthropic.com",
-        #     max_tokens=8000,
-        #     api_key=get_config().anthropic_api_key
-        # )
-        
-        self.llm = LLM(
-            model="gpt-4o",
-            base_url="https://api.openai.com/v1",
-            max_tokens=8000,
-            api_key=get_config().openai_api_key
-        )
-        
-        # Initialize specialized agents
-        # Configure agents with rate limiting
+        # Initialize specialized agents with specific models
         self.metrics_agent = Agent(
             role="Metrics Analysis Specialist",
             goal="Analyze training metrics and patterns",
             backstory=metrics_agent_prompt,
             verbose=True,
-            llm=self.llm
+            llm=ModelSelector.get_llm(AgentRole.METRICS)
         )
         
         self.activity_agent = Agent(
@@ -155,7 +148,7 @@ class EnhancedAnalyzer:
             goal="Analyze workout execution and patterns",
             backstory=activity_agent_prompt,
             verbose=True,
-            llm=self.llm
+            llm=ModelSelector.get_llm(AgentRole.ACTIVITY)
         )
         
         self.physio_agent = Agent(
@@ -163,7 +156,7 @@ class EnhancedAnalyzer:
             goal="Analyze physiological responses and adaptations",
             backstory=physiological_agent_prompt,
             verbose=True,
-            llm=self.llm
+            llm=ModelSelector.get_llm(AgentRole.PHYSIO)
         )
         
         self.synthesis_agent = Agent(
@@ -171,7 +164,7 @@ class EnhancedAnalyzer:
             goal="Synthesize analyses into actionable insights",
             backstory=synthesis_agent_prompt,
             verbose=True,
-            llm=self.llm
+            llm=ModelSelector.get_llm(AgentRole.SYNTHESIS)
         )
 
     def create_workout_agent(self) -> Agent:
@@ -181,7 +174,7 @@ class EnhancedAnalyzer:
             goal="Generate personalized workout plans",
             backstory=workout_agent_prompt,
             verbose=True,
-            llm=self.llm
+            llm=ModelSelector.get_llm(AgentRole.WORKOUT)
         )
 
     def generate_workouts(self, report: str) -> str:
