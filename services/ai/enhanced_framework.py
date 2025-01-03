@@ -23,6 +23,9 @@ from .prompts import (
 
 logger = logging.getLogger(__name__)
 
+import agentops
+agentops.init("31106bb1-bcb6-42cf-8123-328cfd226526")
+
 class GetReportTool(BaseTool):
     """Tool for providing the analysis report."""
     name: str = "get_report"
@@ -123,11 +126,18 @@ class EnhancedAnalyzer:
         logger.info("Initializing EnhancedAnalyzer with data keys: %s", list(self.data.keys()))
         
         # Configure Claude LLM
+        # self.llm = LLM(
+        #     model="claude-3-5-sonnet-20241022",
+        #     base_url="https://api.anthropic.com",
+        #     max_tokens=8000,
+        #     api_key=get_config().anthropic_api_key
+        # )
+        
         self.llm = LLM(
-            model="claude-3-5-sonnet-20241022",
-            base_url="https://api.anthropic.com",
+            model="gpt-4o",
+            base_url="https://api.openai.com/v1",
             max_tokens=8000,
-            api_key=get_config().anthropic_api_key
+            api_key=get_config().openai_api_key
         )
         
         # Initialize specialized agents
@@ -137,9 +147,7 @@ class EnhancedAnalyzer:
             goal="Analyze training metrics and patterns",
             backstory=metrics_agent_prompt,
             verbose=True,
-            llm=self.llm,
-            max_rpm=5,  # Limit requests per minute
-            max_retry_limit=10  # Increase retries for rate limits
+            llm=self.llm
         )
         
         self.activity_agent = Agent(
@@ -147,9 +155,7 @@ class EnhancedAnalyzer:
             goal="Analyze workout execution and patterns",
             backstory=activity_agent_prompt,
             verbose=True,
-            llm=self.llm,
-            max_rpm=5,
-            max_retry_limit=10
+            llm=self.llm
         )
         
         self.physio_agent = Agent(
@@ -157,9 +163,7 @@ class EnhancedAnalyzer:
             goal="Analyze physiological responses and adaptations",
             backstory=physiological_agent_prompt,
             verbose=True,
-            llm=self.llm,
-            max_rpm=5,
-            max_retry_limit=10
+            llm=self.llm
         )
         
         self.synthesis_agent = Agent(
@@ -167,9 +171,7 @@ class EnhancedAnalyzer:
             goal="Synthesize analyses into actionable insights",
             backstory=synthesis_agent_prompt,
             verbose=True,
-            llm=self.llm,
-            max_rpm=5,
-            max_retry_limit=10
+            llm=self.llm
         )
 
     def create_workout_agent(self) -> Agent:
@@ -179,9 +181,7 @@ class EnhancedAnalyzer:
             goal="Generate personalized workout plans",
             backstory=workout_agent_prompt,
             verbose=True,
-            llm=self.llm,
-            max_rpm=5,
-            max_retry_limit=10
+            llm=self.llm
         )
 
     def generate_workouts(self, report: str) -> str:
