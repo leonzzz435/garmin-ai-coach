@@ -13,12 +13,22 @@ logger = logging.getLogger(__name__)
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle errors occurring in the dispatcher."""
     logger.error(f"Update {update} caused error {context.error}")
+    
     if update:
         error_message = escape_markdown(
-            f"⚠️ Something unexpected happened: {context.error}\n"
-            "No worries - Zett is working on that already (maybe 😁)"
+            "❌ Something went wrong\\. Please try again\\."
         )
-        await update.message.reply_text(
-            error_message,
-            parse_mode=ParseMode.MARKDOWN_V2
-        )
+        
+        try:
+            if update.callback_query:
+                await update.callback_query.message.reply_text(
+                    error_message,
+                    parse_mode=ParseMode.MARKDOWN_V2
+                )
+            elif update.message:
+                await update.message.reply_text(
+                    error_message,
+                    parse_mode=ParseMode.MARKDOWN_V2
+                )
+        except Exception as e:
+            logger.error(f"Failed to send error message: {str(e)}")

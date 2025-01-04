@@ -4,7 +4,7 @@ import logging
 import datetime
 import json
 from dataclasses import asdict
-from telegram import Update
+from telegram import Update, CallbackQuery
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
@@ -17,14 +17,16 @@ logger = logging.getLogger(__name__)
 
 async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle the /generate command."""
+    message = update.message or update.callback_query.message
     user_id = update.effective_user.id
+    user_name = update.effective_user.full_name
     
     # Try to get stored credentials first
     cred_manager = SecureCredentialManager(user_id)
     stored_credentials = cred_manager.get_credentials()
     
     if not stored_credentials:
-        await update.message.reply_text(
+        await message.reply_text(
             "🔒 No stored credentials found\\. Use `/login` to connect your account\\!",
             parse_mode=ParseMode.MARKDOWN_V2
         )
@@ -33,7 +35,7 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     email, password = stored_credentials
     
     # Inform user about processing
-    await update.message.reply_text(
+    await message.reply_text(
         "🔍 Starting analysis\\.\\.\\.\n" +
         "This may take a few minutes\\.",
         parse_mode=ParseMode.MARKDOWN_V2
@@ -49,7 +51,7 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             data, timestamp = cached_data
             # Calculate how old the report is
             age_minutes = int((datetime.datetime.now() - timestamp).total_seconds() / 60)
-            await update.message.reply_text(
+            await message.reply_text(
                 "📋 Using existing data from " +
                 f"{age_minutes} minutes ago\\.",
                 parse_mode=ParseMode.MARKDOWN_V2
@@ -58,7 +60,7 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             stored_data = json.loads(data)
             final_messages = format_and_send_report(stored_data['report'])
             for msg in final_messages:
-                await update.message.reply_text(
+                await message.reply_text(
                     msg,
                     parse_mode=ParseMode.MARKDOWN_V2
                 )
@@ -75,7 +77,7 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             
             # Process and analyze data using Flow
             from services.ai.flows import AnalysisFlow
-            athlete_name = update.effective_user.full_name or "Athlete"
+            athlete_name = user_name or "Athlete"
             flow = AnalysisFlow(data, str(user_id), athlete_name)
             result = await flow.kickoff_async()
             
@@ -87,22 +89,24 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             
             # Format and send the result
             final_messages = format_and_send_report(str(result))
-        for msg in final_messages:
-            await update.message.reply_text(
-                msg,
-                parse_mode=ParseMode.MARKDOWN_V2
-            )
+            for msg in final_messages:
+                await message.reply_text(
+                    msg,
+                    parse_mode=ParseMode.MARKDOWN_V2
+                )
     except Exception as e:
         logger.error(f"Error processing data: {str(e)}", exc_info=True)
         error_msg = escape_markdown(f"🔄 Connection issue: {str(e)}\n\nPlease try again\\.")
-        await update.message.reply_text(
+        await message.reply_text(
             error_msg,
             parse_mode=ParseMode.MARKDOWN_V2
         )
 
 async def workout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle the /workout command."""
+    message = update.message or update.callback_query.message
     user_id = update.effective_user.id
+    user_name = update.effective_user.full_name
     
     # Check for cached data
     data_manager = SecureReportManager(user_id)
@@ -110,7 +114,7 @@ async def workout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     if not cached_data:
         # No cached data available
-        await update.message.reply_text(
+        await message.reply_text(
             "❌ No recent data found\\.\n" +
             "Please use /generate first\\!",
             parse_mode=ParseMode.MARKDOWN_V2
@@ -121,7 +125,7 @@ async def workout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     data, timestamp = cached_data
     # Calculate how old the report is
     age_minutes = int((datetime.datetime.now() - timestamp).total_seconds() / 60)
-    await update.message.reply_text(
+    await message.reply_text(
         "📋 Using existing data from " +
         f"{age_minutes} minutes ago\\.",
         parse_mode=ParseMode.MARKDOWN_V2
@@ -136,19 +140,19 @@ async def workout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         # Generate workout recommendations using Flow
         from services.ai.flows import WorkoutFlow
-        athlete_name = update.effective_user.full_name or "Athlete"
+        athlete_name = user_name or "Athlete"
         flow = WorkoutFlow(str(user_id), athlete_name, report, garmin_data)
         result = await flow.kickoff_async()
         final_messages = format_and_send_report(str(result))
         for msg in final_messages:
-            await update.message.reply_text(
+            await message.reply_text(
                 msg,
                 parse_mode=ParseMode.MARKDOWN_V2
             )
     except Exception as e:
         logger.error(f"Error processing data: {str(e)}", exc_info=True)
         error_msg = escape_markdown(f"❌ Error: {str(e)}\n\nPlease try again\\.")
-        await update.message.reply_text(
+        await message.reply_text(
             error_msg,
             parse_mode=ParseMode.MARKDOWN_V2
         )

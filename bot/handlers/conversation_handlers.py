@@ -58,10 +58,11 @@ LOCATION_EXAMPLES = "Examples: Berlin, Central Park NYC, Lake Placid NY"
 async def start_login(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start the login process."""
     user_id = update.effective_user.id
+    message = update.message or update.callback_query.message
     # Check if user already has stored credentials
     cred_manager = SecureCredentialManager(user_id)
     if cred_manager.has_stored_credentials():
-        await update.message.reply_text(
+        await message.reply_text(
             "⚠️ You already have stored credentials\\. Options:\n\n" +
             "1\\. Continue with stored credentials: Use `/generate` or `/workout`\n" +
             "2\\. Clear stored credentials: `/clear_credentials`\n" +
@@ -74,7 +75,7 @@ async def start_login(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_data[user_id] = {}
 
     # Ask for email first
-    await update.message.reply_text(
+    await message.reply_text(
         "Please enter your Garmin email address:",
         parse_mode=ParseMode.MARKDOWN_V2
     )
@@ -83,13 +84,14 @@ async def start_login(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def process_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Process the email input and ask for password."""
     user_id = update.effective_user.id
+    message = update.message or update.callback_query.message
     email = update.message.text.strip()
     
     # Store email temporarily for the login process
     user_data[user_id]["temp_email"] = email
     
     # Ask for password
-    await update.message.reply_text(
+    await message.reply_text(
         "Great\\! Now please enter your password:",
         parse_mode=ParseMode.MARKDOWN_V2
     )
@@ -98,14 +100,14 @@ async def process_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def process_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Process the password and complete login."""
     user_id = update.effective_user.id
+    message = update.message or update.callback_query.message
     password = update.message.text.strip()
     email = user_data[user_id].get("temp_email")
     # Delete the message containing the password immediately
     await update.message.delete()
     
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="🔐 Testing connection to Garmin\\.\\.\\.",
+    await message.reply_text(
+        "🔐 Testing connection to Garmin\\.\\.\\.",
         parse_mode=ParseMode.MARKDOWN_V2
     )
     
@@ -143,7 +145,8 @@ async def process_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel any conversation."""
-    await update.message.reply_text(
+    message = update.message or update.callback_query.message
+    await message.reply_text(
         "Operation cancelled\\.",
         parse_mode=ParseMode.MARKDOWN_V2,
         reply_markup=ReplyKeyboardRemove()
@@ -530,8 +533,14 @@ async def process_edit_value(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
 
 # Create conversation handlers
+from telegram.ext import CallbackQueryHandler
+
 login_handler = ConversationHandler(
-    entry_points=[CommandHandler("login", start_login)],
+    entry_points=[
+        CommandHandler("login", start_login),
+        MessageHandler(filters.Regex("^🔐 Login$"), start_login),  # Handle button press
+        CallbackQueryHandler(start_login, pattern="^login$")  # Handle callback query
+    ],
     states={
         EXPECTING_EMAIL: [
             MessageHandler(

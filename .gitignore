@@ -26,6 +26,7 @@ venv/
 ENV/
 env/
 .env
+.env.dev
 
 # stuff
 stuff/

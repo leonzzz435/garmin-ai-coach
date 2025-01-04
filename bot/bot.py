@@ -3,7 +3,8 @@
 import logging
 from telegram.ext import (
     ApplicationBuilder,
-    CommandHandler
+    CommandHandler,
+    CallbackQueryHandler
 )
 
 from core.config import get_config
@@ -13,12 +14,15 @@ from bot.handlers.command_handlers import (
     roadmap,
     clear_credentials,
     races,
-    delrace
+    delrace,
+    handle_button
 )
 from bot.handlers.conversation_handlers import (
     login_handler,
     add_race_handler,
-    edit_race_handler
+    edit_race_handler,
+    start_add_race,
+    start_edit_race
 )
 from bot.handlers.data_handlers import (
     generate,
@@ -49,18 +53,25 @@ class TelegramBot:
         # Store API key in bot_data for handlers to access
         self.app.bot_data['anthropic_api_key'] = self.config.anthropic_api_key
         
-        # Add handlers
-        self.app.add_handler(login_handler)  # Must be added first
+        # Add conversation handlers first
+        self.app.add_handler(login_handler)
         self.app.add_handler(add_race_handler)
         self.app.add_handler(edit_race_handler)
+        
+        # Add command handlers
         self.app.add_handler(CommandHandler("start", start))
         self.app.add_handler(CommandHandler("generate", generate))
-        self.app.add_handler(CommandHandler("roadmap", roadmap))
-        self.app.add_handler(CommandHandler("help", help))
-        self.app.add_handler(CommandHandler("clear_credentials", clear_credentials))
         self.app.add_handler(CommandHandler("workout", workout))
         self.app.add_handler(CommandHandler("races", races))
+        self.app.add_handler(CommandHandler("addrace", start_add_race))
+        self.app.add_handler(CommandHandler("editrace", start_edit_race))
         self.app.add_handler(CommandHandler("delrace", delrace))
+        self.app.add_handler(CommandHandler("help", help))
+        self.app.add_handler(CommandHandler("roadmap", roadmap))
+        self.app.add_handler(CommandHandler("clear_credentials", clear_credentials))
+        
+        # Add callback query handler for inline keyboard
+        self.app.add_handler(CallbackQueryHandler(handle_button))
         
         # Error handler
         self.app.add_error_handler(error_handler)
