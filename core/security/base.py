@@ -12,11 +12,9 @@ logger = logging.getLogger(__name__)
 
 class SecurityError(Exception):
     """Base exception for security-related errors."""
-    pass
 
 class StorageError(SecurityError):
     """Exception for storage-related errors."""
-    pass
 
 class SecureStorageBase:
     """Base class for secure storage implementations."""

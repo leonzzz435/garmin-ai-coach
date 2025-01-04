@@ -129,7 +129,7 @@ async def workout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     try:
         stored_data = json.loads(data)
-        raw_data = GarminData(**stored_data['raw_data'])
+        GarminData(**stored_data['raw_data'])
         report = stored_data['report']
         
         # Generate workout recommendations using Flow

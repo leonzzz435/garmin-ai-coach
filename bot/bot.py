@@ -3,10 +3,7 @@
 import logging
 from telegram.ext import (
     ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    ConversationHandler,
-    filters
+    CommandHandler
 )
 
 from core.config import get_config

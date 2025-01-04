@@ -2,8 +2,7 @@
 
 import logging
 from datetime import date
-from typing import List, Optional, Dict
-from pathlib import Path
+from typing import List, Optional
 
 from .base import SecureStorageBase, StorageError
 from services.garmin.competition_models import Competition, RacePriority

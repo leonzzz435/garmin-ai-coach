@@ -1,12 +1,14 @@
 from dataclasses import dataclass
-from datetime import date
 from enum import Enum
 from typing import Dict, Any, List, Optional
 
+import os
+
 class TimeRange(Enum):
     """Time ranges for data extraction"""
-    RECENT = 7  # 3 weeks
-    EXTENDED = 14  # 8 weeks
+    # Values are determined by AI_MODE environment variable
+    RECENT = 7 if os.getenv('AI_MODE') == 'development' else 21
+    EXTENDED = 14 if os.getenv('AI_MODE') == 'development' else 56
 
 @dataclass
 class ExtractionConfig:

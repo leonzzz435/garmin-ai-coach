@@ -111,7 +111,7 @@ async def process_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         # Test connection with Garmin
-        extractor = TriathlonCoachDataExtractor(email, password)
+        TriathlonCoachDataExtractor(email, password)
         
         # Store credentials securely
         cred_manager = SecureCredentialManager(user_id)

@@ -5,7 +5,6 @@ Centralized AI configuration settings.
 from dataclasses import dataclass, field
 from typing import Optional, Dict
 from enum import Enum
-import os
 from core.config import get_config, AIMode
 
 class AgentRole(Enum):

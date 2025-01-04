@@ -3,8 +3,6 @@
 This package provides functionality for generating formatted reports
 from athlete training data, including activities, metrics, and analysis.
 """
-
-from .generator import ReportGenerator
 from .utils import (
     summarize_activities,
     summarize_training_volume,
@@ -19,7 +17,6 @@ from .utils import (
 )
 
 __all__ = [
-    'ReportGenerator',
     'summarize_activities',
     'summarize_training_volume',
     'summarize_training_intensity',

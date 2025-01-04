@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Dict
 from crewai import LLM
 from core.config import get_config
-from .config.ai_settings import ai_settings, AgentRole
+from .ai_settings import ai_settings, AgentRole
 
 @dataclass
 class ModelConfiguration:
