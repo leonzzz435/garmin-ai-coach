@@ -1,0 +1,10 @@
+workout_task:
+  name: >
+    workout_generation
+  description: >
+    Generate personalized workout plans considering upcoming competitions and current training phase
+  expected_output: >
+    Detailed workout plans for each discipline
+  output_file: >
+    workouts/generated.md
+  agent: workout_agent

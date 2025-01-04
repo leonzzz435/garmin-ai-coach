@@ -38,14 +38,6 @@ class GarminConnectClient:
         """
         return self._client
     
-    def is_connected(self) -> bool:
-        """Check if client is connected to Garmin Connect.
-        
-        Returns:
-            True if connected, False otherwise
-        """
-        return self._client is not None
-    
     def disconnect(self) -> None:
         """Disconnect from Garmin Connect."""
         if self._client:

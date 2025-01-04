@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 from bot.formatters import escape_markdown
 from core.security import SecureCredentialManager, SecureCompetitionManager, StorageError
-from services.garmin.competition_models import Competition, RacePriority
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /start command."""
@@ -143,7 +142,7 @@ async def races(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN_V2
         )
         
-    except Exception as e:
+    except Exception:
         await update.message.reply_text(
             "❌ Failed to retrieve race calendar\\. Please try again\\.",
             parse_mode=ParseMode.MARKDOWN_V2

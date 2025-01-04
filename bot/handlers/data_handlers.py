@@ -65,7 +65,6 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             return
         else:
             # Get and process data
-            from services.ai.enhanced_framework import EnhancedAnalyzer
             extractor = TriathlonCoachDataExtractor(email, password)
             data = extractor.extract_data(ExtractionConfig(
                 activities_range=TimeRange.RECENT.value,
@@ -74,9 +73,11 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 include_metrics=True
             ))
             
-            # Process and analyze data
-            analyzer = EnhancedAnalyzer(data, str(user_id))
-            result = analyzer.analyze()
+            # Process and analyze data using Flow
+            from services.ai.flows import AnalysisFlow
+            athlete_name = update.effective_user.full_name or "Athlete"
+            flow = AnalysisFlow(data, str(user_id), athlete_name)
+            result = await flow.kickoff_async()
             
             # Store both raw data and analysis result
             data_manager.store_report(json.dumps({
@@ -128,13 +129,14 @@ async def workout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     try:
         stored_data = json.loads(data)
-        raw_data = GarminData(**stored_data['raw_data'])
+        GarminData(**stored_data['raw_data'])
         report = stored_data['report']
         
-        # Generate workout recommendations
-        from services.ai.enhanced_framework import EnhancedAnalyzer
-        analyzer = EnhancedAnalyzer(raw_data, str(user_id))
-        result = analyzer.generate_workouts(report)
+        # Generate workout recommendations using Flow
+        from services.ai.flows import WorkoutFlow
+        athlete_name = update.effective_user.full_name or "Athlete"
+        flow = WorkoutFlow(str(user_id), athlete_name, report)
+        result = await flow.kickoff_async()
         final_messages = format_and_send_report(str(result))
         for msg in final_messages:
             await update.message.reply_text(

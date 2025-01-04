@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
-from typing import Optional, Dict
+from typing import Optional
 
 class RacePriority(Enum):
     """Priority levels for races"""

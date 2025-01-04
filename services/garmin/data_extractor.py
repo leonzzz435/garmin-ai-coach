@@ -1,11 +1,10 @@
 import logging
 import traceback
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
 from typing import Dict, Any, List, Optional
 
 from .client import GarminConnectClient
 from .models import (
-    TimeRange,
     ExtractionConfig,
     UserProfile,
     DailyStats,
@@ -489,7 +488,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
     
     def get_physiological_markers(self, start_date: date, end_date: date) -> PhysiologicalMarkers:
         """Get relevant physiological markers."""
-        data = {}
 
         # Get resting heart rate
         rhr_data = self.garmin.client.get_rhr_day(end_date.isoformat())

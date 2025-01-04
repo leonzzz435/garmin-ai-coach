@@ -1,6 +1,7 @@
 python-telegram-bot==20.3
 garminconnect
 anthropic
+numpy<2.0.0
 pandas
 cryptography>=41.0.0
 python-dotenv==1.0.0
