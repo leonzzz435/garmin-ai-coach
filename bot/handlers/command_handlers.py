@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 from bot.formatters import escape_markdown
 from core.security import SecureCredentialManager, SecureCompetitionManager, StorageError
+from core.security.users import UserTracker
 
 async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle inline keyboard button presses."""
@@ -208,6 +209,9 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN_V2
         )
 
+# Initialize user tracker
+user_tracker = UserTracker()
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /start command."""
     message = update.message or update.callback_query.message
@@ -219,7 +223,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    user_name = update.effective_user.first_name
+    # Track user interaction
+    user = update.effective_user
+    user_tracker.track_user(
+        user_id=user.id,
+        first_name=user.first_name,
+        username=user.username
+    )
+
+    user_name = user.first_name
     keyboard = [
         [
             InlineKeyboardButton("🔐 Login", callback_data="login"),
