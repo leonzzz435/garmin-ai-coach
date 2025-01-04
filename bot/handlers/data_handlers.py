@@ -129,13 +129,15 @@ async def workout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     try:
         stored_data = json.loads(data)
-        GarminData(**stored_data['raw_data'])
         report = stored_data['report']
+        
+        # Parse raw data into GarminData
+        garmin_data = GarminData(**stored_data['raw_data'])
         
         # Generate workout recommendations using Flow
         from services.ai.flows import WorkoutFlow
         athlete_name = update.effective_user.full_name or "Athlete"
-        flow = WorkoutFlow(str(user_id), athlete_name, report)
+        flow = WorkoutFlow(str(user_id), athlete_name, report, garmin_data)
         result = await flow.kickoff_async()
         final_messages = format_and_send_report(str(result))
         for msg in final_messages:

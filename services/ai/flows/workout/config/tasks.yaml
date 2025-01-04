@@ -1,10 +1,30 @@
+competition_planning_task:
+  name: >
+    competition_planning
+  description: >
+    Create data-driven training phase plan based on athlete status, competition schedule, and performance data
+  expected_output: >
+    Evidence-based training phase plan including:
+    - Competition schedule analysis with preparation periods
+    - Phase-specific objectives supported by current data
+    - Load and intensity guidelines based on athlete status
+    - Recovery and adaptation structure aligned with race demands
+  output_file: >
+    workouts/training_phase.md
+  agent: competition_planner_agent
+
 workout_task:
   name: >
     workout_generation
   description: >
-    Generate personalized workout plans considering upcoming competitions and current training phase
+    Generate optimized workout prescriptions based on current athlete status, training phase context, and competition goals
   expected_output: >
-    Detailed workout plans for each discipline
+    Data-driven workout prescriptions including:
+    - Status-appropriate session designs
+    - Phase-aligned intensity and volume parameters
+    - Technical focus points based on current capabilities
+    - Clear execution guidelines with specific targets
+    - Competition-specific skill development elements
   output_file: >
     workouts/generated.md
   agent: workout_agent

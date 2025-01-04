@@ -14,6 +14,7 @@ class AgentRole(Enum):
     PHYSIO = "physio"
     SYNTHESIS = "synthesis"
     WORKOUT = "workout"
+    COMPETITION_PLANNER = "competition_planner"
 
 @dataclass
 class AISettings:
@@ -29,21 +30,24 @@ class AISettings:
             AgentRole.ACTIVITY: "gpt-4o",
             AgentRole.PHYSIO: "gpt-4o",  # Using GPT-4 for reasoning tasks since o1 is not available
             AgentRole.SYNTHESIS: "claude-3-5-sonnet-20241022",
-            AgentRole.WORKOUT: "gpt-4o"
+            AgentRole.WORKOUT: "gpt-4o",
+            AgentRole.COMPETITION_PLANNER: "gpt-4o"  # Using GPT-4 for strategic planning
         },
         AIMode.COST_EFFECTIVE: {
             AgentRole.METRICS: "gpt-4o-mini",
             AgentRole.ACTIVITY: "gpt-4o-mini",
             AgentRole.PHYSIO: "gpt-4o-mini",  # Using GPT-4 mini for reasoning tasks since o1 is not available
             AgentRole.SYNTHESIS: "claude-3-haiku-20240307",
-            AgentRole.WORKOUT: "gpt-4o-mini"
+            AgentRole.WORKOUT: "gpt-4o-mini",
+            AgentRole.COMPETITION_PLANNER: "gpt-4o-mini"
         },
         AIMode.DEVELOPMENT: {
             AgentRole.METRICS: "gpt-4o-mini",
             AgentRole.ACTIVITY: "gpt-4o-mini",
             AgentRole.PHYSIO: "gpt-4o-mini",  # Using GPT-4 mini for reasoning tasks since o1 is not available
             AgentRole.SYNTHESIS: "claude-3-haiku-20240307",
-            AgentRole.WORKOUT: "gpt-4o-mini"
+            AgentRole.WORKOUT: "gpt-4o-mini",
+            AgentRole.COMPETITION_PLANNER: "gpt-4o-mini"
         }
     })
 
