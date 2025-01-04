@@ -1,1 +1,0 @@
-# Garmin service tests package

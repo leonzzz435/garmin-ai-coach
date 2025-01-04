@@ -83,34 +83,6 @@ class SecureCompetitionManager(SecureStorageBase):
         except Exception as e:
             raise StorageError(f"Failed to retrieve competition: {str(e)}") from e
             
-    def get_all_competitions(self) -> List[Competition]:
-        """
-        Retrieve all stored competitions.
-        
-        Returns:
-            List[Competition]: List of all competitions
-            
-        Raises:
-            StorageError: If retrieval fails
-        """
-        try:
-            competitions = self._read() or {}
-            return [
-                Competition(
-                    name=comp_dict["name"],
-                    date=date.fromisoformat(comp_dict["date"]),
-                    race_type=comp_dict["race_type"],
-                    priority=RacePriority(comp_dict["priority"]),
-                    target_time=comp_dict["target_time"],
-                    location=comp_dict["location"],
-                    notes=comp_dict["notes"],
-                    completed=comp_dict["completed"]
-                )
-                for comp_dict in competitions.values()
-            ]
-            
-        except Exception as e:
-            raise StorageError(f"Failed to retrieve competitions: {str(e)}") from e
             
     def get_upcoming_competitions(self, from_date: Optional[date] = None) -> List[Competition]:
         """
@@ -261,28 +233,3 @@ class SecureCompetitionManager(SecureStorageBase):
             logger.error(error_msg, exc_info=True)
             raise StorageError(error_msg) from e
             
-    def mark_completed(self, competition_date: date) -> bool:
-        """
-        Mark a competition as completed.
-        
-        Args:
-            competition_date: Date of the competition to mark completed
-            
-        Returns:
-            bool: True if update successful, False if competition not found
-            
-        Raises:
-            StorageError: If update fails
-        """
-        try:
-            competitions = self._read() or {}
-            
-            if competition_date.isoformat() not in competitions:
-                return False
-                
-            competitions[competition_date.isoformat()]["completed"] = True
-            self._write(competitions)
-            return True
-            
-        except Exception as e:
-            raise StorageError(f"Failed to mark competition as completed: {str(e)}") from e
