@@ -1,10 +1,21 @@
+competition_planning_task:
+  name: >
+    competition_planning
+  description: >
+    Analyze competitions and determine training phase and goals
+  expected_output: >
+    Detailed training phase plan with specific goals and guidelines
+  output_file: >
+    workouts/training_phase.md
+  agent: competition_planner_agent
+
 workout_task:
   name: >
     workout_generation
   description: >
-    Generate personalized workout plans considering upcoming competitions and current training phase
+    Generate personalized workout plans based on training phase and athlete data
   expected_output: >
-    Detailed workout plans for each discipline
+    Detailed workout plans for each discipline aligned with current training phase
   output_file: >
     workouts/generated.md
   agent: workout_agent
