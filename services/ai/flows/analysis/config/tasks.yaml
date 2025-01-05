@@ -120,10 +120,10 @@ synthesis_task:
 
     Create a cohesive analysis that connects metrics, activities, and physiological insights.
   expected_output: >
-    A cohesive synthesis formatted specifically for Telegram MarkdownV2.
+    A cohesive synthesis report of the athlete's current status and preparation.
 
     Format your response using clean markdown:
-    - Use *asterisks* to emphasize important text and headers
+    - Use *asterisks* for bold text
     - Use - for bullet points and nested lists
     - Use emojis to enhance section visibility
     - Structure content in clear sections with blank lines between them
