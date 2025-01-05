@@ -1,6 +1,7 @@
 """Workout Flow implementation using CrewAI."""
 
 import logging
+from datetime import datetime
 from pathlib import Path
 from pydantic import BaseModel
 from crewai import Agent, Task, Crew, Process
@@ -10,10 +11,7 @@ from ...model_config import ModelSelector
 from ...ai_settings import AgentRole
 from dataclasses import asdict
 from services.garmin import GarminData
-from ..tools.tools import (
-    GetReportTool, GetCompetitionsTool, GetCurrentDateTool,
-    GetMetricsTool, GetActivitiesTool, GetPhysioTool
-)
+from core.security.competitions import SecureCompetitionManager
 
 logger = logging.getLogger(__name__)
 
@@ -35,16 +33,31 @@ class WorkoutCrew:
         # Convert GarminData to dict
         self.data = asdict(garmin_data)
         
-        # Initialize tools
-        self.report_tool = GetReportTool(report=analysis_report)
-        self.competitions_tool = GetCompetitionsTool(user_id=user_id)
-        self.current_date_tool = GetCurrentDateTool()
-        self.metrics_tool = GetMetricsTool(data=self.data)
-        self.activities_tool = GetActivitiesTool(data=self.data)
-        self.physio_tool = GetPhysioTool(data=self.data)
+        # Store analysis report
+        self.analysis_report = analysis_report
+        
+        # Get competition data and current date
+        competition_manager = SecureCompetitionManager(self.user_id)
+        self.competitions = [
+            {
+                'name': comp.name,
+                'date': comp.date.isoformat(),
+                'race_type': comp.race_type,
+                'priority': comp.priority.value,
+                'target_time': comp.target_time,
+                'location': comp.location,
+                'notes': comp.notes
+            }
+            for comp in competition_manager.get_upcoming_competitions()
+        ]
+        current_date = datetime.now()
+        self.current_date = {
+            'current_date': current_date.isoformat(),
+            'date_formatted': current_date.strftime('%Y-%m-%d')
+        }
         
         # Ensure output directory exists
-        Path("workouts").mkdir(exist_ok=True)
+        Path("stuff/workouts").mkdir(parents=True, exist_ok=True)
         logger.info("Initialized WorkoutCrew")
         
     @agent
@@ -53,10 +66,6 @@ class WorkoutCrew:
         return Agent(
             config=self.agents_config['competition_planner_agent'],
             llm=ModelSelector.get_llm(AgentRole.COMPETITION_PLANNER),
-            tools=[
-                self.competitions_tool,
-                self.current_date_tool
-            ]
         )
 
     @agent
@@ -65,12 +74,6 @@ class WorkoutCrew:
         return Agent(
             config=self.agents_config['workout_agent'],
             llm=ModelSelector.get_llm(AgentRole.WORKOUT),
-            tools=[
-                self.report_tool,
-                self.activities_tool,
-                self.metrics_tool,
-                self.physio_tool
-            ]
         )
         
     @task
@@ -119,9 +122,31 @@ class WorkoutFlow(Flow[WorkoutState]):
     @start()
     async def generate_workouts(self):
         """Generate personalized workout plans."""
-        result = await self.crew_instance.crew().kickoff_async(
-            inputs={'athlete_name': self.athlete_name}
-        )
+        # Prepare data for workout generation
+        metrics_data = {
+            'training_load_history': self.crew_instance.data.get('training_load_history', []),
+        }
+        activities_data = {
+            'recent_activities': self.crew_instance.data.get('recent_activities', []),
+            'training_status': self.crew_instance.data.get('training_status', {})
+        }
+        
+        import json
+        
+        # Properly serialize JSON data
+        inputs = {
+            'athlete_name': str(self.athlete_name),
+            'analysis_report': str(self.crew_instance.analysis_report),
+            'metrics_data': json.dumps(metrics_data, indent=2),
+            'activities_data': json.dumps(activities_data, indent=2),
+            'competitions': json.dumps(self.crew_instance.competitions, indent=2),
+            'current_date': json.dumps(self.crew_instance.current_date, indent=2)
+        }
+        
+        # Remove any empty strings from inputs
+        inputs = {k: v for k, v in inputs.items() if v and v.strip()}
+        
+        result = await self.crew_instance.crew().kickoff_async(inputs=inputs)
         self.state.workout_result = result
         logger.info("Workout generation completed")
         return result

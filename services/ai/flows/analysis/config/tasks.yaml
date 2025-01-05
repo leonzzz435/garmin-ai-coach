@@ -2,7 +2,7 @@ metrics_task:
   name: >
     metrics_analysis
   description: >
-    Analyze the following data to identify patterns in relation to competition goals:
+    As a former sports statistician and performance analyst for elite endurance teams, analyze the following data to identify patterns in relation to competition goals. Your expertise lies in translating complex data into actionable insights.
 
     Training Metrics:
     ```json
@@ -21,19 +21,22 @@ metrics_task:
 
     Focus on key performance indicators, trends, and their relationship to competition preparation.
   expected_output: >
-    Competition-aware metrics analysis including:
-    - Specific metric values and trends from the provided data
-    - Performance patterns identified in the metrics
-    - Clear correlations between metrics and competition goals
+    A comprehensive analysis of the athlete's performance metrics and their implications for competition preparation.
+
+    Format your response using clean markdown:
+    - Use *asterisks* to emphasize important text and headers
+    - Use - for bullet points and nested lists
+    - Use emojis to enhance section visibility
+    - Structure content in clear sections with blank lines between them
   output_file: >
-    analysis/metrics.md
+    stuff/analysis/metrics.md
   agent: metrics_agent
 
 activities_task:
   name: >
     activity_analysis
   description: >
-    Analyze the following data to identify execution patterns considering race preparation:
+    As an elite endurance coach with extensive experience in triathlon and running, analyze the following data to identify execution patterns considering race preparation. Your expertise lies in workout analysis and technique optimization.
 
     Activity Data:
     ```json
@@ -52,19 +55,22 @@ activities_task:
 
     Focus on workout quality, execution trends, and progression patterns.
   expected_output: >
-    Race-specific analysis including:
-    - Detailed workout execution patterns from provided activities
-    - Technical proficiency trends
-    - Clear progression indicators
+    A detailed analysis of the athlete's training activities and their effectiveness for race preparation.
+
+    Format your response using clean markdown:
+    - Use *asterisks* to emphasize important text and headers
+    - Use - for bullet points and nested lists
+    - Use emojis to enhance section visibility
+    - Structure content in clear sections with blank lines between them
   output_file: >
-    analysis/activities.md
+    stuff/analysis/activities.md
   agent: activity_agent
 
 physiology_task:
   name: >
     physio_analysis
   description: >
-    Analyze the following data in context of competition schedule:
+    As an exercise physiologist specializing in endurance sports adaptation and recovery optimization, analyze the following data in context of competition schedule.
 
     Physiological Data:
     ```json
@@ -83,19 +89,22 @@ physiology_task:
 
     Focus on recovery patterns, adaptation trends, and overall health status.
   expected_output: >
-    Competition-aware analysis including:
-    - Key physiological indicators from provided data
-    - Recovery and adaptation patterns
-    - Health status assessment
+    A thorough analysis of the athlete's physiological state and readiness for competition.
+
+    Format your response using clean markdown:
+    - Use *asterisks* to emphasize important text and headers
+    - Use - for bullet points and nested lists
+    - Use emojis to enhance section visibility
+    - Structure content in clear sections with blank lines between them
   output_file: >
-    analysis/physiology.md
+    stuff/analysis/physiology.md
   agent: physiology_agent
 
 synthesis_task:
   name: >
     synthesis
   description: >
-    Synthesize the previous analysis results into a comprehensive report for {athlete_name}.
+    As a performance integration specialist, synthesize the previous analysis results into a comprehensive report for {athlete_name}.
 
     Use the following additional context:
 
@@ -111,10 +120,13 @@ synthesis_task:
 
     Create a cohesive analysis that connects metrics, activities, and physiological insights.
   expected_output: >
-    Competition-aware synthesis including:
-    - Integrated analysis of all provided components
-    - Clear connections between different aspects
-    - Comprehensive performance assessment
+    A cohesive synthesis formatted specifically for Telegram MarkdownV2.
+
+    Format your response using clean markdown:
+    - Use *asterisks* to emphasize important text and headers
+    - Use - for bullet points and nested lists
+    - Use emojis to enhance section visibility
+    - Structure content in clear sections with blank lines between them
   output_file: >
-    analysis/synthesis.md
+    stuff/analysis/synthesis.md
   agent: synthesis_agent

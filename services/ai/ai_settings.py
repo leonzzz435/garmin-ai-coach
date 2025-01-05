@@ -28,26 +28,26 @@ class AISettings:
         AIMode.STANDARD: {
             AgentRole.METRICS: "claude-3-5-sonnet-20241022",
             AgentRole.ACTIVITY: "claude-3-5-sonnet-20241022",
-            AgentRole.PHYSIO: "claude-3-5-sonnet-20241022",  # Using GPT-4 for reasoning tasks since o1 is not available
+            AgentRole.PHYSIO: "claude-3-5-sonnet-20241022", 
             AgentRole.SYNTHESIS: "claude-3-5-sonnet-20241022",
             AgentRole.WORKOUT: "claude-3-5-sonnet-20241022",
-            AgentRole.COMPETITION_PLANNER: "claude-3-5-sonnet-20241022"  # Using GPT-4 for strategic planning
+            AgentRole.COMPETITION_PLANNER: "claude-3-5-sonnet-20241022"  
         },
         AIMode.COST_EFFECTIVE: {
-            AgentRole.METRICS: "gpt-4o-mini",
+            AgentRole.METRICS: "claude-3-haiku-20240307",
             AgentRole.ACTIVITY: "gpt-4o-mini",
-            AgentRole.PHYSIO: "gpt-4o-mini",  # Using GPT-4 mini for reasoning tasks since o1 is not available
-            AgentRole.SYNTHESIS: "claude-3-haiku-20240307",
-            AgentRole.WORKOUT: "gpt-4o-mini",
-            AgentRole.COMPETITION_PLANNER: "gpt-4o-mini"
+            AgentRole.PHYSIO: "claude-3-haiku-20240307", 
+            AgentRole.SYNTHESIS: "gpt-4o-mini",
+            AgentRole.WORKOUT: "claude-3-haiku-20240307",
+            AgentRole.COMPETITION_PLANNER: "claude-3-haiku-20240307"
         },
         AIMode.DEVELOPMENT: {
-            AgentRole.METRICS: "gpt-4o-mini",
+            AgentRole.METRICS: "claude-3-haiku-20240307",
             AgentRole.ACTIVITY: "gpt-4o-mini",
-            AgentRole.PHYSIO: "gpt-4o-mini",  # Using GPT-4 mini for reasoning tasks since o1 is not available
-            AgentRole.SYNTHESIS: "claude-3-haiku-20240307",
-            AgentRole.WORKOUT: "gpt-4o-mini",
-            AgentRole.COMPETITION_PLANNER: "gpt-4o-mini"
+            AgentRole.PHYSIO: "claude-3-haiku-20240307",  
+            AgentRole.SYNTHESIS: "gpt-4o-mini",
+            AgentRole.WORKOUT: "claude-3-haiku-20240307",
+            AgentRole.COMPETITION_PLANNER: "claude-3-haiku-20240307"
         }
     })
 

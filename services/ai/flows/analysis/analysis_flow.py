@@ -55,7 +55,7 @@ class AnalysisCrew:
         }
         
         # Ensure output directory exists
-        Path("analysis").mkdir(exist_ok=True)
+        Path("stuff/analysis").mkdir(parents=True, exist_ok=True)
         logger.info("Initialized AnalysisCrew with data keys: %s", list(self.data.keys()))
 
     @agent
