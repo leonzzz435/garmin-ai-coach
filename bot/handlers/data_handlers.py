@@ -145,6 +145,7 @@ async def workout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         result = await flow.kickoff_async()
         final_messages = format_and_send_report(str(result))
         for msg in final_messages:
+            #print("DEBUG final msg:", repr(msg))
             await message.reply_text(
                 msg,
                 parse_mode=ParseMode.MARKDOWN_V2

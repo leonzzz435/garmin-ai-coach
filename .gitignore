@@ -31,8 +31,8 @@ env/
 # stuff
 stuff/
 cline_docs/
-analysis/
-workouts/
+/analysis/
+/workouts/
 
 # IDE
 .idea/
