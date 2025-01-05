@@ -100,7 +100,8 @@ class WorkoutCrew:
                 self.competition_planning_task(),
                 self.workout_task()
             ],
-            process=Process.sequential
+            process=Process.sequential,
+            verbose=True
         )
 
 class WorkoutFlow(Flow[WorkoutState]):

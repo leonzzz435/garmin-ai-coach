@@ -1,0 +1,120 @@
+metrics_task:
+  name: >
+    metrics_analysis
+  description: >
+    Analyze the following data to identify patterns in relation to competition goals:
+
+    Training Metrics:
+    ```json
+    {data}
+    ```
+
+    Upcoming Competitions:
+    ```json
+    {competitions}
+    ```
+
+    Current Date:
+    ```json
+    {current_date}
+    ```
+
+    Focus on key performance indicators, trends, and their relationship to competition preparation.
+  expected_output: >
+    Competition-aware metrics analysis including:
+    - Specific metric values and trends from the provided data
+    - Performance patterns identified in the metrics
+    - Clear correlations between metrics and competition goals
+  output_file: >
+    analysis/metrics.md
+  agent: metrics_agent
+
+activities_task:
+  name: >
+    activity_analysis
+  description: >
+    Analyze the following data to identify execution patterns considering race preparation:
+
+    Activity Data:
+    ```json
+    {data}
+    ```
+
+    Upcoming Competitions:
+    ```json
+    {competitions}
+    ```
+
+    Current Date:
+    ```json
+    {current_date}
+    ```
+
+    Focus on workout quality, execution trends, and progression patterns.
+  expected_output: >
+    Race-specific analysis including:
+    - Detailed workout execution patterns from provided activities
+    - Technical proficiency trends
+    - Clear progression indicators
+  output_file: >
+    analysis/activities.md
+  agent: activity_agent
+
+physiology_task:
+  name: >
+    physio_analysis
+  description: >
+    Analyze the following data in context of competition schedule:
+
+    Physiological Data:
+    ```json
+    {data}
+    ```
+
+    Upcoming Competitions:
+    ```json
+    {competitions}
+    ```
+
+    Current Date:
+    ```json
+    {current_date}
+    ```
+
+    Focus on recovery patterns, adaptation trends, and overall health status.
+  expected_output: >
+    Competition-aware analysis including:
+    - Key physiological indicators from provided data
+    - Recovery and adaptation patterns
+    - Health status assessment
+  output_file: >
+    analysis/physiology.md
+  agent: physiology_agent
+
+synthesis_task:
+  name: >
+    synthesis
+  description: >
+    Synthesize the previous analysis results into a comprehensive report for {athlete_name}.
+
+    Use the following additional context:
+
+    Upcoming Competitions:
+    ```json
+    {competitions}
+    ```
+
+    Current Date:
+    ```json
+    {current_date}
+    ```
+
+    Create a cohesive analysis that connects metrics, activities, and physiological insights.
+  expected_output: >
+    Competition-aware synthesis including:
+    - Integrated analysis of all provided components
+    - Clear connections between different aspects
+    - Comprehensive performance assessment
+  output_file: >
+    analysis/synthesis.md
+  agent: synthesis_agent

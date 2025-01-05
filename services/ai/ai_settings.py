@@ -26,12 +26,12 @@ class AISettings:
     # Model assignments for different roles
     model_assignments: Dict[AIMode, Dict[AgentRole, str]] = field(default_factory=lambda: {
         AIMode.STANDARD: {
-            AgentRole.METRICS: "gpt-4o",
-            AgentRole.ACTIVITY: "gpt-4o",
-            AgentRole.PHYSIO: "gpt-4o",  # Using GPT-4 for reasoning tasks since o1 is not available
+            AgentRole.METRICS: "claude-3-5-sonnet-20241022",
+            AgentRole.ACTIVITY: "claude-3-5-sonnet-20241022",
+            AgentRole.PHYSIO: "claude-3-5-sonnet-20241022",  # Using GPT-4 for reasoning tasks since o1 is not available
             AgentRole.SYNTHESIS: "claude-3-5-sonnet-20241022",
-            AgentRole.WORKOUT: "gpt-4o",
-            AgentRole.COMPETITION_PLANNER: "gpt-4o"  # Using GPT-4 for strategic planning
+            AgentRole.WORKOUT: "claude-3-5-sonnet-20241022",
+            AgentRole.COMPETITION_PLANNER: "claude-3-5-sonnet-20241022"  # Using GPT-4 for strategic planning
         },
         AIMode.COST_EFFECTIVE: {
             AgentRole.METRICS: "gpt-4o-mini",
