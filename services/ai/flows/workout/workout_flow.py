@@ -112,12 +112,13 @@ class WorkoutFlow(Flow[WorkoutState]):
     
     workout_crew = WorkoutCrew
 
-    def __init__(self, user_id: str, athlete_name: str, analysis_report: str, garmin_data: GarminData):
+    def __init__(self, user_id: str, athlete_name: str, analysis_report: str, garmin_data: GarminData, athlete_context: str = ""):
         """Initialize the workout flow."""
         super().__init__()
         self.crew_instance = self.workout_crew(user_id, athlete_name, analysis_report, garmin_data)
         self.athlete_name = athlete_name
         self.state.analysis_report = analysis_report
+        self.athlete_context = athlete_context
 
     @start()
     async def generate_workouts(self):
@@ -140,7 +141,8 @@ class WorkoutFlow(Flow[WorkoutState]):
             'metrics_data': json.dumps(metrics_data, indent=2),
             'activities_data': json.dumps(activities_data, indent=2),
             'competitions': json.dumps(self.crew_instance.competitions, indent=2),
-            'current_date': json.dumps(self.crew_instance.current_date, indent=2)
+            'current_date': json.dumps(self.crew_instance.current_date, indent=2),
+            'athlete_context': json.dumps({"context": self.athlete_context} if self.athlete_context else {}, indent=2)
         }
         
         # Remove any empty strings from inputs

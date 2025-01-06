@@ -2,7 +2,7 @@ metrics_task:
   name: >
     metrics_analysis
   description: >
-    As a former sports statistician and performance analyst for elite endurance teams, analyze the following data to identify patterns in relation to competition goals. Your expertise lies in translating complex data into actionable insights.
+    As a former sports statistician and performance analyst for elite endurance teams, analyze the following data to identify patterns in relation to competition goals. Your expertise lies in translating complex data into actionable insights. Your analysis will be used by the synthesis specialist as part of a collaborative system to provide comprehensive athlete insights.
 
     Training Metrics:
     ```json
@@ -23,11 +23,12 @@ metrics_task:
   expected_output: >
     A comprehensive analysis of the athlete's performance metrics and their implications for competition preparation.
 
-    Format your response using clean markdown:
-    - Use *asterisks* to emphasize important text and headers
-    - Use - for bullet points and nested lists
-    - Use emojis to enhance section visibility
+    Format your response for Telegram:
+    - Use *asterisks* for section headers and important text
+    - Use bullet points (•, ●, ➤) for lists
+    - Make liberal use of relevant emojis to enhance readability (e.g., ✅, 📈, 💪, 🎯, ⚠️)
     - Structure content in clear sections with blank lines between them
+    - Do NOT use # for headers, use *bold text* instead
   output_file: >
     stuff/analysis/metrics.md
   agent: metrics_agent
@@ -36,7 +37,7 @@ activities_task:
   name: >
     activity_analysis
   description: >
-    As an elite endurance coach with extensive experience in triathlon and running, analyze the following data to identify execution patterns considering race preparation. Your expertise lies in workout analysis and technique optimization.
+    As an elite endurance coach with extensive experience in triathlon and running, analyze the following data to identify execution patterns considering race preparation. Your expertise lies in workout analysis and technique optimization. Your analysis will be used by the synthesis specialist as part of a collaborative system to provide comprehensive athlete insights.
 
     Activity Data:
     ```json
@@ -57,11 +58,12 @@ activities_task:
   expected_output: >
     A detailed analysis of the athlete's training activities and their effectiveness for race preparation.
 
-    Format your response using clean markdown:
-    - Use *asterisks* to emphasize important text and headers
-    - Use - for bullet points and nested lists
-    - Use emojis to enhance section visibility
+    Format your response for Telegram:
+    - Use *asterisks* for section headers and important text
+    - Use bullet points (•, ●, ➤) for lists
+    - Make liberal use of relevant emojis to enhance readability (e.g., ✅, 📈, 💪, 🎯, ⚠️)
     - Structure content in clear sections with blank lines between them
+    - Do NOT use # for headers, use *bold text* instead
   output_file: >
     stuff/analysis/activities.md
   agent: activity_agent
@@ -70,7 +72,7 @@ physiology_task:
   name: >
     physio_analysis
   description: >
-    As an exercise physiologist specializing in endurance sports adaptation and recovery optimization, analyze the following data in context of competition schedule.
+    As an exercise physiologist specializing in endurance sports adaptation and recovery optimization, analyze the following data in context of competition schedule. Your analysis will be used by the synthesis specialist as part of a collaborative system to provide comprehensive athlete insights.
 
     Physiological Data:
     ```json
@@ -91,11 +93,12 @@ physiology_task:
   expected_output: >
     A thorough analysis of the athlete's physiological state and readiness for competition.
 
-    Format your response using clean markdown:
-    - Use *asterisks* to emphasize important text and headers
-    - Use - for bullet points and nested lists
-    - Use emojis to enhance section visibility
+    Format your response for Telegram:
+    - Use *asterisks* for section headers and important text
+    - Use bullet points (•, ●, ➤) for lists
+    - Make liberal use of relevant emojis to enhance readability (e.g., ✅, 📈, 💪, 🎯, ⚠️)
     - Structure content in clear sections with blank lines between them
+    - Do NOT use # for headers, use *bold text* instead
   output_file: >
     stuff/analysis/physiology.md
   agent: physiology_agent
@@ -104,7 +107,7 @@ synthesis_task:
   name: >
     synthesis
   description: >
-    As a performance integration specialist, synthesize the previous analysis results into a comprehensive report for {athlete_name}.
+    As a performance integration specialist, synthesize the parallel analyses from the metrics, activities, and physiology specialists into a comprehensive report for {athlete_name}. Your synthesis will be presented directly to the athlete, making it crucial to deliver clear, actionable, and engaging insights.
 
     Use the following additional context:
 
@@ -122,11 +125,12 @@ synthesis_task:
   expected_output: >
     A cohesive synthesis report of the athlete's current status and preparation.
 
-    Format your response using clean markdown:
-    - Use *asterisks* for bold text
-    - Use - for bullet points and nested lists
-    - Use emojis to enhance section visibility
+    Format your response for Telegram:
+    - Use *asterisks* for section headers and important text
+    - Use bullet points (•, ●, ➤) for lists
+    - Make liberal use of relevant emojis to enhance readability (e.g., ✅, 📈, 💪, 🎯, ⚠️)
     - Structure content in clear sections with blank lines between them
+    - Do NOT use # for headers, use *bold text* instead
   output_file: >
     stuff/analysis/synthesis.md
   agent: synthesis_agent

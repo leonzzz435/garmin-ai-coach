@@ -19,8 +19,8 @@ class GarminEncoder(json.JSONEncoder):
 def main():
     # Initialize the data extractor with credentials
     extractor = TriathlonCoachDataExtractor(
-        email="l.zajchowski@web.de",
-        password="Spider2007!"
+        email="",
+        password=""
     )
     
     # Extract all data with default config (includes all metrics)
@@ -29,7 +29,7 @@ def main():
     
     # Save to a timestamped file
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"garmin_data_{timestamp}.json"
+    filename = f"stuff/garmin_data_{timestamp}.json"
     
     print(f"Saving data to {filename}...")
     with open(filename, 'w') as f:

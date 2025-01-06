@@ -6,7 +6,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 from bot.handlers.conversation_handlers import start_login
-from bot.handlers.data_handlers import generate, workout
+from bot.handlers.data_handlers import generate
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -180,7 +180,6 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     handlers = {
         "login": start_login,
         "generate": generate,
-        "workout": workout,
         "races": races,
         "help": help,
         "roadmap": roadmap

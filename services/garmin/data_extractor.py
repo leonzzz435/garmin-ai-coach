@@ -34,6 +34,29 @@ class DataExtractor:
         return round(numerator / denominator, decimal_places)
 
     @staticmethod
+    def convert_lactate_threshold_speed(speed_au: Optional[float]) -> Optional[float]:
+        """Convert lactate threshold speed from AU to min/km pace.
+        1 AU = 10 m/s
+        Returns pace as decimal minutes per kilometer
+        """
+        if speed_au is None:
+            return None
+        speed_ms = speed_au * 10  # Convert AU to m/s
+        if speed_ms == 0:
+            return None
+        return round(1000 / (speed_ms * 60), 2)  # Convert m/s to min/km
+
+    def get_latest_sleep_duration(self, date_obj: date) -> Optional[float]:
+        """Get the most recent night's sleep duration from recovery indicators."""
+        try:
+            sleep_data = self.garmin.client.get_sleep_data(date_obj.isoformat())
+            daily_sleep = sleep_data.get('dailySleepDTO', {})
+            return self.safe_divide_and_round(daily_sleep.get('sleepTimeSeconds'), 3600)
+        except Exception as e:
+            logger.error(f"Error getting sleep duration: {str(e)}")
+            return None
+
+    @staticmethod
     def get_date_ranges(config: ExtractionConfig) -> Dict[str, Dict[str, date]]:
         """Calculate date ranges for different data types."""
         end_date = date.today()
@@ -131,6 +154,10 @@ class TriathlonCoachDataExtractor(DataExtractor):
         user_data = full_profile.get('userData', {})
         sleep_data = full_profile.get('userSleep', {})
         
+        # Convert lactate threshold speed from AU to m/s
+        lt_speed_au = user_data.get('lactateThresholdSpeed')
+        lt_speed_ms = self.convert_lactate_threshold_speed(lt_speed_au)
+        
         return UserProfile(
             gender=user_data.get('gender'),
             weight=user_data.get('weight'),
@@ -139,7 +166,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             activity_level=user_data.get('activityLevel'),
             vo2max_running=user_data.get('vo2MaxRunning'),
             vo2max_cycling=user_data.get('vo2MaxCycling'),
-            lactate_threshold_speed=user_data.get('lactateThresholdSpeed'),
+            lactate_threshold_pace=lt_speed_ms,
             lactate_threshold_heart_rate=user_data.get('lactateThresholdHeartRate'),
             ftp_auto_detected=user_data.get('ftpAutoDetected'),
             available_training_days=user_data.get('availableTrainingDays'),
@@ -151,6 +178,10 @@ class TriathlonCoachDataExtractor(DataExtractor):
     def get_daily_stats(self, date_obj: date) -> DailyStats:
         """Get daily stats for the given date."""
         raw_data = self.garmin.client.get_stats(date_obj.isoformat())
+        
+        # Get sleep duration from recovery indicators for the night's sleep only
+        sleep_hours = self.get_latest_sleep_duration(date_obj)
+        sleep_seconds = int(sleep_hours * 3600) if sleep_hours is not None else None
         
         return DailyStats(
             date=raw_data.get('calendarDate'),
@@ -168,8 +199,8 @@ class TriathlonCoachDataExtractor(DataExtractor):
             average_stress_level=raw_data.get('averageStressLevel'),
             max_stress_level=raw_data.get('maxStressLevel'),
             stress_duration_seconds=raw_data.get('stressDuration'),
-            sleeping_seconds=raw_data.get('sleepingSeconds'),
-            sleeping_hours=self.safe_divide_and_round(raw_data.get('sleepingSeconds'), 3600),
+            sleeping_seconds=sleep_seconds,
+            sleeping_hours=sleep_hours,
             body_battery_highest=raw_data.get('bodyBatteryHighestValue'),
             body_battery_lowest=raw_data.get('bodyBatteryLowestValue'),
             body_battery_most_recent=raw_data.get('bodyBatteryMostRecentValue'),

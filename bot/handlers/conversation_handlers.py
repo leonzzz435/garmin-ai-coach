@@ -1,10 +1,11 @@
 """Conversation handlers for the Telegram bot."""
 
 import logging
+import json
 from datetime import date
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.constants import ParseMode
-from bot.formatters import escape_markdown
+from bot.formatters import escape_markdown, format_and_send_report
 from telegram.ext import (
     ContextTypes,
     ConversationHandler,
@@ -13,8 +14,8 @@ from telegram.ext import (
     filters
 )
 
-from core.security import SecureCredentialManager, SecureCompetitionManager
-from services.garmin import TriathlonCoachDataExtractor
+from core.security import SecureCredentialManager, SecureCompetitionManager, SecureReportManager
+from services.garmin import TriathlonCoachDataExtractor, GarminData
 from services.garmin.competition_models import Competition, RacePriority
 
 # Configure logging
@@ -24,6 +25,9 @@ logger = logging.getLogger(__name__)
 # Login states
 EXPECTING_EMAIL = 1
 EXPECTING_PASSWORD = 2
+
+# Workout states
+EXPECTING_CONTEXT = 30
 
 # Add race states
 RACE_NAME = 10
@@ -532,6 +536,99 @@ async def process_edit_value(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return ConversationHandler.END
 
+# Workout Conversation Handlers
+async def start_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start the workout generation process."""
+    message = update.message or update.callback_query.message
+    user_id = update.effective_user.id
+    
+    # Check for cached data
+    data_manager = SecureReportManager(user_id)
+    cached_data = data_manager.get_report()
+    
+    if not cached_data:
+        await message.reply_text(
+            "❌ No recent data found\\.\n" +
+            "Please use /generate first\\!",
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
+        return ConversationHandler.END
+    
+    # Initialize user data
+    user_data[user_id] = {"workout_context": ""}
+    
+    # Ask for additional context
+    await message.reply_text(
+        "🏋️ Let's generate your workout suggestions\\!\n\n" +
+        "Is there anything specific I should consider\\?\n" +
+        "For example:\n" +
+        "• Weather conditions\n" +
+        "• Equipment availability\n" +
+        "• Physical limitations\n" +
+        "• Time constraints\n\n" +
+        "Or use /skip if there's nothing specific\\.",
+        parse_mode=ParseMode.MARKDOWN_V2
+    )
+    return EXPECTING_CONTEXT
+
+async def process_workout_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Process workout context and generate workouts."""
+    message = update.message or update.callback_query.message
+    user_id = update.effective_user.id
+    user_name = update.effective_user.full_name
+    
+    # Store context if provided
+    if update.message.text != "/skip":
+        user_data[user_id]["workout_context"] = update.message.text.strip()
+    
+    await message.reply_text(
+        "🔄 Generating workout suggestions\\.\\.\\.",
+        parse_mode=ParseMode.MARKDOWN_V2
+    )
+    
+    try:
+        # Get cached data
+        data_manager = SecureReportManager(user_id)
+        data, timestamp = data_manager.get_report()
+        stored_data = json.loads(data)
+        report = stored_data['report']
+        
+        # Parse raw data into GarminData
+        garmin_data = GarminData(**stored_data['raw_data'])
+        
+        # Generate workout recommendations using Flow
+        from services.ai.flows import WorkoutFlow
+        athlete_name = user_name or "Athlete"
+        flow = WorkoutFlow(
+            str(user_id), 
+            athlete_name, 
+            report, 
+            garmin_data,
+            user_data[user_id].get("workout_context", "")
+        )
+        result = await flow.kickoff_async()
+        
+        # Format and send results
+        final_messages = format_and_send_report(str(result))
+        for msg in final_messages:
+            await message.reply_text(
+                msg,
+                parse_mode=ParseMode.MARKDOWN_V2
+            )
+            
+    except Exception as e:
+        logger.error(f"Error generating workouts: {str(e)}")
+        await message.reply_text(
+            escape_markdown(f"❌ Error: {str(e)}\n\nPlease try again."),
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
+    
+    # Clean up user data
+    if user_id in user_data:
+        del user_data[user_id]
+    
+    return ConversationHandler.END
+
 # Create conversation handlers
 from telegram.ext import CallbackQueryHandler
 
@@ -601,6 +698,25 @@ add_race_handler = ConversationHandler(
             MessageHandler(
                 (filters.TEXT & ~filters.COMMAND) | filters.Regex("^/skip$"),
                 process_race_notes
+            )
+        ]
+    },
+    fallbacks=[CommandHandler("cancel", cancel)]
+)
+
+# Previous handlers...
+
+workout_handler = ConversationHandler(
+    entry_points=[
+        CommandHandler("workout", start_workout),
+        MessageHandler(filters.Regex("^🏋️ Get Workout$"), start_workout),
+        CallbackQueryHandler(start_workout, pattern="^workout$")
+    ],
+    states={
+        EXPECTING_CONTEXT: [
+            MessageHandler(
+                (filters.TEXT & ~filters.COMMAND) | filters.Regex("^/skip$"),
+                process_workout_context
             )
         ]
     },
