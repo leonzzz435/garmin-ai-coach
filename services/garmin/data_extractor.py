@@ -35,16 +35,16 @@ class DataExtractor:
 
     @staticmethod
     def convert_lactate_threshold_speed(speed_au: Optional[float]) -> Optional[float]:
-        """Convert lactate threshold speed from AU to min/km pace.
+        """Convert lactate threshold speed from AU to m/s.
         1 AU = 10 m/s
-        Returns pace as decimal minutes per kilometer
+        Returns speed in meters per second
         """
         if speed_au is None:
             return None
         speed_ms = speed_au * 10  # Convert AU to m/s
         if speed_ms == 0:
             return None
-        return round(1000 / (speed_ms * 60), 2)  # Convert m/s to min/km
+        return round(speed_ms, 2)  # Return speed in m/s
 
     def get_latest_sleep_duration(self, date_obj: date) -> Optional[float]:
         """Get the most recent night's sleep duration from recovery indicators."""
@@ -166,7 +166,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             activity_level=user_data.get('activityLevel'),
             vo2max_running=user_data.get('vo2MaxRunning'),
             vo2max_cycling=user_data.get('vo2MaxCycling'),
-            lactate_threshold_pace=lt_speed_ms,
+            lactate_threshold_speed=lt_speed_ms,
             lactate_threshold_heart_rate=user_data.get('lactateThresholdHeartRate'),
             ftp_auto_detected=user_data.get('ftpAutoDetected'),
             available_training_days=user_data.get('availableTrainingDays'),

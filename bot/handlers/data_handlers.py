@@ -9,6 +9,8 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from core.security import SecureCredentialManager, SecureReportManager
+from core.security.cache import SecureMetricsCache, SecureActivityCache, SecurePhysiologyCache
+from core.security.execution import ExecutionTracker
 from services.garmin import TriathlonCoachDataExtractor, ExtractionConfig, TimeRange, GarminData
 from bot.formatters import format_and_send_report, escape_markdown
 
@@ -42,58 +44,69 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
     try:
-        # Check for cached data
-        data_manager = SecureReportManager(user_id)
-        cached_data = data_manager.get_report()
-        
-        if cached_data:
-            # Use cached data
-            data, timestamp = cached_data
-            # Calculate how old the report is
-            age_minutes = int((datetime.datetime.now() - timestamp).total_seconds() / 60)
+        # Check execution limits
+        execution_tracker = ExecutionTracker(user_id)
+        if not execution_tracker.check_insights_limit():
+            remaining_time = "tomorrow"  # Resets at midnight
             await message.reply_text(
-                "📋 Using existing data from " +
-                f"{age_minutes} minutes ago\\.",
+                "⚠️ Daily insight limit reached\\. Try again " + remaining_time + "\\.",
                 parse_mode=ParseMode.MARKDOWN_V2
             )
-            # Parse and format the data
-            stored_data = json.loads(data)
-            final_messages = format_and_send_report(stored_data['report'])
-            for msg in final_messages:
-                await message.reply_text(
-                    msg,
-                    parse_mode=ParseMode.MARKDOWN_V2
-                )
             return
-        else:
-            # Get and process data
-            extractor = TriathlonCoachDataExtractor(email, password)
-            data = extractor.extract_data(ExtractionConfig(
-                activities_range=TimeRange.RECENT.value,
-                metrics_range=TimeRange.EXTENDED.value,
-                include_detailed_activities=True,
-                include_metrics=True
-            ))
             
-            # Process and analyze data using Flow
-            from services.ai.flows import AnalysisFlow
-            athlete_name = user_name or "Athlete"
-            flow = AnalysisFlow(data, str(user_id), athlete_name)
-            result = await flow.kickoff_async()
-            
-            # Store both raw data and analysis result
-            data_manager.store_report(json.dumps({
-                'raw_data': asdict(data),
-                'report': str(result)
-            }))
-            
-            # Format and send the result
-            final_messages = format_and_send_report(str(result))
-            for msg in final_messages:
-                await message.reply_text(
-                    msg,
-                    parse_mode=ParseMode.MARKDOWN_V2
-                )
+        # Clear all caches
+        data_manager = SecureReportManager(user_id)
+        metrics_cache = SecureMetricsCache(user_id)
+        activity_cache = SecureActivityCache(user_id)
+        physiology_cache = SecurePhysiologyCache(user_id)
+        
+        data_manager.clear_report()
+        metrics_cache.clear()
+        activity_cache.clear()
+        physiology_cache.clear()
+        
+        # Get and process fresh data
+        extractor = TriathlonCoachDataExtractor(email, password)
+        data = extractor.extract_data(ExtractionConfig(
+            activities_range=TimeRange.RECENT.value,
+            metrics_range=TimeRange.EXTENDED.value,
+            include_detailed_activities=True,
+            include_metrics=True
+        ))
+        
+        # Process and analyze data using Flow
+        from services.ai.flows import AnalysisFlow
+        athlete_name = user_name or "Athlete"
+        flow = AnalysisFlow(data, str(user_id), athlete_name)
+        result = await flow.kickoff_async()
+        
+        # Cache specialized analysis results
+        metrics_cache = SecureMetricsCache(user_id)
+        activity_cache = SecureActivityCache(user_id)
+        physiology_cache = SecurePhysiologyCache(user_id)
+        
+        # Store analysis results as strings
+        metrics_cache.store(str(flow.state.metrics_result))
+        activity_cache.store(str(flow.state.activities_result))
+        physiology_cache.store(str(flow.state.physiology_result))
+        
+        # Store both raw data and final synthesis result
+        data_manager.store_report(json.dumps({
+            'report': str(result),
+            'raw_data': asdict(data)
+        }))
+        
+        # Reset workout counter since data generation was successful
+        logger.info(f"Resetting workout counter for user {user_id} after successful data generation")
+        execution_tracker.reset_workout_counter()
+        
+        # Format and send the result
+        final_messages = format_and_send_report(str(result))
+        for msg in final_messages:
+            await message.reply_text(
+                msg,
+                parse_mode=ParseMode.MARKDOWN_V2
+            )
     except Exception as e:
         logger.error(f"Error processing data: {str(e)}", exc_info=True)
         error_msg = escape_markdown(f"🔄 Connection issue: {str(e)}\n\nPlease try again\\.")

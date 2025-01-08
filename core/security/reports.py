@@ -42,6 +42,23 @@ class SecureReportManager(SecureStorageBase):
         except Exception as e:
             raise StorageError(f"Failed to store report: {str(e)}") from e
 
+    def clear_report(self) -> bool:
+        """
+        Clear stored report.
+        
+        Returns:
+            bool: True if successful or if no report exists
+            
+        Raises:
+            StorageError: If clearing report fails
+        """
+        try:
+            if self.user_file.exists():
+                self.user_file.unlink()
+            return True
+        except Exception as e:
+            raise StorageError(f"Failed to clear report: {str(e)}") from e
+
     def get_report(self) -> Optional[Tuple[str, datetime.datetime]]:
         """
         Retrieve stored report and its timestamp if not expired.
@@ -62,13 +79,7 @@ class SecureReportManager(SecureStorageBase):
                 return None
 
             timestamp = datetime.datetime.fromisoformat(data['timestamp'])
-            current_time = datetime.datetime.now()
-            
-            # Check if report is less than 12 hours old
-            if (current_time - timestamp).total_seconds() < 43200:  # 12 hours
-                return data['report'], timestamp
-            
-            return None
+            return data['report'], timestamp
         except StorageError:
             raise
         except Exception as e:

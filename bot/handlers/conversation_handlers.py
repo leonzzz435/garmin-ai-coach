@@ -15,6 +15,7 @@ from telegram.ext import (
 )
 
 from core.security import SecureCredentialManager, SecureCompetitionManager, SecureReportManager
+from core.security.execution import ExecutionTracker
 from services.garmin import TriathlonCoachDataExtractor, GarminData
 from services.garmin.competition_models import Competition, RacePriority
 
@@ -542,6 +543,17 @@ async def start_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message or update.callback_query.message
     user_id = update.effective_user.id
     
+    # Check execution limits
+    execution_tracker = ExecutionTracker(user_id)
+    if not execution_tracker.check_workout_limit():
+        remaining_time = "tomorrow"  # Resets at midnight
+        await message.reply_text(
+            "⚠️ Daily workout limit reached\\. Try again " + remaining_time + "\\.\n" +
+            "Use /generate to reset your workout counter\\.",
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
+        return ConversationHandler.END
+    
     # Check for cached data
     data_manager = SecureReportManager(user_id)
     cached_data = data_manager.get_report()
@@ -591,18 +603,19 @@ async def process_workout_context(update: Update, context: ContextTypes.DEFAULT_
         data_manager = SecureReportManager(user_id)
         data, timestamp = data_manager.get_report()
         stored_data = json.loads(data)
-        report = stored_data['report']
         
-        # Parse raw data into GarminData
+        # Parse stored Garmin data
+        if not stored_data or 'raw_data' not in stored_data:
+            raise ValueError("No workout data available. Please sync your data first.")
+            
         garmin_data = GarminData(**stored_data['raw_data'])
         
         # Generate workout recommendations using Flow
         from services.ai.flows import WorkoutFlow
         athlete_name = user_name or "Athlete"
         flow = WorkoutFlow(
-            str(user_id), 
-            athlete_name, 
-            report, 
+            str(user_id),
+            athlete_name,
             garmin_data,
             user_data[user_id].get("workout_context", "")
         )

@@ -28,7 +28,7 @@ class UserProfile:
     activity_level: Optional[str] = None
     vo2max_running: Optional[float] = None
     vo2max_cycling: Optional[float] = None
-    lactate_threshold_pace: Optional[str] = None
+    lactate_threshold_speed: Optional[float] = None  # Speed in m/s
     lactate_threshold_heart_rate: Optional[int] = None
     ftp_auto_detected: Optional[bool] = None
     available_training_days: Optional[List[str]] = None

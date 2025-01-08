@@ -1,23 +1,25 @@
 """Workout Flow implementation using CrewAI."""
 
+import json
 import logging
 from datetime import datetime
 from pathlib import Path
 from pydantic import BaseModel
 from crewai import Agent, Task, Crew, Process
 from crewai.project import CrewBase, agent, task, crew
-from crewai.flow.flow import Flow, start
+from crewai.flow.flow import Flow, start, listen
 from ...model_config import ModelSelector
 from ...ai_settings import AgentRole
 from dataclasses import asdict
 from services.garmin import GarminData
 from core.security.competitions import SecureCompetitionManager
+from core.security.cache import SecureMetricsCache, SecureActivityCache, SecurePhysiologyCache
 
 logger = logging.getLogger(__name__)
 
 class WorkoutState(BaseModel):
     """State management for workout flow."""
-    analysis_report: str = ""
+    activity_context: str = ""
     competition_plan: str = ""
     workout_result: str = ""
 
@@ -25,16 +27,13 @@ class WorkoutState(BaseModel):
 class WorkoutCrew:
     """Workout crew implementation."""
 
-    def __init__(self, user_id: str, athlete_name: str, analysis_report: str, garmin_data: GarminData):
+    def __init__(self, user_id: str, athlete_name: str, garmin_data: GarminData):
         """Initialize the workout crew."""
         self.user_id = user_id
         self.athlete_name = athlete_name
         
         # Convert GarminData to dict
         self.data = asdict(garmin_data)
-        
-        # Store analysis report
-        self.analysis_report = analysis_report
         
         # Get competition data and current date
         competition_manager = SecureCompetitionManager(self.user_id)
@@ -61,6 +60,14 @@ class WorkoutCrew:
         logger.info("Initialized WorkoutCrew")
         
     @agent
+    def activity_context_agent(self) -> Agent:
+        """Create activity context analysis agent."""
+        return Agent(
+            config=self.agents_config['activity_context_agent'],
+            llm=ModelSelector.get_llm(AgentRole.ACTIVITY)
+        )
+
+    @agent
     def competition_planner_agent(self) -> Agent:
         """Create competition planning agent."""
         return Agent(
@@ -77,6 +84,13 @@ class WorkoutCrew:
         )
         
     @task
+    def activity_context_task(self) -> Task:
+        """Create activity context analysis task."""
+        return Task(
+            config=self.tasks_config['activity_context_task']
+        )
+
+    @task
     def competition_planning_task(self) -> Task:
         """Create competition planning task."""
         return Task(
@@ -88,67 +102,99 @@ class WorkoutCrew:
         """Create workout generation task."""
         return Task(
             config=self.tasks_config['workout_task'],
-            context=[self.competition_planning_task()]
+            context=[self.activity_context_task(), self.competition_planning_task()]
         )
 
     @crew
-    def crew(self) -> Crew:
+    def activity_context_crew(self) -> Crew:
+        """Create activity context analysis crew."""
+        return Crew(
+            agents=[self.activity_context_agent()],
+            tasks=[self.activity_context_task()],
+            process=Process.sequential
+        )
+
+    @crew
+    def competition_planning_crew(self) -> Crew:
+        """Create competition planning crew."""
+        return Crew(
+            agents=[self.competition_planner_agent()],
+            tasks=[self.competition_planning_task()],
+            process=Process.sequential
+        )
+
+    @crew
+    def workout_crew(self) -> Crew:
         """Create workout generation crew."""
         return Crew(
-            agents=[
-                self.competition_planner_agent(),
-                self.workout_agent()
-            ],
-            tasks=[
-                self.competition_planning_task(),
-                self.workout_task()
-            ],
-            process=Process.sequential,
-            verbose=True
+            agents=[self.workout_agent()],
+            tasks=[self.workout_task()],
+            process=Process.sequential
         )
 
 class WorkoutFlow(Flow[WorkoutState]):
     """Workout flow implementation."""
     
-    workout_crew = WorkoutCrew
-
-    def __init__(self, user_id: str, athlete_name: str, analysis_report: str, garmin_data: GarminData, athlete_context: str = ""):
+    def __init__(self, user_id: str, athlete_name: str, garmin_data: GarminData, athlete_context: str = ""):
         """Initialize the workout flow."""
         super().__init__()
-        self.crew_instance = self.workout_crew(user_id, athlete_name, analysis_report, garmin_data)
+        self.crew_instance = WorkoutCrew(user_id, athlete_name, garmin_data)
         self.athlete_name = athlete_name
-        self.state.analysis_report = analysis_report
         self.athlete_context = athlete_context
 
     @start()
-    async def generate_workouts(self):
-        """Generate personalized workout plans."""
-        # Prepare data for workout generation
-        metrics_data = {
-            'training_load_history': self.crew_instance.data.get('training_load_history', []),
-        }
-        activities_data = {
-            'recent_activities': self.crew_instance.data.get('recent_activities', []),
-            'training_status': self.crew_instance.data.get('training_status', {})
-        }
+    async def analyze_activity_context(self):
+        """Analyze recent activity context."""
+        activities_data = self.crew_instance.data.get('recent_activities', [])
+        user_profile = self.crew_instance.data.get('user_profile', {})
         
-        import json
+        result = await self.crew_instance.activity_context_crew().kickoff_async(
+            inputs={
+                'athlete_name': self.athlete_name,
+                'user_profile': json.dumps(user_profile, indent=2),
+                'activities_data': json.dumps(activities_data, indent=2),
+                'current_date': json.dumps(self.crew_instance.current_date, indent=2)
+            }
+        )
+        self.state.activity_context = result
+        logger.info("Activity Context Analysis completed")
+        return result
+
+    @listen(analyze_activity_context)
+    async def plan_competition(self):
+        """Create competition-based training plan."""
+        result = await self.crew_instance.competition_planning_crew().kickoff_async(
+            inputs={
+                'athlete_name': self.athlete_name,
+                'user_profile': json.dumps(self.crew_instance.data.get('user_profile', {}), indent=2),
+                'competitions': json.dumps(self.crew_instance.competitions, indent=2),
+                'current_date': json.dumps(self.crew_instance.current_date, indent=2)
+            }
+        )
+        self.state.competition_plan = result
+        logger.info("Competition Planning completed")
+        return result
+
+    @listen(plan_competition)
+    async def generate_workout(self):
+        """Generate personalized workout options."""
+        # Load cached analysis results (stored as strings)
+        metrics_cache = SecureMetricsCache(self.crew_instance.user_id)
+        physiology_cache = SecurePhysiologyCache(self.crew_instance.user_id)
         
-        # Properly serialize JSON data
-        inputs = {
-            'athlete_name': str(self.athlete_name),
-            'analysis_report': str(self.crew_instance.analysis_report),
-            'metrics_data': json.dumps(metrics_data, indent=2),
-            'activities_data': json.dumps(activities_data, indent=2),
-            'competitions': json.dumps(self.crew_instance.competitions, indent=2),
-            'current_date': json.dumps(self.crew_instance.current_date, indent=2),
-            'athlete_context': json.dumps({"context": self.athlete_context} if self.athlete_context else {}, indent=2)
-        }
+        # Get cached results (already in string format)
+        metrics_analysis = metrics_cache.get()
+        physiology_analysis = physiology_cache.get()
         
-        # Remove any empty strings from inputs
-        inputs = {k: v for k, v in inputs.items() if v and v.strip()}
-        
-        result = await self.crew_instance.crew().kickoff_async(inputs=inputs)
+        result = await self.crew_instance.workout_crew().kickoff_async(
+            inputs={
+                'athlete_name': self.athlete_name,
+                'athlete_context': self.athlete_context,
+                'metrics_analysis': metrics_analysis if metrics_analysis else "",
+                'physiology_analysis': physiology_analysis if physiology_analysis else "",
+                'current_date': json.dumps(self.crew_instance.current_date, indent=2)
+            }
+        )
         self.state.workout_result = result
-        logger.info("Workout generation completed")
+        logger.info("Workout Generation completed")
         return result

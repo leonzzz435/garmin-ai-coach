@@ -1,12 +1,12 @@
-competition_planning_task:
+activity_context_task:
   name: >
-    competition_planning
+    activity_context_analysis
   description: >
-    As an experienced race strategist and periodization specialist with focus on multisport events, create a data-driven training phase plan based on the following data. Your plan will be used by the workout specialist to design specific training sessions that align with the overall periodization strategy.
+    Analyze {athlete_name}'s recent training data to provide context for workout generation. Focus on recent activities and patterns that will inform the workout design process.
 
-    Training Metrics:
+    User Profile:
     ```json
-    {metrics_data}
+    {user_profile}
     ```
 
     Activity Data:
@@ -14,9 +14,33 @@ competition_planning_task:
     {activities_data}
     ```
 
-    Analysis Report:
+    Current Date:
     ```json
-    {analysis_report}
+    {current_date}
+    ```
+
+  expected_output: |
+    A clear analysis of recent training activities and patterns that will inform workout generation.
+
+    Format your response for Telegram:
+    - Use *asterisks* for section headers and important text
+    - Use bullet points (➤, ●, •) for lists
+    - Make liberal use of relevant emojis to enhance readability (e.g., ✅, 📈, 💪, 🎯, ⚠️)
+    - Structure content in clear sections with blank lines between them
+    - Do NOT use # for headers, use *bold text* instead
+  output_file: >
+    stuff/workouts/activity_context.md
+  agent: activity_context_agent
+
+competition_planning_task:
+  name: >
+    competition_planning
+  description: >
+    As an experienced race strategist and periodization specialist with focus on multisport events, create a data-driven training phase plan for {athlete_name} based on the following data. Your plan will be used by the workout specialist to design specific training sessions that align with the overall periodization strategy.
+
+    User Profile:
+    ```json
+    {user_profile}
     ```
 
     Upcoming Competitions:
@@ -51,26 +75,15 @@ workout_task:
     ```json
     {athlete_context}
     ```
-    Consider any constraints, preferences, or circumstances provided by the athlete when designing the workouts.
 
-    Training Metrics:
+    Metrics Analysis:
     ```json
-    {metrics_data}
+    {metrics_analysis}
     ```
 
-    Activity Data:
+    Physiology Analysis:
     ```json
-    {activities_data}
-    ```
-
-    Analysis Report:
-    ```json
-    {analysis_report}
-    ```
-
-    Upcoming Competitions:
-    ```json
-    {competitions}
+    {physiology_analysis}
     ```
 
     Current Date:
@@ -78,7 +91,12 @@ workout_task:
     {current_date}
     ```
 
-    Use the training phase plan from the previous task as context to ensure alignment with competition preparation. Design three distinct training options (A, B, C), each focusing on a specific session type that best serves the athlete's current preparation needs and personal preferences.
+    Use the activity context and training phase plan from the previous tasks as context to ensure alignment with the athlete's current status and competition preparation. Consider all available analysis results to optimize the workout design:
+    - Training load and performance trends from metrics analysis
+    - Recovery state and readiness from physiology analysis
+    - Any specific constraints or preferences from athlete context
+
+    Design three distinct training options (A, B, C), each focusing on a specific session type that best serves the athlete's current preparation needs and personal preferences.
 
   expected_output: >
     Three distinct training options (A, B, C) for today, each presenting a complete session design that aligns with the athlete's current status and competition goals. Each option should focus on the most beneficial type of training for today, whether that's a discipline-specific session, brick workout, strength training, or recovery.
