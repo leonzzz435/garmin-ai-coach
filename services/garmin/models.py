@@ -65,7 +65,7 @@ class DailyStats:
 
 @dataclass
 class ActivitySummary:
-    """Activity summary data"""
+    """Activity summary data - raw metrics only"""
     distance: Optional[float] = None
     duration: Optional[int] = None
     moving_duration: Optional[int] = None
@@ -76,16 +76,10 @@ class ActivitySummary:
     calories: Optional[int] = None
     average_hr: Optional[int] = None
     max_hr: Optional[int] = None
-    training_effect: Optional[float] = None
-    anaerobic_training_effect: Optional[float] = None
-    training_effect_label: Optional[str] = None
     activity_training_load: Optional[int] = None
     moderate_intensity_minutes: Optional[int] = None
     vigorous_intensity_minutes: Optional[int] = None
     recovery_heart_rate: Optional[int] = None
-    begin_potential_stamina: Optional[float] = None
-    end_potential_stamina: Optional[float] = None
-    min_available_stamina: Optional[float] = None
     difference_body_battery: Optional[int] = None
 
 @dataclass
@@ -138,15 +132,13 @@ class RecoveryIndicators:
 
 @dataclass
 class TrainingStatus:
-    """Training status information"""
+    """Training status information - raw metrics only"""
     vo2_max: Optional[Dict[str, Any]] = None
-    training_load_balance: Optional[Dict[str, Any]] = None
-    training_status: Optional[Dict[str, Any]] = None
     acute_training_load: Optional[Dict[str, Any]] = None
 
 @dataclass
 class GarminData:
-    """Complete Garmin data container"""
+    """Complete Garmin data container - raw data only"""
     user_profile: Optional[UserProfile] = None
     daily_stats: Optional[DailyStats] = None
     recent_activities: Optional[List[Activity]] = None
@@ -155,10 +147,5 @@ class GarminData:
     body_metrics: Optional[BodyMetrics] = None
     recovery_indicators: Optional[List[RecoveryIndicators]] = None
     training_status: Optional[TrainingStatus] = None
-    training_readiness: Optional[List[Dict[str, Any]]] = None
-    race_predictions: Optional[List[Dict[str, Any]]] = None
-    hill_score: Optional[List[Dict[str, Any]]] = None
-    endurance_score: Optional[Dict[str, Any]] = None
-    endurance_score_history: Optional[List[Dict[str, Any]]] = None
     vo2_max_history: Optional[List[Dict[str, Any]]] = None
     training_load_history: Optional[List[Dict[str, Any]]] = None

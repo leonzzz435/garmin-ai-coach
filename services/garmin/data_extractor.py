@@ -117,25 +117,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 "training_status": self.get_training_status(
                     date_ranges['metrics']['end']
                 ),
-                "training_readiness": self.get_training_readiness_history(
-                    date_ranges['metrics']['start'],
-                    date_ranges['metrics']['end']
-                ),
-                "race_predictions": self.get_race_predictions_history(
-                    date_ranges['metrics']['start'],
-                    date_ranges['metrics']['end']
-                ),
-                "hill_score": self.get_hill_score_history(
-                    date_ranges['metrics']['start'],
-                    date_ranges['metrics']['end']
-                ),
-                'endurance_score': self.get_endurance_score(
-                    date_ranges['metrics']['end']
-                ),
-                'endurance_score_history': self.get_endurance_score_history(
-                    date_ranges['metrics']['start'],
-                    date_ranges['metrics']['end']
-                ),
                 "vo2_max_history": self.get_vo2_max_history(
                     date_ranges['metrics']['start'],
                     date_ranges['metrics']['end']
@@ -459,16 +440,10 @@ class TriathlonCoachDataExtractor(DataExtractor):
             calories=summary.get('calories'),
             average_hr=summary.get('averageHR'),
             max_hr=summary.get('maxHR'),
-            training_effect=summary.get('trainingEffect'),
-            anaerobic_training_effect=summary.get('anaerobicTrainingEffect'),
-            training_effect_label=summary.get('trainingEffectLabel'),
             activity_training_load=summary.get('activityTrainingLoad'),
             moderate_intensity_minutes=summary.get('moderateIntensityMinutes'),
             vigorous_intensity_minutes=summary.get('vigorousIntensityMinutes'),
             recovery_heart_rate=summary.get('recoveryHeartRate'),
-            begin_potential_stamina=summary.get('beginPotentialStamina'),
-            end_potential_stamina=summary.get('endPotentialStamina'),
-            min_available_stamina=summary.get('minAvailableStamina'),
             difference_body_battery=summary.get('differenceBodyBattery')
         )
 
@@ -512,14 +487,8 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 
         return processed_zones
 
-    # The following methods remain largely unchanged but would be updated
-    # to use the new models. They are included in the original class but
-    # omitted here for brevity. In a real implementation, they would be
-    # properly typed and use the appropriate model classes.
-    
     def get_physiological_markers(self, start_date: date, end_date: date) -> PhysiologicalMarkers:
         """Get relevant physiological markers."""
-
         # Get resting heart rate
         rhr_data = self.garmin.client.get_rhr_day(end_date.isoformat())
         rhr_value = rhr_data.get('allMetrics', {}).get('metricsMap', {}).get('WELLNESS_RESTING_HEART_RATE', [])
@@ -650,130 +619,21 @@ class TriathlonCoachDataExtractor(DataExtractor):
         raw_data = self.garmin.client.get_training_status(date_obj.isoformat())
 
         vo2max_data = raw_data.get('mostRecentVO2Max', {}).get('generic', {})
-        training_load_balance = raw_data.get('mostRecentTrainingLoadBalance', {}).get('metricsTrainingLoadBalanceDTOMap', {})
-        training_status = raw_data.get('mostRecentTrainingStatus', {}).get('latestTrainingStatusData', {})
-
-        # Get the first (and usually only) key from the dictionaries
-        load_balance_key = next(iter(training_load_balance), None)
-        status_key = next(iter(training_status), None)
-
-        load_balance = training_load_balance.get(load_balance_key, {}) if load_balance_key else {}
-        status = training_status.get(status_key, {}) if status_key else {}
+        status = raw_data.get('mostRecentTrainingStatus', {}).get('latestTrainingStatusData', {})
+        status_key = next(iter(status), None)
+        status_data = status.get(status_key, {}) if status_key else {}
 
         return TrainingStatus(
             vo2_max={
-                'value': vo2max_data.get('vo2MaxValue') if vo2max_data else None,
-                'date': vo2max_data.get('calendarDate') if vo2max_data else None,
-            },
-            training_load_balance={
-                'aerobic_low': load_balance.get('monthlyLoadAerobicLow'),
-                'aerobic_high': load_balance.get('monthlyLoadAerobicHigh'),
-                'anaerobic': load_balance.get('monthlyLoadAnaerobic'),
-                'feedback': load_balance.get('trainingBalanceFeedbackPhrase'),
-            },
-            training_status={
-                'status': status.get('trainingStatus'),
-                'load_level_trend': status.get('loadLevelTrend'),
-                'fitness_trend': status.get('fitnessTrend'),
-                'feedback': status.get('trainingStatusFeedbackPhrase'),
+                'value': vo2max_data.get('vo2MaxValue'),
+                'date': vo2max_data.get('calendarDate'),
             },
             acute_training_load={
-                'acute_load': status.get('acuteTrainingLoadDTO', {}).get('dailyTrainingLoadAcute'),
-                'chronic_load': status.get('acuteTrainingLoadDTO', {}).get('dailyTrainingLoadChronic'),
-                'acwr': status.get('acuteTrainingLoadDTO', {}).get('dailyAcuteChronicWorkloadRatio'),
-                'acwr_status': status.get('acuteTrainingLoadDTO', {}).get('acwrStatus'),
-                'acwr_feedback': status.get('acuteTrainingLoadDTO', {}).get('acwrStatusFeedback'),
+                'acute_load': status_data.get('acuteTrainingLoadDTO', {}).get('dailyTrainingLoadAcute'),
+                'chronic_load': status_data.get('acuteTrainingLoadDTO', {}).get('dailyTrainingLoadChronic'),
+                'acwr': status_data.get('acuteTrainingLoadDTO', {}).get('dailyAcuteChronicWorkloadRatio'),
             }
         )
-
-    def get_training_readiness_history(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
-        """Get training readiness history for the given date range."""
-        history = []
-        current_date = start_date
-        while current_date <= end_date:
-            data = self.garmin.client.get_training_readiness(current_date.isoformat())
-            if data and len(data) > 0:
-                latest_data = data[0]
-                history.append({
-                    'date': latest_data.get('calendarDate'),
-                    'score': latest_data.get('score'),
-                    'level': latest_data.get('level'),
-                    'feedback': latest_data.get('feedbackLong'),
-                    'sleep_score': latest_data.get('sleepScore'),
-                    'recovery_time': latest_data.get('recoveryTime'),
-                    'acute_load': latest_data.get('acuteLoad'),
-                    'hrv_status': latest_data.get('hrvFactorFeedback'),
-                })
-            current_date += timedelta(days=1)
-        return history
-
-    def get_race_predictions_history(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
-        """Get race predictions history for the given date range."""
-        raw_data = self.garmin.client.get_race_predictions(start_date.isoformat(), end_date.isoformat(), _type="daily")
-        return [
-            {
-                'date': prediction.get('calendarDate'),
-                '5k': self._format_time(prediction.get('time5K')),
-                '10k': self._format_time(prediction.get('time10K')),
-                'half_marathon': self._format_time(prediction.get('timeHalfMarathon')),
-                'marathon': self._format_time(prediction.get('timeMarathon')),
-            }
-            for prediction in raw_data
-        ]
-
-    def get_hill_score_history(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
-        """Get hill score history for the given date range."""
-        raw_data = self.garmin.client.get_hill_score(start_date.isoformat(), end_date.isoformat())
-        if not raw_data or 'hillScoreDTOList' not in raw_data:
-            return []
-        return [
-            {
-                'date': score.get('calendarDate'),
-                'overall_score': score.get('overallScore'),
-                'strength_score': score.get('strengthScore'),
-                'endurance_score': score.get('enduranceScore'),
-                'classification': score.get('hillScoreClassificationId'),
-            }
-            for score in raw_data['hillScoreDTOList']
-        ]
-
-    def get_endurance_score(self, date_obj: date) -> Dict[str, Any]:
-        """Get endurance score information for a specific date."""
-        raw_data = self.garmin.client.get_endurance_score(date_obj.isoformat())
-        if not raw_data:
-            return {}
-
-        contributors = raw_data.get('contributors', [])
-        processed_contributors = self._map_endurance_score_contributors(contributors)
-
-        return {
-            'date': raw_data.get('calendarDate'),
-            'overall_score': raw_data.get('overallScore'),
-            'classification': raw_data.get('classification'),
-            'feedback': raw_data.get('feedbackPhrase'),
-            'contributors': processed_contributors,
-            'gauge_lower_limit': raw_data.get('gaugeLowerLimit'),
-            'gauge_upper_limit': raw_data.get('gaugeUpperLimit'),
-            'classification_limits': {
-                'intermediate': raw_data.get('classificationLowerLimitIntermediate'),
-                'trained': raw_data.get('classificationLowerLimitTrained'),
-                'well_trained': raw_data.get('classificationLowerLimitWellTrained'),
-                'expert': raw_data.get('classificationLowerLimitExpert'),
-                'superior': raw_data.get('classificationLowerLimitSuperior'),
-                'elite': raw_data.get('classificationLowerLimitElite'),
-            }
-        }
-
-    def get_endurance_score_history(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
-        """Get endurance score history for the given date range."""
-        history = []
-        current_date = start_date
-        while current_date <= end_date:
-            score_data = self.get_endurance_score(current_date)
-            if score_data:
-                history.append(score_data)
-            current_date += timedelta(days=1)
-        return history
 
     def get_vo2_max_history(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
         """Get VO2 Max history for the given date range."""
@@ -808,21 +668,3 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 })
             current_date += timedelta(days=1)
         return history
-
-    @staticmethod
-    def _format_time(seconds: Optional[int]) -> str:
-        """Format seconds into HH:MM:SS."""
-        if not seconds:
-            return "N/A"
-        hours, remainder = divmod(seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-
-    @staticmethod
-    def _map_endurance_score_contributors(contributors: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Map endurance score contributors to their respective disciplines."""
-        discipline_map = {0: 'running', 1: 'cycling', 6: 'swimming', 8: 'other'}
-        return [
-            {'discipline': discipline_map.get(c['group'], 'unknown'), 'contribution': c['contribution']}
-            for c in contributors
-        ]
