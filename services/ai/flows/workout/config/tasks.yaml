@@ -1,8 +1,18 @@
 activity_context_task:
-  name: >
-    activity_context_analysis
+  name: activity_context_analysis
   description: >
-    Analyze {athlete_name}'s recent training data to provide context for workout generation. Focus on recent activities and patterns that will inform the workout design process.
+    Analyze recent training data according to the Activity Context Agent role defined below.
+    Focus on recent patterns that directly inform upcoming session design.
+
+    Style Guide:
+    ```markdown
+    {style_guide}
+    ```
+
+    Agent Roles:
+    ```markdown
+    {agent_roles}
+    ```
 
     User Profile:
     ```json
@@ -19,24 +29,28 @@ activity_context_task:
     {current_date}
     ```
 
-  expected_output: |
-    A clear analysis of recent training activities and patterns that will inform workout generation.
-
-    Format your response for Telegram:
-    - Use *asterisks* for section headers and important text
-    - Use bullet points (➤, ●, •) for lists
-    - Make liberal use of relevant emojis to enhance readability (e.g., ✅, 📈, 💪, 🎯, ⚠️)
-    - Structure content in clear sections with blank lines between them
-    - Do NOT use # for headers, use *bold text* instead
-  output_file: >
-    stuff/workouts/activity_context.md
+    Follow your role as defined in the "5. Activity Context Agent" section of Agent Roles.
+  expected_output: >
+    A clear analysis of recent training patterns to inform workout generation.
+    Format according to the Style Guide specifications provided above.
+  output_file: stuff/workouts/activity_context.md
   agent: activity_context_agent
 
 competition_planning_task:
-  name: >
-    competition_planning
+  name: competition_planning
   description: >
-    As an experienced race strategist and periodization specialist with focus on multisport events, create a data-driven training phase plan for {athlete_name} based on the following data. Your plan will be used by the workout specialist to design specific training sessions that align with the overall periodization strategy.
+    Create training phase plan according to the Competition Planner Agent role defined below.
+    Focus on season timeline, periodization, and priority races.
+
+    Style Guide:
+    ```markdown
+    {style_guide}
+    ```
+
+    Agent Roles:
+    ```markdown
+    {agent_roles}
+    ```
 
     User Profile:
     ```json
@@ -52,24 +66,29 @@ competition_planning_task:
     ```json
     {current_date}
     ```
-  expected_output: |
-    A comprehensive training phase plan that optimizes the athlete's preparation for upcoming competitions.
 
-    Format your response for Telegram:
-    - Use *asterisks* for section headers and important text
-    - Use bullet points (•, ●, ➤) for lists
-    - Make liberal use of relevant emojis to enhance readability (e.g., ✅, 📈, 💪, 🎯, ⚠️)
-    - Structure content in clear sections with blank lines between them
-    - Do NOT use # for headers, use *bold text* instead
-  output_file: >
-    stuff/workouts/training_phase.md
+    Follow your role as defined in the "6. Competition Planner Agent" section of Agent Roles.
+  expected_output: >
+    A comprehensive training phase plan optimizing preparation for upcoming competitions.
+    Format according to the Style Guide specifications provided above.
+  output_file: stuff/workouts/training_phase.md
   agent: competition_planner_agent
 
 workout_task:
-  name: >
-    workout_generation
+  name: workout_generation
   description: >
-    As a technical coach with expertise in multisport session design and high-performance training, suggest three different workout options for {athlete_name} based on the following data. Your workout suggestions will be presented directly to the athlete, so focus on providing clear, engaging, and actionable training options that align with the competition planning strategy.
+    Generate workout options according to the Workout Agent role defined below.
+    Focus on creating immediate training sessions (A, B, C) based on context from activity_context and competition_planning.
+
+    Style Guide:
+    ```markdown
+    {style_guide}
+    ```
+
+    Agent Roles:
+    ```markdown
+    {agent_roles}
+    ```
 
     Athlete Context:
     ```json
@@ -91,23 +110,10 @@ workout_task:
     {current_date}
     ```
 
-    Use the activity context and training phase plan from the previous tasks as context to ensure alignment with the athlete's current status and competition preparation. Consider all available analysis results to optimize the workout design:
-    - Training load and performance trends from metrics analysis
-    - Recovery state and readiness from physiology analysis
-    - Any specific constraints or preferences from athlete context
-
-    Design three distinct training options (A, B, C), each focusing on a specific session type that best serves the athlete's current preparation needs and personal preferences.
-
+    Follow your role as defined in the "7. Workout Agent" section of Agent Roles.
+    Pay special attention to section 5 of the Style Guide for workout-specific formatting requirements.
   expected_output: >
-    Three distinct training options (A, B, C) for today, each presenting a complete session design that aligns with the athlete's current status and competition goals. Each option should focus on the most beneficial type of training for today, whether that's a discipline-specific session, brick workout, strength training, or recovery.
-
-    Format your response for Telegram:
-    - Use *asterisks* for section headers and important text
-    - Use bullet points (•, ●, ➤) for lists
-    - Make liberal use of relevant emojis to enhance readability (e.g., ✅, 📈, 💪, 🎯, ⚠️)
-    - Structure content in clear sections with blank lines between them
-    - Do NOT use # for headers, use *bold text* instead
-    
-  output_file: >
-    stuff/workouts/generated.md
+    Three distinct training options (A, B, C) aligned with current status and competition goals.
+    Format according to the Style Guide specifications provided above, with particular attention to section 5 (Additional Pointers for Workout Agents).
+  output_file: stuff/workouts/generated.md
   agent: workout_agent

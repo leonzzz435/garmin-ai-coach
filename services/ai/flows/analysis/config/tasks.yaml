@@ -1,8 +1,18 @@
 metrics_task:
-  name: >
-    metrics_analysis
+  name: metrics_analysis
   description: >
-    As a former sports statistician and performance analyst for elite endurance teams, analyze the following data to identify patterns in relation to competition goals. Your expertise lies in translating complex data into actionable insights. Your analysis will be used by the synthesis specialist as part of a collaborative system to provide comprehensive athlete insights.
+    Analyze training metrics data according to the Metrics Agent role defined below.
+    Focus on macro-level performance metrics including training load and VO2max trends.
+
+    Style Guide:
+    ```markdown
+    {style_guide}
+    ```
+
+    Agent Roles:
+    ```markdown
+    {agent_roles}
+    ```
 
     Training Metrics:
     ```json
@@ -19,25 +29,28 @@ metrics_task:
     {current_date}
     ```
 
-    Focus on key performance indicators, trends, and their relationship to competition preparation.
+    Follow your role as defined in the "1. Metrics Agent" section of Agent Roles.
   expected_output: >
-    A comprehensive analysis of the athlete's performance metrics and their implications for competition preparation.
-
-    Format your response for Telegram:
-    - Use *asterisks* for section headers and important text
-    - Use bullet points (•, ●, ➤) for lists
-    - Make liberal use of relevant emojis to enhance readability (e.g., ✅, 📈, 💪, 🎯, ⚠️)
-    - Structure content in clear sections with blank lines between them
-    - Do NOT use # for headers, use *bold text* instead
-  output_file: >
-    stuff/analysis/metrics.md
+    A comprehensive analysis of performance metrics and their implications for competition preparation.
+    Format according to the Style Guide specifications provided above.
+  output_file: stuff/analysis/metrics.md
   agent: metrics_agent
 
 activities_task:
-  name: >
-    activity_analysis
+  name: activity_analysis
   description: >
-    As an elite endurance coach with extensive experience in triathlon and running, analyze the following data to identify execution patterns considering race preparation. Your expertise lies in workout analysis and technique optimization. Your analysis will be used by the synthesis specialist as part of a collaborative system to provide comprehensive athlete insights.
+    Analyze workout execution data according to the Activity Agent role defined below.
+    Focus on session-level details including heart rate zones, intervals, and compliance.
+
+    Style Guide:
+    ```markdown
+    {style_guide}
+    ```
+
+    Agent Roles:
+    ```markdown
+    {agent_roles}
+    ```
 
     Activity Data:
     ```json
@@ -54,25 +67,28 @@ activities_task:
     {current_date}
     ```
 
-    Focus on workout quality, execution trends, and progression patterns.
+    Follow your role as defined in the "2. Activity Agent" section of Agent Roles.
   expected_output: >
-    A detailed analysis of the athlete's training activities and their effectiveness for race preparation.
-
-    Format your response for Telegram:
-    - Use *asterisks* for section headers and important text
-    - Use bullet points (•, ●, ➤) for lists
-    - Make liberal use of relevant emojis to enhance readability (e.g., ✅, 📈, 💪, 🎯, ⚠️)
-    - Structure content in clear sections with blank lines between them
-    - Do NOT use # for headers, use *bold text* instead
-  output_file: >
-    stuff/analysis/activities.md
+    A detailed analysis of training activities and their effectiveness for race preparation.
+    Format according to the Style Guide specifications provided above.
+  output_file: stuff/analysis/activities.md
   agent: activity_agent
 
 physiology_task:
-  name: >
-    physio_analysis
+  name: physio_analysis
   description: >
-    As an exercise physiologist specializing in endurance sports adaptation and recovery optimization, analyze the following data in context of competition schedule. Your analysis will be used by the synthesis specialist as part of a collaborative system to provide comprehensive athlete insights.
+    Analyze physiological data according to the Physiology Agent role defined below.
+    Focus on recovery markers, HRV trends, and overall readiness indicators.
+
+    Style Guide:
+    ```markdown
+    {style_guide}
+    ```
+
+    Agent Roles:
+    ```markdown
+    {agent_roles}
+    ```
 
     Physiological Data:
     ```json
@@ -89,27 +105,28 @@ physiology_task:
     {current_date}
     ```
 
-    Focus on recovery patterns, adaptation trends, and overall health status.
+    Follow your role as defined in the "3. Physiology Agent" section of Agent Roles.
   expected_output: >
-    A thorough analysis of the athlete's physiological state and readiness for competition.
-
-    Format your response for Telegram:
-    - Use *asterisks* for section headers and important text
-    - Use bullet points (•, ●, ➤) for lists
-    - Make liberal use of relevant emojis to enhance readability (e.g., ✅, 📈, 💪, 🎯, ⚠️)
-    - Structure content in clear sections with blank lines between them
-    - Do NOT use # for headers, use *bold text* instead
-  output_file: >
-    stuff/analysis/physiology.md
+    A thorough analysis of physiological state and readiness for competition.
+    Format according to the Style Guide specifications provided above.
+  output_file: stuff/analysis/physiology.md
   agent: physiology_agent
 
 synthesis_task:
-  name: >
-    synthesis
+  name: synthesis
   description: >
-    As a performance integration specialist, synthesize the parallel analyses from the metrics, activities, and physiology specialists into a comprehensive report for {athlete_name}. Your synthesis will be presented directly to the athlete, making it crucial to deliver clear, actionable, and engaging insights.
+    Synthesize parallel analyses according to the Synthesis Agent role defined below.
+    Focus on integrating metrics, activities, and physiology insights for {athlete_name}.
 
-    Use the following additional context:
+    Style Guide:
+    ```markdown
+    {style_guide}
+    ```
+
+    Agent Roles:
+    ```markdown
+    {agent_roles}
+    ```
 
     Upcoming Competitions:
     ```json
@@ -121,16 +138,9 @@ synthesis_task:
     {current_date}
     ```
 
-    Create a cohesive analysis that connects metrics, activities, and physiological insights.
+    Follow your role as defined in the "4. Synthesis Agent" section of Agent Roles.
   expected_output: >
-    A cohesive synthesis report of the athlete's current status and preparation.
-
-    Format your response for Telegram:
-    - Use *asterisks* for section headers and important text
-    - Use bullet points (•, ●, ➤) for lists
-    - Make liberal use of relevant emojis to enhance readability (e.g., ✅, 📈, 💪, 🎯, ⚠️)
-    - Structure content in clear sections with blank lines between them
-    - Do NOT use # for headers, use *bold text* instead
-  output_file: >
-    stuff/analysis/synthesis.md
+    A cohesive synthesis report integrating all analysis components.
+    Format according to the Style Guide specifications provided above.
+  output_file: stuff/analysis/synthesis.md
   agent: synthesis_agent

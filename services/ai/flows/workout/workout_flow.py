@@ -55,6 +55,17 @@ class WorkoutCrew:
             'date_formatted': current_date.strftime('%Y-%m-%d')
         }
         
+        # Load style guide and agent roles
+        try:
+            with open('cline_docs/styleGuide.md', 'r') as f:
+                self.style_guide = f.read()
+            with open('cline_docs/agentRoles.md', 'r') as f:
+                self.agent_roles = f.read()
+        except Exception as e:
+            logger.error(f"Failed to load style guide or agent roles: {e}")
+            self.style_guide = ""
+            self.agent_roles = ""
+        
         # Ensure output directory exists
         Path("stuff/workouts").mkdir(parents=True, exist_ok=True)
         logger.info("Initialized WorkoutCrew")
@@ -153,7 +164,9 @@ class WorkoutFlow(Flow[WorkoutState]):
                 'athlete_name': self.athlete_name,
                 'user_profile': json.dumps(user_profile, indent=2),
                 'activities_data': json.dumps(activities_data, indent=2),
-                'current_date': json.dumps(self.crew_instance.current_date, indent=2)
+                'current_date': json.dumps(self.crew_instance.current_date, indent=2),
+                'style_guide': self.crew_instance.style_guide,
+                'agent_roles': self.crew_instance.agent_roles
             }
         )
         self.state.activity_context = result
@@ -168,7 +181,9 @@ class WorkoutFlow(Flow[WorkoutState]):
                 'athlete_name': self.athlete_name,
                 'user_profile': json.dumps(self.crew_instance.data.get('user_profile', {}), indent=2),
                 'competitions': json.dumps(self.crew_instance.competitions, indent=2),
-                'current_date': json.dumps(self.crew_instance.current_date, indent=2)
+                'current_date': json.dumps(self.crew_instance.current_date, indent=2),
+                'style_guide': self.crew_instance.style_guide,
+                'agent_roles': self.crew_instance.agent_roles
             }
         )
         self.state.competition_plan = result
@@ -192,7 +207,9 @@ class WorkoutFlow(Flow[WorkoutState]):
                 'athlete_context': self.athlete_context,
                 'metrics_analysis': metrics_analysis if metrics_analysis else "",
                 'physiology_analysis': physiology_analysis if physiology_analysis else "",
-                'current_date': json.dumps(self.crew_instance.current_date, indent=2)
+                'current_date': json.dumps(self.crew_instance.current_date, indent=2),
+                'style_guide': self.crew_instance.style_guide,
+                'agent_roles': self.crew_instance.agent_roles
             }
         )
         self.state.workout_result = result

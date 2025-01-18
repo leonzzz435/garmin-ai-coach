@@ -54,6 +54,17 @@ class AnalysisCrew:
             'date_formatted': current_date.strftime('%Y-%m-%d')
         }
         
+        # Load style guide and agent roles
+        try:
+            with open('cline_docs/styleGuide.md', 'r') as f:
+                self.style_guide = f.read()
+            with open('cline_docs/agentRoles.md', 'r') as f:
+                self.agent_roles = f.read()
+        except Exception as e:
+            logger.error(f"Failed to load style guide or agent roles: {e}")
+            self.style_guide = ""
+            self.agent_roles = ""
+        
         # Ensure output directory exists
         Path("stuff/analysis").mkdir(parents=True, exist_ok=True)
         logger.info("Initialized AnalysisCrew with data keys: %s", list(self.data.keys()))
@@ -181,7 +192,9 @@ class AnalysisFlow(Flow[AnalysisState]):
             inputs={
                 'data': metrics_data,
                 'competitions': self.analysis_crew.competitions,
-                'current_date': self.analysis_crew.current_date
+                'current_date': self.analysis_crew.current_date,
+                'style_guide': self.analysis_crew.style_guide,
+                'agent_roles': self.analysis_crew.agent_roles
             }
         )
         self.state.metrics_result = result
@@ -199,7 +212,9 @@ class AnalysisFlow(Flow[AnalysisState]):
             inputs={
                 'data': activities_data,
                 'competitions': self.analysis_crew.competitions,
-                'current_date': self.analysis_crew.current_date
+                'current_date': self.analysis_crew.current_date,
+                'style_guide': self.analysis_crew.style_guide,
+                'agent_roles': self.analysis_crew.agent_roles
             }
         )
         self.state.activities_result = result
@@ -219,7 +234,9 @@ class AnalysisFlow(Flow[AnalysisState]):
             inputs={
                 'data': physio_data,
                 'competitions': self.analysis_crew.competitions,
-                'current_date': self.analysis_crew.current_date
+                'current_date': self.analysis_crew.current_date,
+                'style_guide': self.analysis_crew.style_guide,
+                'agent_roles': self.analysis_crew.agent_roles
             }
         )
         self.state.physiology_result = result
@@ -233,7 +250,9 @@ class AnalysisFlow(Flow[AnalysisState]):
             inputs={
                 'athlete_name': self.athlete_name,
                 'competitions': self.analysis_crew.competitions,
-                'current_date': self.analysis_crew.current_date
+                'current_date': self.analysis_crew.current_date,
+                'style_guide': self.analysis_crew.style_guide,
+                'agent_roles': self.analysis_crew.agent_roles
             }
         )
         self.state.synthesis_result = result
