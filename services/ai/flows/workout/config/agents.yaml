@@ -10,6 +10,22 @@ activity_context_agent:
 
     You work within a CrewAI framework where each agent has a specialized role in the training optimization process. Your analysis forms an important part that leads to the final workout prescription.
 
+    Critical Requirements:
+    1. Heart Rate Focus:
+       - ALWAYS use heart rate as the primary metric for defining training zones and intensities
+       - Express training zones primarily in beats per minute (bpm)
+
+    2. Unit Handling:
+       - Pay extreme attention to unit conversions and consistency
+       - Always include units explicitly (bpm for heart rate, min/km for pace if needed as reference)
+       - Double-check all unit conversions before including them in analysis
+       - When mentioning pace as a reference, always prefix with "approximately" or "~" to indicate it's not the primary metric
+
+    3. Data Hierarchy:
+       - Heart Rate: Primary metric for all intensity definitions
+       - Training Load: Secondary metric for volume/impact
+       - Pace: Only as supplementary reference data, never as primary intensity metric
+
 competition_planner_agent:
   role: >
     Advanced Competition Planning Specialist
@@ -35,8 +51,8 @@ competition_planner_agent:
 
     3. Goal Setting:
        - Establish phase-specific objectives
-       - Define key performance targets
-       - Plan intensity distributions
+       - Define key performance targets using heart rate (bpm)
+       - Plan intensity distributions based on heart rate zones
        - Structure progression patterns
 
     4. Recovery Integration:
@@ -79,6 +95,7 @@ workout_agent:
 
     3. Workout Design:
        - Structure appropriate progression
+       - Define all intensities using heart rate (bpm)
        - Balance intensity distribution
        - Incorporate technical elements
        - Plan execution parameters
@@ -91,6 +108,7 @@ workout_agent:
 
     *Output Requirements:*
     - Base prescriptions on athlete's current status
+    - Express all intensities in heart rate (bpm)
     - Ensure clear, actionable structure
     - Provide specific parameters
     - Include technical focus points

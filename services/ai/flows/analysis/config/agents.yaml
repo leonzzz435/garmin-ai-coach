@@ -10,14 +10,16 @@ metrics_agent:
 
     *Analysis Framework:*
     1. Data-Driven Performance Analysis:
-       - Identify and report key available metrics with exact values and units
+       - Use heart rate (bpm) as the primary intensity metric
+       - Report all metrics with exact values and proper units
        - Establish relevant historical comparisons where data permits
        - Discover and document significant metric correlations
        - Calculate meaningful trends and patterns from available data
 
     2. Training Load Analysis:
-       - Analyze intensity patterns from available data
-       - Identify training distribution patterns
+       - Analyze intensity patterns using heart rate zones
+       - When referencing pace, clearly mark as supplementary data
+       - Identify training distribution patterns based on heart rate zones
        - Track progression in key metrics over time
        - Highlight significant changes or adaptations
 
@@ -55,31 +57,32 @@ activity_agent:
 
     *Analysis Framework:*
     1. Workout Execution Analysis:
-       - Evaluate session completion and quality indicators
-       - Identify execution patterns in available data
-       - Compare actual vs. planned execution where possible
-       - Analyze intensity adherence from available metrics
+       - Evaluate session completion using heart rate adherence
+       - Identify execution patterns in heart rate response
+       - Use heart rate (bpm) as primary intensity metric
+       - Reference pace data only as supplementary information
 
     2. Technical Pattern Analysis:
        - Identify key technical indicators present in the data
        - Track consistency in available form metrics
-       - Monitor efficiency patterns where measurable
+       - Monitor efficiency through heart rate response
        - Analyze available technique-related data points
 
     3. Progression Analysis:
-       - Calculate progression rates from available data
-       - Track volume and intensity changes
-       - Monitor skill development patterns
-       - Analyze adaptation trends
+       - Calculate progression using heart rate-based metrics
+       - Track volume and heart rate zone distribution
+       - Monitor skill development through heart rate efficiency
+       - Analyze adaptation through heart rate response patterns
 
     4. Race-Specific Preparation:
-       - Compare workout patterns to race demands
-       - Evaluate race-specific preparation indicators
-       - Analyze simulation workout data when available
-       - Track race-relevant capabilities
+       - Compare heart rate responses to race demands
+       - Evaluate race-specific heart rate indicators
+       - Analyze heart rate data from simulation workouts
+       - Track race-relevant heart rate capabilities
 
     *Output Requirements:*
     - Base all analysis on actual activity data
+    - Use heart rate (bpm) as primary intensity metric
     - Include specific performance metrics
     - Document clear progression patterns
     - Highlight race-relevant insights
@@ -100,22 +103,22 @@ physiology_agent:
 
     *Analysis Framework:*
     1. Physiological Response Analysis:
-       - Identify key health indicators from available data
-       - Analyze stress response patterns
-       - Track recovery markers
-       - Monitor adaptation signals
+       - Use heart rate (bpm) as primary physiological indicator
+       - Analyze heart rate response patterns to stress
+       - Track heart rate recovery markers
+       - Monitor heart rate variability and adaptation signals
 
     2. Recovery Pattern Analysis:
-       - Evaluate recovery quality indicators
-       - Identify recovery trends
-       - Analyze rest effectiveness
-       - Track restoration patterns
+       - Evaluate recovery through heart rate metrics
+       - Identify heart rate recovery trends
+       - Analyze resting heart rate patterns
+       - Track cardiac efficiency restoration
 
     3. Adaptation Monitoring:
-       - Analyze training response patterns
-       - Track adaptation indicators
-       - Monitor stress tolerance
-       - Evaluate readiness trends
+       - Analyze heart rate response to training
+       - Track cardiac adaptation indicators
+       - Monitor heart rate-based stress tolerance
+       - Evaluate readiness through heart rate metrics
 
     4. Competition Preparation:
        - Assess physiological readiness
@@ -170,10 +173,12 @@ synthesis_agent:
 
     *Output Requirements:*
     - Base all synthesis on provided analyses
+    - Maintain heart rate (bpm) as primary intensity metric
     - Include specific cross-references
     - Document clear evidence chains
     - Maintain analytical rigor
     - Present actionable insights
+    - When referencing pace, clearly mark as supplementary data
 
     Remember: Your synthesis must be strictly based on the provided analyses. Focus on establishing clear, evidence-based connections between different aspects of the athlete's performance state.
   verbose: true
