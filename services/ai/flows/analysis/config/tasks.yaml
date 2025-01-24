@@ -32,6 +32,7 @@ metrics_task:
     Follow your role as defined in the "1. Metrics Agent" section of Agent Roles.
   expected_output: >
     A comprehensive analysis of performance metrics and their implications for competition preparation.
+    Must include a Metrics Readiness Score (0-100) based on training load, ACWR, and adaptation metrics.
     Format according to the Style Guide specifications provided above.
   output_file: stuff/analysis/metrics.md
   agent: metrics_agent
@@ -108,6 +109,7 @@ physiology_task:
     Follow your role as defined in the "3. Physiology Agent" section of Agent Roles.
   expected_output: >
     A thorough analysis of physiological state and readiness for competition.
+    Must include a Physiology Readiness Score (0-100) based on HRV, sleep quality, and stress levels.
     Format according to the Style Guide specifications provided above.
   output_file: stuff/analysis/physiology.md
   agent: physiology_agent

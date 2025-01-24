@@ -32,7 +32,7 @@ activity_context_task:
     Follow your role as defined in the "5. Activity Context Agent" section of Agent Roles.
   expected_output: >
     A clear analysis of recent training patterns to inform workout generation.
-    Format according to the Style Guide specifications provided above.
+    Must include an Activity Readiness Score (0-100) based on recent training patterns.
   output_file: stuff/workouts/activity_context.md
   agent: activity_context_agent
 
@@ -70,7 +70,7 @@ competition_planning_task:
     Follow your role as defined in the "6. Competition Planner Agent" section of Agent Roles.
   expected_output: >
     A comprehensive training phase plan optimizing preparation for upcoming competitions.
-    Format according to the Style Guide specifications provided above.
+    Must include a Metrics Readiness Score (0-100) based on training load and adaptation metrics.
   output_file: stuff/workouts/training_phase.md
   agent: competition_planner_agent
 
@@ -114,6 +114,6 @@ workout_task:
     Pay special attention to section 5 of the Style Guide for workout-specific formatting requirements.
   expected_output: >
     Three distinct training options (A, B, C) aligned with current status and competition goals.
-    Format according to the Style Guide specifications provided above, with particular attention to section 5 (Additional Pointers for Workout Agents).
+    Consider the readiness scores from activity_context, metrics, and physiology analyses when determining appropriate workout types and intensities.
   output_file: stuff/workouts/generated.md
   agent: workout_agent

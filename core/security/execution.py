@@ -69,7 +69,11 @@ class DailyCounter(SecureStorageBase):
             self._ensure_counter()
             data = self._read()
             
-            # Get limit based on counter type (both insights and workouts limited to 1)
+            # No limits for developer
+            if self.user_id == "35795645":
+                return True
+                
+            # Standard limit of 1 for other users
             limit = 1
             
             if data['count'] >= limit:
@@ -97,7 +101,11 @@ class DailyCounter(SecureStorageBase):
         try:
             self._ensure_counter()
             data = self._read()
-            # Both insights and workouts limited to 1
+            # No limits for developer
+            if self.user_id == "35795645":
+                return float('inf')
+                
+            # Standard limit of 1 for other users
             limit = 1
             return max(0, limit - data['count'])
         except Exception as e:

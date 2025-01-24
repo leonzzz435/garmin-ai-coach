@@ -616,12 +616,25 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
     def get_training_status(self, date_obj: date) -> TrainingStatus:
         """Get relevant training status information."""
-        raw_data = self.garmin.client.get_training_status(date_obj.isoformat())
+        try:
+            raw_data = self.garmin.client.get_training_status(date_obj.isoformat())
+            if raw_data is None:
+                logger.warning("Training status data is None")
+                return TrainingStatus(
+                    vo2_max={'value': None, 'date': None},
+                    acute_training_load={'acute_load': None, 'chronic_load': None, 'acwr': None}
+                )
 
-        vo2max_data = raw_data.get('mostRecentVO2Max', {}).get('generic', {})
-        status = raw_data.get('mostRecentTrainingStatus', {}).get('latestTrainingStatusData', {})
-        status_key = next(iter(status), None)
-        status_data = status.get(status_key, {}) if status_key else {}
+            vo2max_data = raw_data.get('mostRecentVO2Max', {}).get('generic', {})
+            status = raw_data.get('mostRecentTrainingStatus', {}).get('latestTrainingStatusData', {})
+            status_key = next(iter(status), None)
+            status_data = status.get(status_key, {}) if status_key else {}
+        except Exception as e:
+            logger.error(f"Error getting training status: {str(e)}")
+            return TrainingStatus(
+                vo2_max={'value': None, 'date': None},
+                acute_training_load={'acute_load': None, 'chronic_load': None, 'acwr': None}
+            )
 
         return TrainingStatus(
             vo2_max={

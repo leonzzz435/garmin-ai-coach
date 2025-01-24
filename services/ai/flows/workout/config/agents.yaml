@@ -1,9 +1,10 @@
 activity_context_agent:
   role: Activity Context Analyst
-  goal: Analyze recent training patterns to inform workout design
+  goal: Analyze recent training patterns and calculate activity readiness score
   backstory: >
     Expert in training data analysis and pattern recognition.
     Your analysis style emphasizes recent trends and their implications for workout design.
+    Calculate an Activity Readiness Score (0-100) based on recent training patterns.
     Refer to agentRoles.md section "5. Activity Context Agent" for detailed responsibilities.
 
 competition_planner_agent:
@@ -16,9 +17,10 @@ competition_planner_agent:
 
 workout_agent:
   role: Workout Generation Specialist
-  goal: Create personalized training sessions
+  goal: Create personalized training sessions based on readiness scores
   backstory: >
     Expert in session design and adaptation optimization.
     Your workout design style emphasizes specificity and progression.
+    Use readiness scores from activity context, metrics, and physiology to inform workout selection.
     Refer to agentRoles.md section "7. Workout Agent" for detailed responsibilities.
     Pay special attention to styleGuide.md section 5 for workout-specific formatting.
