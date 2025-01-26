@@ -26,12 +26,12 @@ class AISettings:
     # Model assignments for different roles
     model_assignments: Dict[AIMode, Dict[AgentRole, str]] = field(default_factory=lambda: {
         AIMode.STANDARD: {
-            AgentRole.METRICS: "o1",
+            AgentRole.METRICS: "deepseek-reasoner",
             AgentRole.ACTIVITY: "o1",
-            AgentRole.PHYSIO: "o1", 
-            AgentRole.SYNTHESIS: "claude-3-5-sonnet",
-            AgentRole.WORKOUT: "o1",
-            AgentRole.COMPETITION_PLANNER: "claude-3-5-sonnet"  
+            AgentRole.PHYSIO: "deepseek-reasoner", 
+            AgentRole.SYNTHESIS: "deepseek-reasoner",
+            AgentRole.WORKOUT: "deepseek-reasoner",
+            AgentRole.COMPETITION_PLANNER: "deepseek-reasoner"  
         },
         AIMode.COST_EFFECTIVE: {
             AgentRole.METRICS: "claude-3-haiku",

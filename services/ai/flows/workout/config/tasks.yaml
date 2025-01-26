@@ -1,18 +1,8 @@
 activity_context_task:
   name: activity_context_analysis
   description: >
-    Analyze recent training data according to the Activity Context Agent role defined below.
-    Focus on recent patterns that directly inform upcoming session design.
-
-    Style Guide:
-    ```markdown
-    {style_guide}
-    ```
-
-    Agent Roles:
-    ```markdown
-    {agent_roles}
-    ```
+    As a training context specialist, analyze the athlete's recent training data to provide
+    essential context for workout design decisions.
 
     User Profile:
     ```json
@@ -28,29 +18,17 @@ activity_context_task:
     ```json
     {current_date}
     ```
-
-    Follow your role as defined in the "5. Activity Context Agent" section of Agent Roles.
   expected_output: >
-    A clear analysis of recent training patterns to inform workout generation.
-    Must include an Activity Readiness Score (0-100) based on recent training patterns.
+    A clear analysis of recent training patterns and their implications for workout design.
+    Include an Activity Readiness Score (0-100) reflecting current training status.
   output_file: stuff/workouts/activity_context.md
   agent: activity_context_agent
 
 competition_planning_task:
   name: competition_planning
   description: >
-    Create training phase plan according to the Competition Planner Agent role defined below.
-    Focus on season timeline, periodization, and priority races.
-
-    Style Guide:
-    ```markdown
-    {style_guide}
-    ```
-
-    Agent Roles:
-    ```markdown
-    {agent_roles}
-    ```
+    As a strategic competition planning expert, develop an optimal training phase plan
+    based on the athlete's competition schedule and goals.
 
     User Profile:
     ```json
@@ -66,27 +44,21 @@ competition_planning_task:
     ```json
     {current_date}
     ```
-
-    Follow your role as defined in the "6. Competition Planner Agent" section of Agent Roles.
   expected_output: >
-    A comprehensive training phase plan optimizing preparation for upcoming competitions.
+    A comprehensive training phase plan that optimizes preparation for upcoming competitions.
+    Include clear progression strategy and key preparation phases.
   output_file: stuff/workouts/training_phase.md
   agent: competition_planner_agent
 
 workout_task:
   name: workout_generation
   description: >
-    Generate workout options according to the Workout Agent role defined below.
-    Focus on creating immediate training sessions (A, B, C) based on context from activity_context and competition_planning.
+    As an elite workout design specialist, create optimized training sessions based on
+    the athlete's current context, readiness, and competition goals.
 
     Style Guide:
     ```markdown
     {style_guide}
-    ```
-
-    Agent Roles:
-    ```markdown
-    {agent_roles}
     ```
 
     Athlete Context:
@@ -108,11 +80,9 @@ workout_task:
     ```json
     {current_date}
     ```
-
-    Follow your role as defined in the "7. Workout Agent" section of Agent Roles.
-    Pay special attention to section 5 of the Style Guide for workout-specific formatting requirements.
   expected_output: >
-    Three distinct training options (A, B, C) aligned with current status and competition goals.
-    Consider the readiness scores from activity_context, metrics, and physiology analyses when determining appropriate workout types and intensities.
+    Three distinct training options (A, B, C) tailored to the athlete's current status
+    and aligned with competition goals. Format according to the Style Guide specifications
+    for workout-specific formatting.
   output_file: stuff/workouts/generated.md
   agent: workout_agent

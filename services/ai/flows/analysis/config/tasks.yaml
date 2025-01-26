@@ -1,20 +1,10 @@
 metrics_task:
   name: metrics_analysis
   description: >
-    Analyze training metrics data according to the Metrics Agent role defined below.
-    Focus on macro-level performance metrics including training load and VO2max trends.
+    As an elite performance metrics specialist, analyze the provided training metrics
+    to assess the athlete's current status and competition readiness.
 
-    Style Guide:
-    ```markdown
-    {style_guide}
-    ```
-
-    Agent Roles:
-    ```markdown
-    {agent_roles}
-    ```
-
-    Training Metrics:
+    Input Data:
     ```json
     {data}
     ```
@@ -28,32 +18,20 @@ metrics_task:
     ```json
     {current_date}
     ```
-
-    Follow your role as defined in the "1. Metrics Agent" section of Agent Roles.
   expected_output: >
     A comprehensive analysis of performance metrics and their implications for competition preparation.
-    Must include a Metrics Readiness Score (0-100) based on training load, ACWR, and adaptation metrics.
-    Format according to the Style Guide specifications provided above.
+    Include a Metrics Readiness Score (0-100) reflecting overall training status.
   output_file: stuff/analysis/metrics.md
   agent: metrics_agent
 
 activities_task:
   name: activity_analysis
   description: >
-    Analyze workout execution data according to the Activity Agent role defined below.
-    Focus on session-level details including heart rate zones, intervals, and compliance.
+    As a master training session analyst, evaluate the athlete's recent training activities
+    to assess execution quality and progression patterns. Focus on analyzing the effectiveness
+    and quality of completed training sessions.
 
-    Style Guide:
-    ```markdown
-    {style_guide}
-    ```
-
-    Agent Roles:
-    ```markdown
-    {agent_roles}
-    ```
-
-    Activity Data:
+    Input Data:
     ```json
     {data}
     ```
@@ -67,31 +45,21 @@ activities_task:
     ```json
     {current_date}
     ```
-
-    Follow your role as defined in the "2. Activity Agent" section of Agent Roles.
   expected_output: >
     A detailed analysis of training activities and their effectiveness for race preparation.
-    Format according to the Style Guide specifications provided above.
+    Include specific observations about workout execution quality and progression.
+    Include an Activity Quality Score (0-100) reflecting how well recent training activities
+    were executed and their alignment with training goals.
   output_file: stuff/analysis/activities.md
   agent: activity_agent
 
 physiology_task:
   name: physio_analysis
   description: >
-    Analyze physiological data according to the Physiology Agent role defined below.
-    Focus on recovery markers, HRV trends, and overall readiness indicators.
+    As an advanced human performance physiologist, analyze the athlete's physiological data
+    to assess recovery status and adaptation state.
 
-    Style Guide:
-    ```markdown
-    {style_guide}
-    ```
-
-    Agent Roles:
-    ```markdown
-    {agent_roles}
-    ```
-
-    Physiological Data:
+    Input Data:
     ```json
     {data}
     ```
@@ -105,29 +73,21 @@ physiology_task:
     ```json
     {current_date}
     ```
-
-    Follow your role as defined in the "3. Physiology Agent" section of Agent Roles.
   expected_output: >
     A thorough analysis of physiological state and readiness for competition.
-    Must include a Physiology Readiness Score (0-100) based on HRV, sleep quality, and stress levels.
-    Format according to the Style Guide specifications provided above.
+    Include a Physiology Readiness Score (0-100) reflecting overall recovery status.
   output_file: stuff/analysis/physiology.md
   agent: physiology_agent
 
 synthesis_task:
   name: synthesis
   description: >
-    Synthesize parallel analyses according to the Synthesis Agent role defined below.
-    Focus on integrating metrics, activities, and physiology insights for {athlete_name}.
+    As a high performance integration specialist, synthesize the analyses from the metrics,
+    activities, and physiology specialists to create a comprehensive assessment for {athlete_name}.
 
     Style Guide:
     ```markdown
     {style_guide}
-    ```
-
-    Agent Roles:
-    ```markdown
-    {agent_roles}
     ```
 
     Upcoming Competitions:
@@ -139,10 +99,8 @@ synthesis_task:
     ```json
     {current_date}
     ```
-
-    Follow your role as defined in the "4. Synthesis Agent" section of Agent Roles.
   expected_output: >
-    A cohesive synthesis report integrating all analysis components.
-    Format according to the Style Guide specifications provided above.
+    A cohesive synthesis report that integrates all analysis components into actionable insights.
+    Format according to the Style Guide specifications for user-facing outputs.
   output_file: stuff/analysis/synthesis.md
   agent: synthesis_agent
