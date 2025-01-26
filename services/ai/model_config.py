@@ -2,11 +2,14 @@
 Model configuration and selection for CrewAI LLM integration.
 """
 
+import logging
 from dataclasses import dataclass
 from typing import Dict
 from crewai import LLM
 from core.config import get_config
 from .ai_settings import ai_settings, AgentRole
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class ModelConfiguration:
@@ -29,7 +32,7 @@ class ModelSelector:
             base_url="https://api.openai.com/v1"
         ),
         "o1": ModelConfiguration(
-            name="o1",
+            name="o1-preview",
             base_url="https://api.openai.com/v1"
         ),
         "o1-mini": ModelConfiguration(
@@ -38,14 +41,23 @@ class ModelSelector:
         ),
         
         # Anthropic Models
-        "claude-3-5-sonnet-20241022": ModelConfiguration(
+        "claude-3-5-sonnet": ModelConfiguration(
             name="claude-3-5-sonnet-20241022",
             base_url="https://api.anthropic.com"
         ),
-        "claude-3-haiku-20240307": ModelConfiguration(
+        "claude-3-haiku": ModelConfiguration(
             name="claude-3-haiku-20240307",
             base_url="https://api.anthropic.com"
-        )
+        ),
+        # DeepSeek Models
+        "deepseek-chat": ModelConfiguration(
+            name="deepseek/deepseek-chat",
+            base_url="https://api.deepseek.com/v1"
+        ),
+        "deepseek-reasoner": ModelConfiguration(
+            name="deepseek/deepseek-reasoner",
+            base_url="https://api.deepseek.com/v1"
+        ),
     }
 
     @classmethod
@@ -65,15 +77,21 @@ class ModelSelector:
         model_name = ai_settings.get_model_for_role(role)
         model_config = cls.CONFIGURATIONS[model_name]
         
-        # Determine API key based on provider
-        api_key = (
-            config.anthropic_api_key
-            if "anthropic" in model_config.base_url
-            else config.openai_api_key
-        )
-        
-        return LLM(
+        # Choose the correct key based on the provider
+        if "anthropic" in model_config.base_url:
+            api_key = config.anthropic_api_key
+        elif "deepseek" in model_config.base_url:
+            api_key = config.deepseek_api_key
+        else:
+            api_key = config.openai_api_key
+
+        # Add timeout settings to prevent hanging
+        logger.info(f"Configuring LLM for role {role.value} with model {model_config.name}")
+        llm = LLM(
             model=model_config.name,
             base_url=model_config.base_url,
-            api_key=api_key
+            api_key=api_key,
+            temperature=0.,
         )
+        logger.info(f"LLM configured for {model_config.name}")
+        return llm

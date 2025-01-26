@@ -139,7 +139,8 @@ class AnalysisCrew:
         return Crew(
             agents=[self.metrics_agent()],
             tasks=[self.metrics_task()],
-            process=Process.sequential
+            process=Process.sequential,
+            #verbose=True,
         )
 
     @crew
@@ -148,7 +149,8 @@ class AnalysisCrew:
         return Crew(
             agents=[self.activity_agent()],
             tasks=[self.activities_task()],
-            process=Process.sequential
+            process=Process.sequential,
+            #verbose=True,
         )
 
     @crew
@@ -157,7 +159,8 @@ class AnalysisCrew:
         return Crew(
             agents=[self.physiology_agent()],
             tasks=[self.physiology_task()],
-            process=Process.sequential
+            process=Process.sequential,
+            #verbose=True,
         )
 
     @crew
@@ -166,7 +169,8 @@ class AnalysisCrew:
         return Crew(
             agents=[self.synthesis_agent()],
             tasks=[self.synthesis_task()],
-            process=Process.sequential
+            process=Process.sequential,
+            #verbose=True,
         )
 
 class AnalysisFlow(Flow[AnalysisState]):
@@ -181,80 +185,104 @@ class AnalysisFlow(Flow[AnalysisState]):
     @start()
     async def analyze_metrics(self):
         """Perform metrics analysis."""
-        metrics_data = {
-            'training_load_history': self.analysis_crew.data.get('training_load_history', []),
-            'vo2_max_history': self.analysis_crew.data.get('vo2_max_history', []),
-            'endurance_score_history': self.analysis_crew.data.get('endurance_score_history', []),
-            'hill_score': self.analysis_crew.data.get('hill_score', []),
-            'race_predictions': self.analysis_crew.data.get('race_predictions', [])
-        }
-        result = await self.analysis_crew.metrics_crew().kickoff_async(
-            inputs={
-                'data': metrics_data,
-                'competitions': self.analysis_crew.competitions,
-                'current_date': self.analysis_crew.current_date,
-                'style_guide': self.analysis_crew.style_guide,
-                'agent_roles': self.analysis_crew.agent_roles
+        try:
+            metrics_data = {
+                'training_load_history': self.analysis_crew.data.get('training_load_history', []),
+                'vo2_max_history': self.analysis_crew.data.get('vo2_max_history', []),
+                'endurance_score_history': self.analysis_crew.data.get('endurance_score_history', []),
+                'hill_score': self.analysis_crew.data.get('hill_score', []),
+                'race_predictions': self.analysis_crew.data.get('race_predictions', [])
             }
-        )
-        self.state.metrics_result = result
-        logger.info("Metrics Analysis completed")
-        return result
+            logger.info("Starting metrics analysis")
+            result = await self.analysis_crew.metrics_crew().kickoff_async(
+                inputs={
+                    'data': metrics_data,
+                    'competitions': self.analysis_crew.competitions,
+                    'current_date': self.analysis_crew.current_date,
+                    'style_guide': self.analysis_crew.style_guide,
+                    'agent_roles': self.analysis_crew.agent_roles
+                }
+            )
+            self.state.metrics_result = result
+            logger.info("Metrics Analysis completed successfully")
+            return result
+        except Exception as e:
+            logger.error(f"Metrics Analysis failed: {str(e)}")
+            self.state.metrics_result = f"Error during metrics analysis: {str(e)}"
+            raise
 
     @listen(analyze_metrics)
     async def analyze_activities(self):
         """Perform activities analysis."""
-        activities_data = {
-            'recent_activities': self.analysis_crew.data.get('recent_activities', []),
-            'training_status': self.analysis_crew.data.get('training_status', {})
-        }
-        result = await self.analysis_crew.activities_crew().kickoff_async(
-            inputs={
-                'data': activities_data,
-                'competitions': self.analysis_crew.competitions,
-                'current_date': self.analysis_crew.current_date,
-                'style_guide': self.analysis_crew.style_guide,
-                'agent_roles': self.analysis_crew.agent_roles
+        try:
+            activities_data = {
+                'recent_activities': self.analysis_crew.data.get('recent_activities', []),
+                'training_status': self.analysis_crew.data.get('training_status', {})
             }
-        )
-        self.state.activities_result = result
-        logger.info("Activities Analysis completed")
-        return result
+            logger.info("Starting activities analysis")
+            result = await self.analysis_crew.activities_crew().kickoff_async(
+                inputs={
+                    'data': activities_data,
+                    'competitions': self.analysis_crew.competitions,
+                    'current_date': self.analysis_crew.current_date,
+                    'style_guide': self.analysis_crew.style_guide,
+                    'agent_roles': self.analysis_crew.agent_roles
+                }
+            )
+            self.state.activities_result = result
+            logger.info("Activities Analysis completed successfully")
+            return result
+        except Exception as e:
+            logger.error(f"Activities Analysis failed: {str(e)}")
+            self.state.activities_result = f"Error during activities analysis: {str(e)}"
+            raise
 
     @listen(analyze_activities)
     async def analyze_physiology(self):
         """Perform physiology analysis."""
-        physio_data = {
-            'sleep': self.analysis_crew.data.get('sleep', []),
-            'training_readiness': self.analysis_crew.data.get('training_readiness', []),
-            'daily_stats': self.analysis_crew.data.get('daily_stats', {}),
-            'physiological_markers': self.analysis_crew.data.get('physiological_markers', {})
-        }
-        result = await self.analysis_crew.physiology_crew().kickoff_async(
-            inputs={
-                'data': physio_data,
-                'competitions': self.analysis_crew.competitions,
-                'current_date': self.analysis_crew.current_date,
-                'style_guide': self.analysis_crew.style_guide,
-                'agent_roles': self.analysis_crew.agent_roles
+        try:
+            physio_data = {
+                'sleep': self.analysis_crew.data.get('sleep', []),
+                'training_readiness': self.analysis_crew.data.get('training_readiness', []),
+                'daily_stats': self.analysis_crew.data.get('daily_stats', {}),
+                'physiological_markers': self.analysis_crew.data.get('physiological_markers', {})
             }
-        )
-        self.state.physiology_result = result
-        logger.info("Physiology Analysis completed")
-        return result
+            logger.info("Starting physiology analysis")
+            result = await self.analysis_crew.physiology_crew().kickoff_async(
+                inputs={
+                    'data': physio_data,
+                    'competitions': self.analysis_crew.competitions,
+                    'current_date': self.analysis_crew.current_date,
+                    'style_guide': self.analysis_crew.style_guide,
+                    'agent_roles': self.analysis_crew.agent_roles
+                }
+            )
+            self.state.physiology_result = result
+            logger.info("Physiology Analysis completed successfully")
+            return result
+        except Exception as e:
+            logger.error(f"Physiology Analysis failed: {str(e)}")
+            self.state.physiology_result = f"Error during physiology analysis: {str(e)}"
+            raise
 
     @listen(analyze_physiology)
     async def synthesize_results(self):
         """Combine analysis results into a synthesis report."""
-        result = await self.analysis_crew.synthesis_crew().kickoff_async(
-            inputs={
-                'athlete_name': self.athlete_name,
-                'competitions': self.analysis_crew.competitions,
-                'current_date': self.analysis_crew.current_date,
-                'style_guide': self.analysis_crew.style_guide,
-                'agent_roles': self.analysis_crew.agent_roles
-            }
-        )
-        self.state.synthesis_result = result
-        logger.info("Synthesis completed")
-        return result
+        try:
+            logger.info("Starting synthesis")
+            result = await self.analysis_crew.synthesis_crew().kickoff_async(
+                inputs={
+                    'athlete_name': self.athlete_name,
+                    'competitions': self.analysis_crew.competitions,
+                    'current_date': self.analysis_crew.current_date,
+                    'style_guide': self.analysis_crew.style_guide,
+                    'agent_roles': self.analysis_crew.agent_roles
+                }
+            )
+            self.state.synthesis_result = result
+            logger.info("Synthesis completed successfully")
+            return result
+        except Exception as e:
+            logger.error(f"Synthesis failed: {str(e)}")
+            self.state.synthesis_result = f"Error during synthesis: {str(e)}"
+            raise

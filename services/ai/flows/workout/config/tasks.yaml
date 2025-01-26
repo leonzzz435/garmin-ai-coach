@@ -70,7 +70,6 @@ competition_planning_task:
     Follow your role as defined in the "6. Competition Planner Agent" section of Agent Roles.
   expected_output: >
     A comprehensive training phase plan optimizing preparation for upcoming competitions.
-    Must include a Metrics Readiness Score (0-100) based on training load and adaptation metrics.
   output_file: stuff/workouts/training_phase.md
   agent: competition_planner_agent
 

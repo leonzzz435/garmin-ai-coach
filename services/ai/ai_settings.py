@@ -26,28 +26,28 @@ class AISettings:
     # Model assignments for different roles
     model_assignments: Dict[AIMode, Dict[AgentRole, str]] = field(default_factory=lambda: {
         AIMode.STANDARD: {
-            AgentRole.METRICS: "claude-3-5-sonnet-20241022",
-            AgentRole.ACTIVITY: "claude-3-5-sonnet-20241022",
-            AgentRole.PHYSIO: "claude-3-5-sonnet-20241022", 
-            AgentRole.SYNTHESIS: "claude-3-5-sonnet-20241022",
-            AgentRole.WORKOUT: "claude-3-5-sonnet-20241022",
-            AgentRole.COMPETITION_PLANNER: "claude-3-5-sonnet-20241022"  
+            AgentRole.METRICS: "o1",
+            AgentRole.ACTIVITY: "o1",
+            AgentRole.PHYSIO: "o1", 
+            AgentRole.SYNTHESIS: "claude-3-5-sonnet",
+            AgentRole.WORKOUT: "o1",
+            AgentRole.COMPETITION_PLANNER: "claude-3-5-sonnet"  
         },
         AIMode.COST_EFFECTIVE: {
-            AgentRole.METRICS: "claude-3-haiku-20240307",
+            AgentRole.METRICS: "claude-3-haiku",
             AgentRole.ACTIVITY: "gpt-4o-mini",
-            AgentRole.PHYSIO: "claude-3-haiku-20240307", 
+            AgentRole.PHYSIO: "claude-3-haiku", 
             AgentRole.SYNTHESIS: "gpt-4o-mini",
-            AgentRole.WORKOUT: "claude-3-haiku-20240307",
-            AgentRole.COMPETITION_PLANNER: "claude-3-haiku-20240307"
+            AgentRole.WORKOUT: "claude-3-haiku",
+            AgentRole.COMPETITION_PLANNER: "claude-3-haiku"
         },
         AIMode.DEVELOPMENT: {
-            AgentRole.METRICS: "claude-3-haiku-20240307",
-            AgentRole.ACTIVITY: "gpt-4o-mini",
-            AgentRole.PHYSIO: "claude-3-haiku-20240307",  
-            AgentRole.SYNTHESIS: "gpt-4o-mini",
-            AgentRole.WORKOUT: "claude-3-haiku-20240307",
-            AgentRole.COMPETITION_PLANNER: "claude-3-haiku-20240307"
+            AgentRole.METRICS: "deepseek-reasoner",
+            AgentRole.ACTIVITY: "deepseek-reasoner",
+            AgentRole.PHYSIO: "deepseek-reasoner",  
+            AgentRole.SYNTHESIS: "deepseek-reasoner",
+            AgentRole.WORKOUT: "deepseek-reasoner",
+            AgentRole.COMPETITION_PLANNER: "deepseek-reasoner"
         }
     })
 

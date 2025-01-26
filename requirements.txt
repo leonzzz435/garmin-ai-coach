@@ -5,4 +5,5 @@ numpy<2.0.0
 pandas
 cryptography>=41.0.0
 python-dotenv==1.0.0
-crewai>=0.11.0
+crewai==0.11.2
+litellm>=1.30.7
