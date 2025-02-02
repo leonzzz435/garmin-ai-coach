@@ -54,13 +54,13 @@ class ModelSelector:
             base_url="https://api.anthropic.com"
         ),
         # DeepSeek Models
-        "deepseek-chat": ModelConfiguration(
-            name="deepseek/deepseek-chat",
-            base_url="https://api.deepseek.com/v1"
-        ),
+        # "deepseek-chat": ModelConfiguration(
+        #     name="deepseek/deepseek-chat",
+        #     base_url="https://api.deepseek.com/v1"
+        # ),
         "deepseek-reasoner": ModelConfiguration(
-            name="deepseek/deepseek-reasoner",
-            base_url="https://api.deepseek.com/v1"
+            name="openrouter/deepseek/deepseek-r1",
+            base_url="https://openrouter.ai/api/v1"
         ),
     }
 
@@ -84,8 +84,8 @@ class ModelSelector:
         # Choose the correct key based on the provider
         if "anthropic" in model_config.base_url:
             api_key = config.anthropic_api_key
-        elif "deepseek" in model_config.base_url:
-            api_key = config.deepseek_api_key
+        elif "openrouter" in model_config.base_url:
+            api_key = config.openrouter_api_key
         else:
             api_key = config.openai_api_key
 
@@ -95,7 +95,7 @@ class ModelSelector:
             model=model_config.name,
             base_url=model_config.base_url,
             api_key=api_key,
-            reasoning_effort="high",
+            #reasoning_effort="high",
             #temperature=0.,
         )
         logger.info(f"LLM configured for {model_config.name}")

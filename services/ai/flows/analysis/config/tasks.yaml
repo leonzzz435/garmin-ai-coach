@@ -23,6 +23,7 @@ metrics_task:
     Include a Metrics Readiness Score (0-100) reflecting overall training status.
   output_file: stuff/analysis/metrics.md
   agent: metrics_agent
+  max_retries: 10
 
 activities_task:
   name: activity_analysis
@@ -52,6 +53,7 @@ activities_task:
     were executed and their alignment with training goals.
   output_file: stuff/analysis/activities.md
   agent: activity_agent
+  max_retries: 10
 
 physiology_task:
   name: physio_analysis
@@ -78,6 +80,7 @@ physiology_task:
     Include a Physiology Readiness Score (0-100) reflecting overall recovery status.
   output_file: stuff/analysis/physiology.md
   agent: physiology_agent
+  max_retries: 10
 
 synthesis_task:
   name: synthesis
@@ -104,3 +107,4 @@ synthesis_task:
     Format according to the Style Guide specifications for user-facing outputs.
   output_file: stuff/analysis/synthesis.md
   agent: synthesis_agent
+  max_retries: 10

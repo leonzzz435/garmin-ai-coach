@@ -56,7 +56,7 @@ class AnalysisCrew:
         
         # Load style guide for user-facing outputs
         try:
-            with open('agent_docs/styleGuide_html.md', 'r') as f:
+            with open('agent_docs/styleGuide.md', 'r') as f:
                 self.style_guide = f.read()
         except Exception as e:
             logger.error(f"Failed to load style guide: {e}")
@@ -186,9 +186,8 @@ class AnalysisFlow(Flow[AnalysisState]):
             metrics_data = {
                 'training_load_history': self.analysis_crew.data.get('training_load_history', []),
                 'vo2_max_history': self.analysis_crew.data.get('vo2_max_history', []),
-                'endurance_score_history': self.analysis_crew.data.get('endurance_score_history', []),
-                'hill_score': self.analysis_crew.data.get('hill_score', []),
-                'race_predictions': self.analysis_crew.data.get('race_predictions', [])
+                'training_status': self.analysis_crew.data.get('training_status', {}),
+                #'body_metrics': self.analysis_crew.data.get('body_metrics', {})
             }
             logger.info("Starting metrics analysis")
             result = await self.analysis_crew.metrics_crew().kickoff_async(
@@ -211,7 +210,7 @@ class AnalysisFlow(Flow[AnalysisState]):
         """Perform activities analysis."""
         try:
             activities_data = {
-                'recent_activities': self.analysis_crew.data.get('recent_activities', []),
+                'recent_activities': self.analysis_crew.data.get('recent_activities', []),  # Includes laps and weather
                 'training_status': self.analysis_crew.data.get('training_status', {})
             }
             logger.info("Starting activities analysis")
@@ -235,8 +234,7 @@ class AnalysisFlow(Flow[AnalysisState]):
         """Perform physiology analysis."""
         try:
             physio_data = {
-                'sleep': self.analysis_crew.data.get('sleep', []),
-                'training_readiness': self.analysis_crew.data.get('training_readiness', []),
+                'recovery_indicators': self.analysis_crew.data.get('recovery_indicators', []),  # Includes sleep and stress data
                 'daily_stats': self.analysis_crew.data.get('daily_stats', {}),
                 'physiological_markers': self.analysis_crew.data.get('physiological_markers', {})
             }

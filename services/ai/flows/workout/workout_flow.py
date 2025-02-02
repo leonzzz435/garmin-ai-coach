@@ -57,7 +57,7 @@ class WorkoutCrew:
         
         # Load style guide for user-facing outputs
         try:
-            with open('agent_docs/styleGuide_html.md', 'r') as f:
+            with open('agent_docs/styleGuide.md', 'r') as f:
                 self.style_guide = f.read()
         except Exception as e:
             logger.error(f"Failed to load style guide: {e}")
