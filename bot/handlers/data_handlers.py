@@ -101,11 +101,11 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         execution_tracker.reset_workout_counter()
         
         # Format and send the result
-        final_messages = format_and_send_report(str(result))
-        for msg in final_messages:
+        chunks, parse_mode = format_and_send_report(str(result))
+        for chunk in chunks:
             await message.reply_text(
-                msg,
-                parse_mode=ParseMode.MARKDOWN_V2
+                chunk,
+                parse_mode=parse_mode
             )
     except Exception as e:
         logger.error(f"Error processing data: {str(e)}", exc_info=True)

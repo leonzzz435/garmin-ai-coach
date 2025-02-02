@@ -622,11 +622,11 @@ async def process_workout_context(update: Update, context: ContextTypes.DEFAULT_
         result = await flow.kickoff_async()
         
         # Format and send results
-        final_messages = format_and_send_report(str(result))
-        for msg in final_messages:
+        chunks, parse_mode = format_and_send_report(str(result))
+        for chunk in chunks:
             await message.reply_text(
-                msg,
-                parse_mode=ParseMode.MARKDOWN_V2
+                chunk,
+                parse_mode=parse_mode
             )
             
     except Exception as e:

@@ -39,6 +39,10 @@ class ModelSelector:
             name="o1-mini",
             base_url="https://api.openai.com/v1"
         ),
+        "o3": ModelConfiguration(
+            name="openai/o3-mini",
+            base_url="https://api.openai.com/v1"
+        ),
         
         # Anthropic Models
         "claude-3-5-sonnet": ModelConfiguration(
@@ -91,7 +95,8 @@ class ModelSelector:
             model=model_config.name,
             base_url=model_config.base_url,
             api_key=api_key,
-            temperature=0.,
+            reasoning_effort="high",
+            #temperature=0.,
         )
         logger.info(f"LLM configured for {model_config.name}")
         return llm
