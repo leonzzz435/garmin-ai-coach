@@ -2,7 +2,8 @@
 
 import logging
 import json
-from datetime import date
+import tempfile
+from datetime import date, datetime as dt
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.constants import ParseMode
 from bot.formatters import escape_markdown, format_and_send_report
@@ -621,13 +622,18 @@ async def process_workout_context(update: Update, context: ContextTypes.DEFAULT_
         )
         result = await flow.kickoff_async()
         
-        # Format and send results
-        chunks, parse_mode = format_and_send_report(str(result))
-        for chunk in chunks:
-            await message.reply_text(
-                chunk,
-                parse_mode=parse_mode
-            )
+        # Create a temporary file and send the HTML report
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=True) as tmp:
+            tmp.write(str(result))  # result is HTML from the formatter task
+            tmp.flush()
+            
+            # Reopen in binary mode for sending
+            with open(tmp.name, 'rb') as doc:
+                await message.reply_document(
+                    document=doc,
+                    filename=f"workout_{dt.now().strftime('%Y%m%d')}.html",
+                    caption="🏋️ Your Workout Suggestions"
+                )
             
     except Exception as e:
         logger.error(f"Error generating workouts: {str(e)}")

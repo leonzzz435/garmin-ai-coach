@@ -10,6 +10,7 @@ from crewai.project import CrewBase, agent, task, crew
 from dataclasses import asdict
 
 from core.security.competitions import SecureCompetitionManager
+from core.security.users import UserTracker
 
 from ...model_config import ModelSelector
 from ...ai_settings import AgentRole
@@ -23,6 +24,7 @@ class AnalysisState(BaseModel):
     activities_result: str = ""
     physiology_result: str = ""
     synthesis_result: str = ""
+    html_result: str = ""
 
 @CrewBase
 class AnalysisCrew:
@@ -33,6 +35,10 @@ class AnalysisCrew:
         self.data = asdict(garmin_data)
         self.user_id = user_id
         self.athlete_name = athlete_name
+        
+        # Get user meta information
+        user_tracker = UserTracker()
+        self.meta = user_tracker.get_meta(user_id)
         
         # Get competition data and current date
         competition_manager = SecureCompetitionManager(self.user_id)
@@ -97,6 +103,14 @@ class AnalysisCrew:
             config=self.agents_config['synthesis_agent'],
             llm=ModelSelector.get_llm(AgentRole.SYNTHESIS)
         )
+        
+    @agent
+    def formatter_agent(self) -> Agent:
+        """Create formatter agent."""
+        return Agent(
+            config=self.agents_config['formatter_agent'],
+            llm=ModelSelector.get_llm(AgentRole.FORMATTER)
+        )
 
     @task
     def metrics_task(self) -> Task:
@@ -128,6 +142,13 @@ class AnalysisCrew:
             self.activities_task(),
             self.physiology_task()
         ]
+        return Task(config=task_config)
+        
+    @task
+    def formatter_task(self) -> Task:
+        """Create formatter task."""
+        task_config = self.tasks_config['formatter_task']
+        task_config['context'] = [self.synthesis_task()]
         return Task(config=task_config)
 
     @crew
@@ -168,6 +189,15 @@ class AnalysisCrew:
             tasks=[self.synthesis_task()],
             process=Process.sequential,
             #verbose=True,
+        )
+        
+    @crew
+    def formatter_crew(self) -> Crew:
+        """Create formatter crew."""
+        return Crew(
+            agents=[self.formatter_agent()],
+            tasks=[self.formatter_task()],
+            process=Process.sequential
         )
 
 class AnalysisFlow(Flow[AnalysisState]):
@@ -264,7 +294,8 @@ class AnalysisFlow(Flow[AnalysisState]):
                     'athlete_name': self.athlete_name,
                     'competitions': self.analysis_crew.competitions,
                     'current_date': self.analysis_crew.current_date,
-                    'style_guide': self.analysis_crew.style_guide
+                    'style_guide': self.analysis_crew.style_guide,
+                    'meta': self.analysis_crew.meta
                 }
             )
             self.state.synthesis_result = result
@@ -273,4 +304,18 @@ class AnalysisFlow(Flow[AnalysisState]):
         except Exception as e:
             logger.error(f"Synthesis failed: {str(e)}")
             self.state.synthesis_result = f"Error during synthesis: {str(e)}"
+            raise
+            
+    @listen(synthesize_results)
+    async def format_to_html(self):
+        """Convert synthesis markdown to HTML."""
+        try:
+            logger.info("Starting HTML formatting")
+            result = await self.analysis_crew.formatter_crew().kickoff_async()
+            self.state.html_result = result
+            logger.info("HTML formatting completed successfully")
+            return result
+        except Exception as e:
+            logger.error(f"HTML formatting failed: {str(e)}")
+            self.state.html_result = f"Error during HTML formatting: {str(e)}"
             raise

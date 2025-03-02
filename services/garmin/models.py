@@ -56,9 +56,6 @@ class DailyStats:
     stress_duration_seconds: Optional[int] = None
     sleeping_seconds: Optional[int] = None
     sleeping_hours: Optional[float] = None
-    body_battery_highest: Optional[int] = None
-    body_battery_lowest: Optional[int] = None
-    body_battery_most_recent: Optional[int] = None
     respiration_average: Optional[float] = None
     respiration_highest: Optional[float] = None
     respiration_lowest: Optional[float] = None
@@ -80,7 +77,6 @@ class ActivitySummary:
     moderate_intensity_minutes: Optional[int] = None
     vigorous_intensity_minutes: Optional[int] = None
     recovery_heart_rate: Optional[int] = None
-    difference_body_battery: Optional[int] = None
 
 @dataclass
 class WeatherData:

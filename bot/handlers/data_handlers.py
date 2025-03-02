@@ -3,6 +3,7 @@
 import logging
 import datetime
 import json
+import tempfile
 from dataclasses import asdict
 from telegram import Update, CallbackQuery
 from telegram.constants import ParseMode
@@ -100,13 +101,18 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.info(f"Resetting workout counter for user {user_id} after successful data generation")
         execution_tracker.reset_workout_counter()
         
-        # Format and send the result
-        chunks, parse_mode = format_and_send_report(str(result))
-        for chunk in chunks:
-            await message.reply_text(
-                chunk,
-                parse_mode=parse_mode
-            )
+        # Create a temporary file and send the HTML report
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=True) as tmp:
+            tmp.write(str(result))  # result is HTML from the formatter task
+            tmp.flush()
+            
+            # Reopen in binary mode for sending
+            with open(tmp.name, 'rb') as doc:
+                await message.reply_document(
+                    document=doc,
+                    filename=f"analysis_{datetime.datetime.now().strftime('%Y%m%d')}.html",
+                    caption="📊 Your Training Analysis Report"
+                )
     except Exception as e:
         logger.error(f"Error processing data: {str(e)}", exc_info=True)
         error_msg = escape_markdown(f"🔄 Connection issue: {str(e)}\n\nPlease try again\\.")

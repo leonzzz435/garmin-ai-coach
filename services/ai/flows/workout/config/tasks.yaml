@@ -56,11 +56,6 @@ workout_task:
     As an elite workout design specialist, create optimized training sessions based on
     the athlete's current context, readiness, and competition goals.
 
-    Style Guide:
-    ```markdown
-    {style_guide}
-    ```
-
     Athlete Context:
     ```json
     {athlete_context}
@@ -80,9 +75,63 @@ workout_task:
     ```json
     {current_date}
     ```
+
+    Additional user-provided philosophical insights:
+    ```json
+    {meta}
+    ```
   expected_output: >
     Three distinct training options (A, B, C) tailored to the athlete's current status
-    and aligned with competition goals. Format according to the Style Guide specifications
-    for workout-specific formatting.
+    and aligned with competition goals. Focus on clear organization and comprehensive content.
   output_file: stuff/workouts/generated.md
   agent: workout_agent
+
+formatter_task:
+  name: format_to_html
+  description: >
+    As a minimalist HTML formatter, transform the provided content into a compact, efficient HTML document.
+    
+    CRITICAL REQUIREMENTS:
+    - Create a MINIMALIST HTML document that preserves essential content
+    - Focus on OUTPUT SIZE REDUCTION while maintaining key information
+    - Prioritize critical data points and insights over verbose explanations
+    - Use efficient HTML structure and minimal CSS
+    - Eliminate redundancy and unnecessary markup
+    
+    Optimization Process:
+    1. Identify and prioritize essential content (key insights, workout details)
+    2. Create a streamlined HTML structure with minimal nesting
+    3. Use compact CSS with minimal redundancy
+    4. Consolidate similar information where appropriate
+    5. Minimize use of decorative elements that don't add informational value
+    
+    Workout-Specific Requirements:
+    - Preserve the core structure of workout options (A, B, C)
+    - Maintain all critical intensity targets and heart rate zones
+    - Keep essential interval durations and distances
+    - Include important technical cues and safety warnings
+    - Focus on the most actionable information
+    
+    Style Guidelines (balanced with minimalism):
+    - Use emojis selectively for key content only:
+      • 🎯 for goals and key points
+      • 💪 for workout sections
+      • ⚡ for intensity targets
+      • ⚠️ for important cautions
+    
+    Performance Optimization:
+    - Use minimal CSS classes and inline styles
+    - Avoid redundant markup and nested containers
+    - Prioritize text content over decorative elements
+    - Use efficient selectors and styling approaches
+    - Ensure the final HTML is as compact as possible
+  expected_output: >
+    A minimalist HTML document without '```' that:
+    1. Has proper document structure (DOCTYPE, html/head/body)
+    2. Uses efficient, minimal CSS styling
+    3. Presents essential workout content clearly and concisely
+    4. Preserves key workout details and safety information
+    5. Maintains a small file size for optimal performance
+  output_file: stuff/workouts/formatted.html
+  agent: formatter_agent
+  max_retries: 10

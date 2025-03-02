@@ -45,19 +45,20 @@ class ModelSelector:
         ),
         
         # Anthropic Models
-        "claude-3-5-sonnet": ModelConfiguration(
-            name="claude-3-5-sonnet-20241022",
+        "claude-3-7-sonnet": ModelConfiguration(
+            name="claude-3-7-sonnet-20250219",
             base_url="https://api.anthropic.com"
         ),
         "claude-3-haiku": ModelConfiguration(
             name="claude-3-haiku-20240307",
             base_url="https://api.anthropic.com"
         ),
+        
         # DeepSeek Models
-        # "deepseek-chat": ModelConfiguration(
-        #     name="deepseek/deepseek-chat",
-        #     base_url="https://api.deepseek.com/v1"
-        # ),
+        "deepseek-chat": ModelConfiguration(
+            name="openrouter/deepseek/deepseek-chat",
+            base_url="https://openrouter.ai/api/v1"
+        ),
         "deepseek-reasoner": ModelConfiguration(
             name="openrouter/deepseek/deepseek-r1",
             base_url="https://openrouter.ai/api/v1"

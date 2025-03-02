@@ -371,6 +371,39 @@ async def clear_credentials(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN_V2
         )
 
+async def set_meta(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle the /setmeta command - Set user meta information."""
+    message = update.message or update.callback_query.message
+    message_text = message.text.strip() if message else ""
+    user_id = update.effective_user.id
+    logger.info(f"Processing setmeta command for user {user_id}: {message_text}")
+    
+    try:
+        # Extract meta information from command
+        parts = message_text.split(maxsplit=1)
+        if len(parts) < 2:
+            await message.reply_text(
+                "❌ Please provide your meta information after the command.\n"
+                "Example: /setmeta Training for a marathon, prefer morning workouts",
+                parse_mode=ParseMode.MARKDOWN_V2
+            )
+            return
+            
+        # Store meta information as plain text
+        meta = {"description": parts[1]}
+        user_tracker.set_meta(user_id, meta)
+        await message.reply_text(
+            escape_markdown("✅ Successfully updated your meta information\\!"),
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to set meta for user {user_id}: {e}")
+        await message.reply_text(
+            "❌ Failed to update meta information\\. Please try again\\.",
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
+
 async def races(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /races command - List upcoming competitions."""
     user_id = update.effective_user.id  # This works for both message and callback

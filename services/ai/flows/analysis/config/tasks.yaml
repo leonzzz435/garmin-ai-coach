@@ -1,8 +1,9 @@
 metrics_task:
   name: metrics_analysis
   description: >
-    As an elite performance metrics specialist, analyze the provided training metrics
-    to assess the athlete's current status and competition readiness.
+    As an elite performance metrics specialist, analyze historical training metrics
+    to identify patterns and trends in the athlete's data. Focus on understanding
+    what the data reveals about past training responses and adaptations.
 
     Input Data:
     ```json
@@ -19,7 +20,7 @@ metrics_task:
     {current_date}
     ```
   expected_output: >
-    A comprehensive analysis of performance metrics and their implications for competition preparation.
+    A comprehensive analysis of performance metrics and their implications for upcoming competitions.
     Include a Metrics Readiness Score (0-100) reflecting overall training status.
   output_file: stuff/analysis/metrics.md
   agent: metrics_agent
@@ -85,13 +86,9 @@ physiology_task:
 synthesis_task:
   name: synthesis
   description: >
-    As a high performance integration specialist, synthesize the analyses from the metrics,
-    activities, and physiology specialists to create a comprehensive assessment for {athlete_name}.
-
-    Style Guide:
-    ```markdown
-    {style_guide}
-    ```
+    As a high performance integration specialist, synthesize the pattern analyses from metrics,
+    activities, and physiology to create a comprehensive understanding of {athlete_name}'s
+    historical training patterns and responses.
 
     Upcoming Competitions:
     ```json
@@ -102,9 +99,59 @@ synthesis_task:
     ```json
     {current_date}
     ```
+
+    Additional user-provided philosophical insights:
+    ```json
+    {meta}
+    ```
   expected_output: >
-    A cohesive synthesis report that integrates all analysis components into actionable insights.
-    Format according to the Style Guide specifications for user-facing outputs.
+    A cohesive synthesis report that integrates all pattern analyses to reveal.
+    Focus on understanding what the historical data reveals about the athlete's typical responses and patterns.
   output_file: stuff/analysis/synthesis.md
   agent: synthesis_agent
+  max_retries: 10
+
+formatter_task:
+  name: format_to_html
+  description: >
+    As a minimalist HTML formatter, transform the provided content into a compact, efficient HTML document.
+    
+    CRITICAL REQUIREMENTS:
+    - Create a MINIMALIST HTML document that preserves essential content
+    - Focus on OUTPUT SIZE REDUCTION while maintaining key information
+    - Prioritize critical data points and insights over verbose explanations
+    - Use efficient HTML structure and minimal CSS
+    - Eliminate redundancy and unnecessary markup
+    
+    Optimization Process:
+    1. Identify and prioritize essential content (key insights, scores, recommendations)
+    2. Create a streamlined HTML structure with minimal nesting
+    3. Use compact CSS with minimal redundancy
+    4. Consolidate similar information where appropriate
+    5. Minimize use of decorative elements that don't add informational value
+    6. Ensure all critical metrics and scores are preserved
+    7. Focus on readability and information density
+    
+    Style Guidelines (balanced with minimalism):
+    - Use emojis selectively to enhance key content:
+      • 🎯 for goals and key points
+      • 📊 for metrics
+      • 🔍 for analysis
+      • 💡 for tips
+    
+    Performance Optimization:
+    - Use minimal CSS classes and inline styles
+    - Avoid redundant markup and nested containers
+    - Prioritize text content over decorative elements
+    - Use efficient selectors and styling approaches
+    - Ensure the final HTML is as compact as possible
+  expected_output: >
+    A minimalist HTML document without '```' that:
+    1. Has proper document structure (DOCTYPE, html/head/body)
+    2. Uses efficient, minimal CSS styling
+    3. Presents essential content clearly and concisely
+    4. Preserves key insights, metrics, and recommendations
+    5. Maintains a small file size for optimal performance
+  output_file: stuff/analysis/formatted.html
+  agent: formatter_agent
   max_retries: 10

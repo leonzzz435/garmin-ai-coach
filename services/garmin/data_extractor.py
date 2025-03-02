@@ -182,9 +182,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
             stress_duration_seconds=raw_data.get('stressDuration'),
             sleeping_seconds=sleep_seconds,
             sleeping_hours=sleep_hours,
-            body_battery_highest=raw_data.get('bodyBatteryHighestValue'),
-            body_battery_lowest=raw_data.get('bodyBatteryLowestValue'),
-            body_battery_most_recent=raw_data.get('bodyBatteryMostRecentValue'),
             respiration_average=raw_data.get('avgWakingRespirationValue'),
             respiration_highest=raw_data.get('highestRespirationValue'),
             respiration_lowest=raw_data.get('lowestRespirationValue')
@@ -443,8 +440,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             activity_training_load=summary.get('activityTrainingLoad'),
             moderate_intensity_minutes=summary.get('moderateIntensityMinutes'),
             vigorous_intensity_minutes=summary.get('vigorousIntensityMinutes'),
-            recovery_heart_rate=summary.get('recoveryHeartRate'),
-            difference_body_battery=summary.get('differenceBodyBattery')
+            recovery_heart_rate=summary.get('recoveryHeartRate')
         )
 
     def _extract_weather_data(self, weather: Dict[str, Any]) -> WeatherData:
@@ -602,7 +598,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
                     'restless_moments': sleep_data.get('restlessMomentsCount'),
                     'avg_overnight_hrv': sleep_data.get('avgOvernightHrv'),
                     'hrv_status': sleep_data.get('hrvStatus'),
-                    'body_battery_change': sleep_data.get('bodyBatteryChange'),
                     'resting_heart_rate': sleep_data.get('restingHeartRate')
                 },
                 stress={
@@ -653,13 +648,22 @@ class TriathlonCoachDataExtractor(DataExtractor):
         history = []
         current_date = start_date
         while current_date <= end_date:
-            data = self.garmin.client.get_training_status(current_date.isoformat())
-            vo2max_data = data.get('mostRecentVO2Max', {}).get('generic', {})
-            if vo2max_data:
-                history.append({
-                    'date': vo2max_data.get('calendarDate'),
-                    'value': vo2max_data.get('vo2MaxValue'),
-                })
+            try:
+                data = self.garmin.client.get_training_status(current_date.isoformat())
+                if data is None:
+                    logger.warning(f"Training status data is None for date {current_date.isoformat()}, possibly no VO2 max data available for this user")
+                    current_date += timedelta(days=1)
+                    continue
+                    
+                vo2max_data = data.get('mostRecentVO2Max', {}).get('generic', {})
+                if vo2max_data:
+                    history.append({
+                        'date': vo2max_data.get('calendarDate'),
+                        'value': vo2max_data.get('vo2MaxValue'),
+                    })
+            except Exception as e:
+                logger.error(f"Error getting VO2 max history for date {current_date.isoformat()}: {str(e)}")
+            
             current_date += timedelta(days=1)
         return history
 
@@ -668,16 +672,25 @@ class TriathlonCoachDataExtractor(DataExtractor):
         history = []
         current_date = start_date
         while current_date <= end_date:
-            data = self.garmin.client.get_training_status(current_date.isoformat())
-            status = data.get('mostRecentTrainingStatus', {}).get('latestTrainingStatusData', {})
-            status_key = next(iter(status), None)
-            if status_key:
-                status_data = status[status_key]
-                history.append({
-                    'date': current_date.isoformat(),
-                    'acute_load': status_data.get('acuteTrainingLoadDTO', {}).get('dailyTrainingLoadAcute'),
-                    'chronic_load': status_data.get('acuteTrainingLoadDTO', {}).get('dailyTrainingLoadChronic'),
-                    'acwr': status_data.get('acuteTrainingLoadDTO', {}).get('dailyAcuteChronicWorkloadRatio'),
-                })
+            try:
+                data = self.garmin.client.get_training_status(current_date.isoformat())
+                if data is None:
+                    logger.warning(f"Training status data is None for date {current_date.isoformat()}, possibly no training load data available for this user")
+                    current_date += timedelta(days=1)
+                    continue
+                    
+                status = data.get('mostRecentTrainingStatus', {}).get('latestTrainingStatusData', {})
+                status_key = next(iter(status), None)
+                if status_key:
+                    status_data = status[status_key]
+                    history.append({
+                        'date': current_date.isoformat(),
+                        'acute_load': status_data.get('acuteTrainingLoadDTO', {}).get('dailyTrainingLoadAcute'),
+                        'chronic_load': status_data.get('acuteTrainingLoadDTO', {}).get('dailyTrainingLoadChronic'),
+                        'acwr': status_data.get('acuteTrainingLoadDTO', {}).get('dailyAcuteChronicWorkloadRatio'),
+                    })
+            except Exception as e:
+                logger.error(f"Error getting training load history for date {current_date.isoformat()}: {str(e)}")
+                
             current_date += timedelta(days=1)
         return history

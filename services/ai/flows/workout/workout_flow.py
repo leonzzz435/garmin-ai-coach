@@ -14,6 +14,7 @@ from dataclasses import asdict
 from services.garmin import GarminData
 from core.security.competitions import SecureCompetitionManager
 from core.security.cache import SecureMetricsCache, SecureActivityCache, SecurePhysiologyCache
+from core.security.users import UserTracker
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ class WorkoutState(BaseModel):
     activity_context: str = ""
     competition_plan: str = ""
     workout_result: str = ""
+    html_result: str = ""
 
 @CrewBase
 class WorkoutCrew:
@@ -34,6 +36,10 @@ class WorkoutCrew:
         
         # Convert GarminData to dict
         self.data = asdict(garmin_data)
+        
+        # Get user meta information
+        user_tracker = UserTracker()
+        self.meta = user_tracker.get_meta(user_id)
         
         # Get competition data and current date
         competition_manager = SecureCompetitionManager(self.user_id)
@@ -91,6 +97,14 @@ class WorkoutCrew:
             llm=ModelSelector.get_llm(AgentRole.WORKOUT),
         )
         
+    @agent
+    def formatter_agent(self) -> Agent:
+        """Create formatter agent."""
+        return Agent(
+            config=self.agents_config['formatter_agent'],
+            llm=ModelSelector.get_llm(AgentRole.FORMATTER)
+        )
+        
     @task
     def activity_context_task(self) -> Task:
         """Create activity context analysis task."""
@@ -112,6 +126,13 @@ class WorkoutCrew:
             config=self.tasks_config['workout_task'],
             context=[self.activity_context_task(), self.competition_planning_task()]
         )
+        
+    @task
+    def formatter_task(self) -> Task:
+        """Create formatter task."""
+        task_config = self.tasks_config['formatter_task']
+        task_config['context'] = [self.workout_task()]
+        return Task(config=task_config)
 
     @crew
     def activity_context_crew(self) -> Crew:
@@ -137,6 +158,15 @@ class WorkoutCrew:
         return Crew(
             agents=[self.workout_agent()],
             tasks=[self.workout_task()],
+            process=Process.sequential
+        )
+        
+    @crew
+    def formatter_crew(self) -> Crew:
+        """Create formatter crew."""
+        return Crew(
+            agents=[self.formatter_agent()],
+            tasks=[self.formatter_task()],
             process=Process.sequential
         )
 
@@ -201,9 +231,24 @@ class WorkoutFlow(Flow[WorkoutState]):
                 'metrics_analysis': metrics_analysis if metrics_analysis else "",
                 'physiology_analysis': physiology_analysis if physiology_analysis else "",
                 'current_date': json.dumps(self.crew_instance.current_date, indent=2),
-                'style_guide': self.crew_instance.style_guide
+                'style_guide': self.crew_instance.style_guide,
+                'meta': self.crew_instance.meta
             }
         )
         self.state.workout_result = result
         logger.info("Workout Generation completed")
         return result
+        
+    @listen(generate_workout)
+    async def format_to_html(self):
+        """Convert workout markdown to HTML."""
+        try:
+            logger.info("Starting HTML formatting")
+            result = await self.crew_instance.formatter_crew().kickoff_async()
+            self.state.html_result = result
+            logger.info("HTML formatting completed successfully")
+            return result
+        except Exception as e:
+            logger.error(f"HTML formatting failed: {str(e)}")
+            self.state.html_result = f"Error during HTML formatting: {str(e)}"
+            raise

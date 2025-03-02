@@ -15,7 +15,8 @@ from bot.handlers.command_handlers import (
     clear_credentials,
     races,
     delrace,
-    handle_button
+    handle_button,
+    set_meta
 )
 from bot.handlers.conversation_handlers import (
     login_handler,
@@ -67,6 +68,7 @@ class TelegramBot:
         self.app.add_handler(CommandHandler("help", help))
         self.app.add_handler(CommandHandler("roadmap", roadmap))
         self.app.add_handler(CommandHandler("clear_credentials", clear_credentials))
+        self.app.add_handler(CommandHandler("setmeta", set_meta))
         
         # Add callback query handler for inline keyboard
         self.app.add_handler(CallbackQueryHandler(handle_button))
