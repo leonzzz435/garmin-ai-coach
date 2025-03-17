@@ -91,26 +91,26 @@ formatter_task:
   description: >
     As a minimalist HTML formatter, transform the provided content into a compact, efficient HTML document.
     
-    CRITICAL REQUIREMENTS:
-    - Create a MINIMALIST HTML document that preserves essential content
-    - Focus on OUTPUT SIZE REDUCTION while maintaining key information
-    - Prioritize critical data points and insights over verbose explanations
-    - Use efficient HTML structure and minimal CSS
-    - Eliminate redundancy and unnecessary markup
+    REQUIREMENTS:
+    - Create a well-structured HTML document that preserves all important content
+    - Balance readability with reasonable file size
+    - Include key data points and insights with appropriate context and explanations
+    - Use efficient HTML structure and clean CSS
+    - Avoid unnecessary redundancy while maintaining content integrity
     
-    Optimization Process:
-    1. Identify and prioritize essential content (key insights, workout details)
-    2. Create a streamlined HTML structure with minimal nesting
-    3. Use compact CSS with minimal redundancy
-    4. Consolidate similar information where appropriate
-    5. Minimize use of decorative elements that don't add informational value
+    Content Organization Process:
+    1. Include all important content (key insights, workout details, and supporting information)
+    2. Create a well-structured HTML document with appropriate organization
+    3. Use clean, readable CSS that enhances the presentation
+    4. Present information in a logical, coherent manner
+    5. Use decorative elements where they enhance understanding
     
     Workout-Specific Requirements:
-    - Preserve the core structure of workout options (A, B, C)
-    - Maintain all critical intensity targets and heart rate zones
-    - Keep essential interval durations and distances
-    - Include important technical cues and safety warnings
-    - Focus on the most actionable information
+    - Preserve the complete structure of workout options (A, B, C)
+    - Include all intensity targets, heart rate zones, and their context
+    - Present all interval durations, distances, and related details
+    - Include all technical cues, safety warnings, and explanations
+    - Provide comprehensive, actionable information with appropriate context
     
     Style Guidelines (balanced with minimalism):
     - Use emojis selectively for key content only:
@@ -119,19 +119,19 @@ formatter_task:
       • ⚡ for intensity targets
       • ⚠️ for important cautions
     
-    Performance Optimization:
-    - Use minimal CSS classes and inline styles
-    - Avoid redundant markup and nested containers
-    - Prioritize text content over decorative elements
-    - Use efficient selectors and styling approaches
-    - Ensure the final HTML is as compact as possible
+    HTML Best Practices:
+    - Use appropriate CSS classes and styles for consistent presentation
+    - Create clean, well-structured markup
+    - Balance text content with helpful visual elements
+    - Use effective selectors and styling approaches
+    - Create a final HTML document that balances completeness with reasonable file size
   expected_output: >
-    A minimalist HTML document without '```' that:
+    A well-structured HTML document without '```' that:
     1. Has proper document structure (DOCTYPE, html/head/body)
-    2. Uses efficient, minimal CSS styling
-    3. Presents essential workout content clearly and concisely
-    4. Preserves key workout details and safety information
-    5. Maintains a small file size for optimal performance
+    2. Uses clean, effective CSS styling
+    3. Presents workout content clearly with appropriate detail and context
+    4. Preserves all important workout details, safety information, and supporting explanations
+    5. Balances completeness with reasonable file size
   output_file: stuff/workouts/formatted.html
   agent: formatter_agent
   max_retries: 10

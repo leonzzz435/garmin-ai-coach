@@ -94,10 +94,10 @@ class ModelSelector:
         logger.info(f"Configuring LLM for role {role.value} with model {model_config.name}")
         llm = LLM(
             model=model_config.name,
-            base_url=model_config.base_url,
+            base_url=model_config.base_url, 
             api_key=api_key,
             #reasoning_effort="high",
-            #temperature=0.,
+            thinking: {"type": "enabled", "budget_tokens": 8000}
         )
         logger.info(f"LLM configured for {model_config.name}")
         return llm

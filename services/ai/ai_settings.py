@@ -45,13 +45,13 @@ class AISettings:
             AgentRole.FORMATTER: "claude-3-haiku"
         },
         AIMode.DEVELOPMENT: {
-            AgentRole.METRICS: "claude-3-haiku",
-            AgentRole.ACTIVITY: "gpt-4o-mini",
-            AgentRole.PHYSIO: "claude-3-haiku", 
-            AgentRole.SYNTHESIS: "gpt-4o-mini",
-            AgentRole.WORKOUT: "claude-3-haiku",
-            AgentRole.COMPETITION_PLANNER: "claude-3-haiku",
-            AgentRole.FORMATTER: "claude-3-5-sonnet"
+            AgentRole.METRICS: "claude-3-7-sonnet",
+            AgentRole.ACTIVITY: "claude-3-7-sonnet",
+            AgentRole.PHYSIO: "claude-3-7-sonnet", 
+            AgentRole.SYNTHESIS: "claude-3-7-sonnet",
+            AgentRole.WORKOUT: "claude-3-7-sonnet",
+            AgentRole.COMPETITION_PLANNER: "claude-3-7-sonnet",
+            AgentRole.FORMATTER: "claude-3-7-sonnet"
         }
     })
 
