@@ -23,8 +23,10 @@ from bot.handlers.conversation_handlers import (
     add_race_handler,
     edit_race_handler,
     workout_handler,
+    weekplan_handler,
     start_add_race,
-    start_edit_race
+    start_edit_race,
+    start_weekplan
 )
 from bot.handlers.data_handlers import generate
 from bot.handlers.error_handlers import error_handler
@@ -46,8 +48,8 @@ class TelegramBot:
     
     def setup(self):
         """Set up the bot with all handlers."""
-        # Initialize application
-        self.app = ApplicationBuilder().token(self.config.bot_token).build()
+        # Initialize application with increased timeouts
+        self.app = ApplicationBuilder().token(self.config.bot_token).read_timeout(300).write_timeout(300).build()
         
         # Store API key in bot_data for handlers to access
         self.app.bot_data['anthropic_api_key'] = self.config.anthropic_api_key
@@ -56,11 +58,13 @@ class TelegramBot:
         self.app.add_handler(login_handler)
         self.app.add_handler(add_race_handler)
         self.app.add_handler(edit_race_handler)
+        self.app.add_handler(weekplan_handler)
         
         # Add command handlers
         self.app.add_handler(CommandHandler("start", start))
         self.app.add_handler(CommandHandler("generate", generate))
         self.app.add_handler(workout_handler)
+        self.app.add_handler(CommandHandler("weekplan", start_weekplan))
         self.app.add_handler(CommandHandler("races", races))
         self.app.add_handler(CommandHandler("addrace", start_add_race))
         self.app.add_handler(CommandHandler("editrace", start_edit_race))

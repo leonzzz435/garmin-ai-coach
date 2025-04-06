@@ -111,7 +111,8 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 await message.reply_document(
                     document=doc,
                     filename=f"analysis_{datetime.datetime.now().strftime('%Y%m%d')}.html",
-                    caption="📊 Your Training Analysis Report"
+                    caption="📊 Your Training Analysis Report",
+                    read_timeout=300, write_timeout=300, connect_timeout=300, pool_timeout=300
                 )
     except Exception as e:
         logger.error(f"Error processing data: {str(e)}", exc_info=True)

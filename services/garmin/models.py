@@ -77,6 +77,12 @@ class ActivitySummary:
     moderate_intensity_minutes: Optional[int] = None
     vigorous_intensity_minutes: Optional[int] = None
     recovery_heart_rate: Optional[int] = None
+    # Power-related fields for cycling activities
+    avg_power: Optional[float] = None
+    max_power: Optional[float] = None
+    normalized_power: Optional[float] = None
+    training_stress_score: Optional[float] = None
+    intensity_factor: Optional[float] = None
 
 @dataclass
 class WeatherData:

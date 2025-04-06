@@ -25,13 +25,67 @@ class DataExtractor:
     """Base class for data extraction operations"""
     
     @staticmethod
-    def safe_divide_and_round(numerator: Optional[float], 
-                            denominator: float, 
+    def safe_divide_and_round(numerator: Optional[float],
+                            denominator: float,
                             decimal_places: int = 2) -> Optional[float]:
         """Safely perform division and rounding."""
         if numerator is None:
             return None
         return round(numerator / denominator, decimal_places)
+        
+    @staticmethod
+    def extract_start_time(activity_data: Dict[str, Any]) -> Optional[str]:
+        """Extract start time from activity data with fallbacks."""
+        # Try different possible locations for start time
+        start_time = None
+        
+        # Check in summaryDTO
+        summary = activity_data.get('summaryDTO', {})
+        if summary:
+            start_time = summary.get('startTimeLocal') or summary.get('startTimeGMT')
+        
+        # If not found, check directly in the activity
+        if not start_time:
+            start_time = (
+                activity_data.get('startTimeLocal') or
+                activity_data.get('startTimeGMT') or
+                activity_data.get('startTime')
+            )
+        
+        # If still not found, check in beginTimestamp
+        if not start_time:
+            start_time = activity_data.get('beginTimestamp')
+            if start_time and isinstance(start_time, (int, float)):
+                # Convert timestamp to ISO format if it's a number
+                from datetime import datetime
+                start_time = datetime.fromtimestamp(start_time / 1000).isoformat()
+        
+        return start_time
+    
+    @staticmethod
+    def extract_activity_type(activity_data: Dict[str, Any]) -> str:
+        """Extract activity type from activity data with fallbacks."""
+        # Try different possible locations for activity type
+        activity_type = None
+        
+        # Check in activityType
+        activity_type_data = activity_data.get('activityType', {})
+        if activity_type_data:
+            activity_type = activity_type_data.get('typeKey') or activity_type_data.get('type')
+        
+        # If not found, check in activityTypeDTO
+        if not activity_type:
+            activity_type_dto = activity_data.get('activityTypeDTO', {})
+            if activity_type_dto:
+                activity_type = activity_type_dto.get('typeKey') or activity_type_dto.get('type')
+        
+        # If still not found, check directly in the activity
+        if not activity_type:
+            activity_type = activity_data.get('activityType')
+            if isinstance(activity_type, str):
+                return activity_type
+        
+        return activity_type or 'unknown'
 
     @staticmethod
     def convert_lactate_threshold_speed(speed_au: Optional[float]) -> Optional[float]:
@@ -206,6 +260,19 @@ class TriathlonCoachDataExtractor(DataExtractor):
                     'calories': lap.get('calories'),
                     'intensity': lap.get('intensityType')
                 }
+                
+                # Add power data if available
+                if 'averagePower' in lap:
+                    processed_lap['averagePower'] = lap.get('averagePower')
+                if 'maxPower' in lap:
+                    processed_lap['maxPower'] = lap.get('maxPower')
+                if 'minPower' in lap:
+                    processed_lap['minPower'] = lap.get('minPower')
+                if 'normalizedPower' in lap:
+                    processed_lap['normalizedPower'] = lap.get('normalizedPower')
+                if 'totalWork' in lap:
+                    processed_lap['totalWork'] = lap.get('totalWork')
+                
                 processed_laps.append(processed_lap)
             return processed_laps
         except Exception as e:
@@ -289,23 +356,108 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 logger.warning(f"Failed to get weather data for multisport activity {activity_id}: {e}")
                 weather_data = None
 
+            # Try to get additional details for the multisport activity
+            try:
+                activity_details = self.garmin.client.get_activity_details(activity_id)
+                if activity_details:
+                    # Merge the details with the main activity data
+                    for key, value in activity_details.items():
+                        if key not in detailed_activity:
+                            detailed_activity[key] = value
+                    logger.info(f"Successfully fetched additional details for multisport activity {activity_id}")
+            except Exception as e:
+                logger.warning(f"Failed to get additional details for multisport activity {activity_id}: {e}")
+
             child_activities = []
             metadata = detailed_activity.get('metadataDTO', {})
             child_ids = metadata.get('childIds', [])
             child_types = metadata.get('childActivityTypes', [])
 
             if not child_ids or not child_types:
-                logger.warning(f"Multisport activity {activity_id} missing child activities")
-                return None
+                logger.warning(f"Multisport activity {activity_id} missing child IDs in metadata")
+                
+                # Try alternative approach - some versions of the API might store this differently
+                # Check if there's a childActivities field
+                child_activities_data = detailed_activity.get('childActivities', [])
+                if child_activities_data:
+                    logger.info(f"Found {len(child_activities_data)} child activities in childActivities field")
+                    child_ids = [child.get('activityId') for child in child_activities_data if child.get('activityId')]
+                    
+                    # Try to extract child types if available
+                    if not child_types and child_ids:
+                        child_types = [child.get('activityType', {}).get('typeKey', 'unknown')
+                                      for child in child_activities_data if child.get('activityId')]
+                
+                # Try another alternative - check if there's a childIds field directly in the activity
+                direct_child_ids = detailed_activity.get('childIds', [])
+                if direct_child_ids and not child_ids:
+                    logger.info(f"Found {len(direct_child_ids)} child IDs directly in activity")
+                    child_ids = direct_child_ids
+                
+                if not child_ids:
+                    logger.warning(f"Could not find any child activities for multisport activity {activity_id}")
+                    return None
 
-            for child_id, child_type in zip(child_ids, child_types):
+            # Process each child activity
+            for i, child_id in enumerate(child_ids):
                 try:
+                    logger.info(f"Fetching child activity {child_id}")
                     child_activity = self.garmin.client.get_activity(child_id)
                     if not child_activity:
                         logger.warning(f"Failed to get child activity {child_id}")
                         continue
 
+                    # Try to get additional details for the child activity
+                    try:
+                        child_activity_details = self.garmin.client.get_activity_details(child_id)
+                        if child_activity_details:
+                            # Merge the details with the main activity data
+                            for key, value in child_activity_details.items():
+                                if key not in child_activity:
+                                    child_activity[key] = value
+                            logger.info(f"Successfully fetched additional details for child activity {child_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to get additional details for child activity {child_id}: {e}")
+
+                    # Get child activity type
+                    child_type = None
+                    if i < len(child_types):
+                        child_type = child_types[i]
+                    else:
+                        # Extract from the activity data
+                        child_type = self.extract_activity_type(child_activity)
+                    
+                    # Get child start time
+                    child_start_time = self.extract_start_time(child_activity)
+                    
+                    # Extract summary from summaryDTO
                     child_summary = self._extract_activity_summary(child_activity.get('summaryDTO', {}))
+                    
+                    # For cycling segments, check if power data is at the top level
+                    if child_type == 'cycling':
+                        # Update power fields if they exist at the top level but not in summaryDTO
+                        if child_summary.avg_power is None:
+                            # Try different possible field names for average power
+                            child_summary.avg_power = (
+                                child_activity.get('avgPower') or
+                                child_activity.get('averagePower')
+                            )
+                            
+                        if child_summary.max_power is None:
+                            child_summary.max_power = child_activity.get('maxPower')
+                            
+                        if child_summary.normalized_power is None:
+                            # Try different possible field names for normalized power
+                            child_summary.normalized_power = (
+                                child_activity.get('normPower') or
+                                child_activity.get('normalizedPower')
+                            )
+                            
+                        if child_summary.training_stress_score is None:
+                            child_summary.training_stress_score = child_activity.get('trainingStressScore')
+                            
+                        if child_summary.intensity_factor is None:
+                            child_summary.intensity_factor = child_activity.get('intensityFactor')
                     
                     try:
                         child_hr_zones = self.garmin.client.get_activity_hr_in_timezones(child_id)
@@ -320,13 +472,18 @@ class TriathlonCoachDataExtractor(DataExtractor):
                         child_lap_data = []
 
                     child_activities.append({
+                        'activityId': child_id,
+                        'activityName': child_activity.get('activityName'),
                         'activityType': child_type,
+                        'startTime': child_start_time,
                         'summary': child_summary,
                         'hr_zones': self._extract_hr_zone_data(child_hr_zones),
                         'laps': child_lap_data
                     })
+                    logger.info(f"Successfully processed child activity {child_id} of type {child_type}")
                 except Exception as e:
                     logger.error(f"Error processing child activity {child_id}: {e}")
+                    logger.debug(traceback.format_exc())
                     continue
 
             if not child_activities:
@@ -340,17 +497,42 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 'Multisport Activity'
             )
             
-            logger.info(f"Processed multisport activity - Name: {activity_name}")
+            # Extract start time with fallback logic
+            start_time = self.extract_start_time(detailed_activity)
+            
+            logger.info(f"Processed multisport activity - Name: {activity_name}, Start Time: {start_time}")
 
+            # Extract summary from summaryDTO
+            summary = self._extract_activity_summary(detailed_activity.get('summaryDTO', {}))
+            
+            # For multi-sport activities with cycling segments, try to get power data from cycling segments
+            cycling_segments = [child for child in child_activities if child.get('activityType') == 'cycling']
+            if cycling_segments and (summary.avg_power is None or summary.max_power is None or summary.normalized_power is None):
+                # Find the first cycling segment with power data
+                for segment in cycling_segments:
+                    segment_summary = segment.get('summary')
+                    if segment_summary:
+                        # Update power fields if they're missing in the main summary
+                        if summary.avg_power is None and segment_summary.avg_power is not None:
+                            summary.avg_power = segment_summary.avg_power
+                        if summary.max_power is None and segment_summary.max_power is not None:
+                            summary.max_power = segment_summary.max_power
+                        if summary.normalized_power is None and segment_summary.normalized_power is not None:
+                            summary.normalized_power = segment_summary.normalized_power
+                        if summary.training_stress_score is None and segment_summary.training_stress_score is not None:
+                            summary.training_stress_score = segment_summary.training_stress_score
+                        if summary.intensity_factor is None and segment_summary.intensity_factor is not None:
+                            summary.intensity_factor = segment_summary.intensity_factor
+            
             return Activity(
                 activity_id=activity_id,
                 activity_type='multisport',
                 activity_name=activity_name,
-                start_time=detailed_activity.get('summaryDTO', {}).get('startTimeLocal'),
-                summary=self._extract_activity_summary(detailed_activity.get('summaryDTO', {})),
+                start_time=start_time,
+                summary=summary,
                 weather=self._extract_weather_data(weather_data),
                 hr_zones=[],  # Multisport activities don't have overall HR zones
-                laps=[]  # Multisport activities don't have overall laps
+                laps=child_activities  # Store child activities in the laps field for now
             )
         except Exception as e:
             logger.error(f"Error processing multisport activity: {str(e)}")
@@ -366,6 +548,18 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 return None
 
             logger.info(f"Processing single sport activity {activity_id}")
+            
+            # Try to get additional details for the activity
+            try:
+                activity_details = self.garmin.client.get_activity_details(activity_id)
+                if activity_details:
+                    # Merge the details with the main activity data
+                    for key, value in activity_details.items():
+                        if key not in detailed_activity:
+                            detailed_activity[key] = value
+                    logger.info(f"Successfully fetched additional details for activity {activity_id}")
+            except Exception as e:
+                logger.warning(f"Failed to get additional details for activity {activity_id}: {e}")
             
             try:
                 weather_data = self.garmin.client.get_activity_weather(activity_id)
@@ -388,13 +582,8 @@ class TriathlonCoachDataExtractor(DataExtractor):
             # Log the activity data structure for debugging
             logger.debug(f"Detailed activity data: {detailed_activity}")
             
-            # Extract activity type with more robust fallback logic
-            activity_type_data = detailed_activity.get('activityType', detailed_activity.get('activityTypeDTO', {}))
-            activity_type = (
-                activity_type_data.get('typeKey') or 
-                activity_type_data.get('type') or 
-                'unknown'
-            )
+            # Extract activity type with helper function
+            activity_type = self.extract_activity_type(detailed_activity)
             
             # Normalize swimming activities
             if activity_type in ['open_water_swimming', 'lap_swimming']:
@@ -407,14 +596,54 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 f"{activity_type.replace('_', ' ').title()} Activity"
             )
             
-            logger.info(f"Processed activity - Type: {activity_type}, Name: {activity_name}")
+            # Extract start time with helper function
+            start_time = self.extract_start_time(detailed_activity)
+            
+            logger.info(f"Processed activity - Type: {activity_type}, Name: {activity_name}, Start Time: {start_time}")
 
+            # Extract summary from summaryDTO
+            summary = self._extract_activity_summary(detailed_activity.get('summaryDTO', {}))
+            
+            # For cycling activities, check if power data is at the top level
+            if activity_type == 'cycling':
+                # Update power fields if they exist at the top level but not in summaryDTO
+                if summary.avg_power is None:
+                    # Try different possible field names for average power
+                    summary.avg_power = (
+                        detailed_activity.get('avgPower') or
+                        detailed_activity.get('averagePower')
+                    )
+                    
+                if summary.max_power is None:
+                    summary.max_power = detailed_activity.get('maxPower')
+                    
+                if summary.normalized_power is None:
+                    # Try different possible field names for normalized power
+                    summary.normalized_power = (
+                        detailed_activity.get('normPower') or
+                        detailed_activity.get('normalizedPower')
+                    )
+                    
+                if summary.training_stress_score is None:
+                    summary.training_stress_score = detailed_activity.get('trainingStressScore')
+                    
+                if summary.intensity_factor is None:
+                    summary.intensity_factor = detailed_activity.get('intensityFactor')
+                
+                # If we still don't have power data, try to get it from the first lap
+                if (summary.avg_power is None or summary.normalized_power is None) and lap_data:
+                    first_lap = lap_data[0]
+                    if summary.avg_power is None and 'averagePower' in first_lap:
+                        summary.avg_power = first_lap['averagePower']
+                    if summary.normalized_power is None and 'normalizedPower' in first_lap:
+                        summary.normalized_power = first_lap['normalizedPower']
+            
             return Activity(
                 activity_id=activity_id,
                 activity_type=activity_type,
                 activity_name=activity_name,
-                start_time=detailed_activity.get('summaryDTO', {}).get('startTimeLocal'),
-                summary=self._extract_activity_summary(detailed_activity.get('summaryDTO', {})),
+                start_time=start_time,
+                summary=summary,
                 weather=self._extract_weather_data(weather_data),
                 hr_zones=self._extract_hr_zone_data(hr_zones_data),
                 laps=lap_data
@@ -426,6 +655,8 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
     def _extract_activity_summary(self, summary: Dict[str, Any]) -> ActivitySummary:
         """Extract relevant summary data."""
+        # For cycling activities, power data might be in the top-level activity object
+        # We'll handle this in the _process_single_sport_activity method
         return ActivitySummary(
             distance=summary.get('distance'),
             duration=summary.get('duration'),
@@ -440,7 +671,13 @@ class TriathlonCoachDataExtractor(DataExtractor):
             activity_training_load=summary.get('activityTrainingLoad'),
             moderate_intensity_minutes=summary.get('moderateIntensityMinutes'),
             vigorous_intensity_minutes=summary.get('vigorousIntensityMinutes'),
-            recovery_heart_rate=summary.get('recoveryHeartRate')
+            recovery_heart_rate=summary.get('recoveryHeartRate'),
+            # Power-related fields for cycling activities
+            avg_power=summary.get('avgPower'),
+            max_power=summary.get('maxPower'),
+            normalized_power=summary.get('normPower'),
+            training_stress_score=summary.get('trainingStressScore'),
+            intensity_factor=summary.get('intensityFactor')
         )
 
     def _extract_weather_data(self, weather: Dict[str, Any]) -> WeatherData:
@@ -612,18 +849,43 @@ class TriathlonCoachDataExtractor(DataExtractor):
     def get_training_status(self, date_obj: date) -> TrainingStatus:
         """Get relevant training status information."""
         try:
+            logger.info(f"Fetching training status for date: {date_obj.isoformat()}")
             raw_data = self.garmin.client.get_training_status(date_obj.isoformat())
+            
             if raw_data is None:
                 logger.warning("Training status data is None")
                 return TrainingStatus(
                     vo2_max={'value': None, 'date': None},
                     acute_training_load={'acute_load': None, 'chronic_load': None, 'acwr': None}
                 )
-
-            vo2max_data = raw_data.get('mostRecentVO2Max', {}).get('generic', {})
+            
+            # Log the raw data structure to understand what we're getting
+            logger.debug(f"Raw training status data: {raw_data}")
+            
+            # Check for mostRecentVO2Max
+            most_recent_vo2max = raw_data.get('mostRecentVO2Max')
+            if most_recent_vo2max is None:
+                logger.warning("mostRecentVO2Max is None in training status data")
+                vo2max_data = None
+            else:
+                # Check for generic data
+                generic_data = most_recent_vo2max.get('generic')
+                if generic_data is None:
+                    logger.warning("generic data is None in mostRecentVO2Max")
+                    vo2max_data = None
+                else:
+                    vo2max_data = generic_data
+                    logger.info(f"Found VO2Max data: {vo2max_data}")
+            
             status = raw_data.get('mostRecentTrainingStatus', {}).get('latestTrainingStatusData', {})
             status_key = next(iter(status), None)
             status_data = status.get(status_key, {}) if status_key else {}
+            
+            if status_key is None:
+                logger.warning("No status key found in latestTrainingStatusData")
+            else:
+                logger.info(f"Found status key: {status_key}")
+                
         except Exception as e:
             logger.error(f"Error getting training status: {str(e)}")
             return TrainingStatus(
@@ -631,10 +893,21 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 acute_training_load={'acute_load': None, 'chronic_load': None, 'acwr': None}
             )
 
+        # Handle the case where vo2max_data is None
+        vo2max_value = None
+        vo2max_date = None
+        
+        if vo2max_data is not None:
+            vo2max_value = vo2max_data.get('vo2MaxValue')
+            vo2max_date = vo2max_data.get('calendarDate')
+            logger.info(f"VO2Max value: {vo2max_value}, date: {vo2max_date}")
+        else:
+            logger.warning("vo2max_data is None, cannot extract vo2MaxValue")
+
         return TrainingStatus(
             vo2_max={
-                'value': vo2max_data.get('vo2MaxValue'),
-                'date': vo2max_data.get('calendarDate'),
+                'value': vo2max_value,
+                'date': vo2max_date,
             },
             acute_training_load={
                 'acute_load': status_data.get('acuteTrainingLoadDTO', {}).get('dailyTrainingLoadAcute'),
@@ -647,50 +920,117 @@ class TriathlonCoachDataExtractor(DataExtractor):
         """Get VO2 Max history for the given date range."""
         history = []
         current_date = start_date
+        logger.info(f"Fetching VO2 max history from {start_date} to {end_date}")
+        
         while current_date <= end_date:
             try:
+                logger.info(f"Fetching VO2 max data for date: {current_date.isoformat()}")
                 data = self.garmin.client.get_training_status(current_date.isoformat())
+                
                 if data is None:
                     logger.warning(f"Training status data is None for date {current_date.isoformat()}, possibly no VO2 max data available for this user")
                     current_date += timedelta(days=1)
                     continue
-                    
-                vo2max_data = data.get('mostRecentVO2Max', {}).get('generic', {})
-                if vo2max_data:
+                
+                # Check for mostRecentVO2Max
+                most_recent_vo2max = data.get('mostRecentVO2Max')
+                if most_recent_vo2max is None:
+                    logger.warning(f"mostRecentVO2Max is None for date {current_date.isoformat()}")
+                    current_date += timedelta(days=1)
+                    continue
+                
+                # Check for generic data
+                generic_data = most_recent_vo2max.get('generic')
+                if generic_data is None:
+                    logger.warning(f"generic data is None in mostRecentVO2Max for date {current_date.isoformat()}")
+                    current_date += timedelta(days=1)
+                    continue
+                
+                vo2max_data = generic_data
+                vo2max_value = vo2max_data.get('vo2MaxValue')
+                calendar_date = vo2max_data.get('calendarDate')
+                
+                if vo2max_value is not None and calendar_date is not None:
+                    logger.info(f"Found VO2Max data for date {current_date.isoformat()}: value={vo2max_value}, date={calendar_date}")
                     history.append({
-                        'date': vo2max_data.get('calendarDate'),
-                        'value': vo2max_data.get('vo2MaxValue'),
+                        'date': calendar_date,
+                        'value': vo2max_value,
                     })
+                else:
+                    logger.warning(f"VO2Max data missing value or date for {current_date.isoformat()}")
             except Exception as e:
                 logger.error(f"Error getting VO2 max history for date {current_date.isoformat()}: {str(e)}")
+                logger.debug(traceback.format_exc())
             
             current_date += timedelta(days=1)
+        
+        logger.info(f"Collected {len(history)} VO2 max history entries")
         return history
 
     def get_training_load_history(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
         """Get training load history for the given date range."""
         history = []
         current_date = start_date
+        logger.info(f"Fetching training load history from {start_date} to {end_date}")
+        
         while current_date <= end_date:
             try:
+                logger.info(f"Fetching training load data for date: {current_date.isoformat()}")
                 data = self.garmin.client.get_training_status(current_date.isoformat())
+                
                 if data is None:
                     logger.warning(f"Training status data is None for date {current_date.isoformat()}, possibly no training load data available for this user")
                     current_date += timedelta(days=1)
                     continue
-                    
-                status = data.get('mostRecentTrainingStatus', {}).get('latestTrainingStatusData', {})
+                
+                # Check for mostRecentTrainingStatus
+                most_recent_status = data.get('mostRecentTrainingStatus')
+                if most_recent_status is None:
+                    logger.warning(f"mostRecentTrainingStatus is None for date {current_date.isoformat()}")
+                    current_date += timedelta(days=1)
+                    continue
+                
+                # Check for latestTrainingStatusData
+                latest_status_data = most_recent_status.get('latestTrainingStatusData')
+                if latest_status_data is None or not isinstance(latest_status_data, dict) or len(latest_status_data) == 0:
+                    logger.warning(f"latestTrainingStatusData is None or empty for date {current_date.isoformat()}")
+                    current_date += timedelta(days=1)
+                    continue
+                
+                status = latest_status_data
                 status_key = next(iter(status), None)
-                if status_key:
-                    status_data = status[status_key]
-                    history.append({
-                        'date': current_date.isoformat(),
-                        'acute_load': status_data.get('acuteTrainingLoadDTO', {}).get('dailyTrainingLoadAcute'),
-                        'chronic_load': status_data.get('acuteTrainingLoadDTO', {}).get('dailyTrainingLoadChronic'),
-                        'acwr': status_data.get('acuteTrainingLoadDTO', {}).get('dailyAcuteChronicWorkloadRatio'),
-                    })
+                
+                if status_key is None:
+                    logger.warning(f"No status key found in latestTrainingStatusData for date {current_date.isoformat()}")
+                    current_date += timedelta(days=1)
+                    continue
+                
+                status_data = status[status_key]
+                
+                # Check for acuteTrainingLoadDTO
+                acute_training_load_dto = status_data.get('acuteTrainingLoadDTO')
+                if acute_training_load_dto is None:
+                    logger.warning(f"acuteTrainingLoadDTO is None for date {current_date.isoformat()}")
+                    current_date += timedelta(days=1)
+                    continue
+                
+                acute_load = acute_training_load_dto.get('dailyTrainingLoadAcute')
+                chronic_load = acute_training_load_dto.get('dailyTrainingLoadChronic')
+                acwr = acute_training_load_dto.get('dailyAcuteChronicWorkloadRatio')
+                
+                logger.info(f"Found training load data for date {current_date.isoformat()}: acute={acute_load}, chronic={chronic_load}, acwr={acwr}")
+                
+                history.append({
+                    'date': current_date.isoformat(),
+                    'acute_load': acute_load,
+                    'chronic_load': chronic_load,
+                    'acwr': acwr,
+                })
             except Exception as e:
                 logger.error(f"Error getting training load history for date {current_date.isoformat()}: {str(e)}")
+                logger.debug(traceback.format_exc())
                 
             current_date += timedelta(days=1)
+        
+        logger.info(f"Collected {len(history)} training load history entries")
         return history

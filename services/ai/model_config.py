@@ -8,6 +8,7 @@ from typing import Dict
 from crewai import LLM
 from core.config import get_config
 from .ai_settings import ai_settings, AgentRole
+import litellm
 
 logger = logging.getLogger(__name__)
 
@@ -96,8 +97,9 @@ class ModelSelector:
             model=model_config.name,
             base_url=model_config.base_url, 
             api_key=api_key,
+            max_tokens=64000,
             #reasoning_effort="high",
-            thinking: {"type": "enabled", "budget_tokens": 8000}
+            thinking={"type": "enabled", "budget_tokens": 8000}
         )
         logger.info(f"LLM configured for {model_config.name}")
         return llm

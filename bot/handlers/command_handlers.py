@@ -5,7 +5,7 @@ from datetime import date
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
-from bot.handlers.conversation_handlers import start_login
+from bot.handlers.conversation_handlers import start_login, start_weekplan
 from bot.handlers.data_handlers import generate
 
 # Configure logging
@@ -182,7 +182,9 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "generate": generate,
         "races": races,
         "help": help,
-        "roadmap": roadmap
+        "roadmap": roadmap,
+        "weekplan": start_weekplan,
+        "workout": start_weekplan  # Reuse the same handler for workout button
     }
     
     handler = handlers.get(query.data)
@@ -238,10 +240,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
         [
             InlineKeyboardButton("🏋️ Get Workout", callback_data="workout"),
-            InlineKeyboardButton("🏃 Race Calendar", callback_data="races")
+            InlineKeyboardButton("📅 Weekly Plan", callback_data="weekplan")
         ],
         [
-            InlineKeyboardButton("ℹ️ Help", callback_data="help"),
+            InlineKeyboardButton("🏃 Race Calendar", callback_data="races"),
+            InlineKeyboardButton("ℹ️ Help", callback_data="help")
+        ],
+        [
             InlineKeyboardButton("🗺️ Roadmap", callback_data="roadmap")
         ]
     ]
@@ -254,7 +259,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• `/login` \\- Connect Garmin account\n\n" +
         "📊 *Training:*\n" +
         "• `/generate` \\- Get AI training insights\n" +
-        "• `/workout` \\- Get workout suggestions\n\n" +
+        "• `/workout` \\- Get workout suggestions\n" +
+        "• `/weekplan` \\- Get weekly training plan\n\n" +
         "🏃‍♂️ *Races:*\n" +
         "• `/races` \\- View race calendar\n" +
         "• `/addrace` \\- Add competition\n" +
@@ -295,7 +301,8 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• `/clear_credentials` \\- Remove credentials\n\n" +
         "📊 *Training Commands:*\n" +
         "• `/generate` \\- Get AI training insights\n" +
-        "• `/workout` \\- Get workout suggestions\n\n" +
+        "• `/workout` \\- Get workout suggestions\n" +
+        "• `/weekplan` \\- Get weekly training plan\n\n" +
         "🏃‍♂️ *Race Commands:*\n" +
         "• `/races` \\- View race calendar\n" +
         "• `/addrace` \\- Add competition\n" +
@@ -455,6 +462,36 @@ async def races(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "❌ Failed to retrieve race calendar\\. Please try again\\.",
             parse_mode=ParseMode.MARKDOWN_V2
         )
+
+async def weekplan(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle the /weekplan command."""
+    message = update.message or update.callback_query.message
+    user_id = update.effective_user.id
+    
+    # Check for stored credentials
+    cred_manager = SecureCredentialManager(user_id)
+    if not cred_manager.has_stored_credentials():
+        await message.reply_text(
+            "🔒 No stored credentials found\\. Use `/login` to connect your account\\!",
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
+        return
+    
+    # Check for cached data
+    from core.security.reports import SecureReportManager
+    data_manager = SecureReportManager(user_id)
+    cached_data = data_manager.get_report()
+    
+    if not cached_data:
+        await message.reply_text(
+            "❌ No recent data found\\.\n" +
+            "Please use /generate first\\!",
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
+        return
+    
+    # Start the weekly planning conversation
+    await start_weekplan(update, context)
 
 async def delrace(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /delrace command - Remove a competition."""
