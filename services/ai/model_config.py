@@ -93,13 +93,19 @@ class ModelSelector:
 
         # Add timeout settings to prevent hanging
         logger.info(f"Configuring LLM for role {role.value} with model {model_config.name}")
-        llm = LLM(
-            model=model_config.name,
-            base_url=model_config.base_url, 
-            api_key=api_key,
-            max_tokens=64000,
-            #reasoning_effort="high",
-            thinking={"type": "enabled", "budget_tokens": 8000}
-        )
+        
+        # Base LLM parameters
+        llm_params = {
+            "model": model_config.name,
+            "base_url": model_config.base_url,
+            "api_key": api_key,
+        }
+        
+        # Only add thinking parameter for Claude 3.7 Sonnet model
+        if model_name == "claude-3-7-sonnet":
+            llm_params["thinking"] = {"type": "enabled", "budget_tokens": 8000}
+            llm_params["max_tokens"] = 64000
+            
+        llm = LLM(**llm_params)
         logger.info(f"LLM configured for {model_config.name}")
         return llm

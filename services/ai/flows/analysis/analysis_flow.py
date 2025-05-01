@@ -36,10 +36,6 @@ class AnalysisCrew:
         self.user_id = user_id
         self.athlete_name = athlete_name
         
-        # Get user meta information
-        user_tracker = UserTracker()
-        self.meta = user_tracker.get_meta(user_id)
-        
         # Get competition data and current date
         competition_manager = SecureCompetitionManager(self.user_id)
         self.competitions = [
@@ -294,8 +290,7 @@ class AnalysisFlow(Flow[AnalysisState]):
                     'athlete_name': self.athlete_name,
                     'competitions': self.analysis_crew.competitions,
                     'current_date': self.analysis_crew.current_date,
-                    'style_guide': self.analysis_crew.style_guide,
-                    'meta': self.analysis_crew.meta
+                    'style_guide': self.analysis_crew.style_guide
                 }
             )
             self.state.synthesis_result = result

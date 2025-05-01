@@ -69,8 +69,7 @@ class UserTracker:
                     "username": username,
                     "first_seen": datetime.now().isoformat(),
                     "last_seen": datetime.now().isoformat(),
-                    "interaction_count": 1,
-                    "meta": ""  # Add empty meta information object
+                    "interaction_count": 1
                 }
             else:
                 users[str(user_id)].update({
@@ -79,9 +78,6 @@ class UserTracker:
                     "last_seen": datetime.now().isoformat(),
                     "interaction_count": users[str(user_id)].get("interaction_count", 0) + 1
                 })
-                # Ensure meta exists for existing users
-                if "meta" not in users[str(user_id)]:
-                    users[str(user_id)]["meta"] = ""
             
             self._save_users(users)
             logger.info(f"Tracked user interaction: {user_id} ({first_name})")
@@ -116,21 +112,3 @@ class UserTracker:
             logger.error(f"Failed to get user {user_id}: {e}")
             return None
             
-    def get_meta(self, user_id: int) -> Dict[str, Any]:
-        """Get user meta information."""
-        user = self.get_user(user_id)
-        if user and "meta" in user:
-            return user["meta"]
-        return ""
-        
-    def set_meta(self, user_id: int, meta: Dict[str, Any]) -> None:
-        """Set user meta information."""
-        try:
-            users = self._load_users()
-            if str(user_id) in users:
-                users[str(user_id)]["meta"] = meta
-                self._save_users(users)
-                logger.info(f"Updated meta information for user {user_id}")
-        except Exception as e:
-            logger.error(f"Failed to set meta for user {user_id}: {e}")
-            raise

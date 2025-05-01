@@ -36,10 +36,6 @@ class WeeklyPlanCrew:
         # Convert GarminData to dict
         self.data = asdict(garmin_data)
         
-        # Get user meta information
-        user_tracker = UserTracker()
-        self.meta = user_tracker.get_meta(user_id)
-        
         # Get competition data and current date
         competition_manager = SecureCompetitionManager(self.user_id)
         self.competitions = [
@@ -202,8 +198,7 @@ class WeeklyPlanFlow(Flow[WeeklyPlanState]):
                     'athlete_context': self.athlete_context,
                     'competitions': json.dumps(self.crew_instance.competitions, indent=2),
                     'current_date': json.dumps(self.crew_instance.current_date, indent=2),
-                    'week_dates': json.dumps(self.crew_instance.week_dates, indent=2),
-                    'meta': self.crew_instance.meta
+                    'week_dates': json.dumps(self.crew_instance.week_dates, indent=2)
                 }
             )
             self.state.weekly_plan = result

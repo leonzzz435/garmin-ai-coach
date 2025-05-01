@@ -15,14 +15,12 @@ from bot.handlers.command_handlers import (
     clear_credentials,
     races,
     delrace,
-    handle_button,
-    set_meta
+    handle_button
 )
 from bot.handlers.conversation_handlers import (
     login_handler,
     add_race_handler,
     edit_race_handler,
-    workout_handler,
     weekplan_handler,
     start_add_race,
     start_edit_race,
@@ -63,7 +61,6 @@ class TelegramBot:
         # Add command handlers
         self.app.add_handler(CommandHandler("start", start))
         self.app.add_handler(CommandHandler("generate", generate))
-        self.app.add_handler(workout_handler)
         self.app.add_handler(CommandHandler("weekplan", start_weekplan))
         self.app.add_handler(CommandHandler("races", races))
         self.app.add_handler(CommandHandler("addrace", start_add_race))
@@ -72,7 +69,6 @@ class TelegramBot:
         self.app.add_handler(CommandHandler("help", help))
         self.app.add_handler(CommandHandler("roadmap", roadmap))
         self.app.add_handler(CommandHandler("clear_credentials", clear_credentials))
-        self.app.add_handler(CommandHandler("setmeta", set_meta))
         
         # Add callback query handler for inline keyboard
         self.app.add_handler(CallbackQueryHandler(handle_button))

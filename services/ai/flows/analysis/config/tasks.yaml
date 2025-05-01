@@ -148,10 +148,6 @@ synthesis_task:
     {current_date}
     ```
 
-    Additional user-provided philosophical insights:
-    ```json
-    {meta}
-    ```
 
     Your task is to:
     1. Create multi-factor performance models using your proprietary integration frameworks

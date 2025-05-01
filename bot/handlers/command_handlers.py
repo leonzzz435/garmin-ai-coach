@@ -53,8 +53,7 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "training": (
                 "📊 *Training Features Help*\n\n"
                 "*Commands:*\n"
-                "• `/generate` \\- Get AI training insights\n"
-                "• `/workout` \\- Get workout suggestions\n\n"
+                "• `/generate` \\- Get AI training insights\n\n"
                 "*Features:*\n"
                 "• Smart analysis of your training data\n"
                 "• Personalized workout recommendations\n"
@@ -183,8 +182,7 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "races": races,
         "help": help,
         "roadmap": roadmap,
-        "weekplan": start_weekplan,
-        "workout": start_weekplan  # Reuse the same handler for workout button
+        "weekplan": start_weekplan
     }
     
     handler = handlers.get(query.data)
@@ -239,7 +237,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("📊 Generate Insights", callback_data="generate")
         ],
         [
-            InlineKeyboardButton("🏋️ Get Workout", callback_data="workout"),
             InlineKeyboardButton("📅 Weekly Plan", callback_data="weekplan")
         ],
         [
@@ -259,7 +256,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• `/login` \\- Connect Garmin account\n\n" +
         "📊 *Training:*\n" +
         "• `/generate` \\- Get AI training insights\n" +
-        "• `/workout` \\- Get workout suggestions\n" +
         "• `/weekplan` \\- Get weekly training plan\n\n" +
         "🏃‍♂️ *Races:*\n" +
         "• `/races` \\- View race calendar\n" +
@@ -301,7 +297,6 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• `/clear_credentials` \\- Remove credentials\n\n" +
         "📊 *Training Commands:*\n" +
         "• `/generate` \\- Get AI training insights\n" +
-        "• `/workout` \\- Get workout suggestions\n" +
         "• `/weekplan` \\- Get weekly training plan\n\n" +
         "🏃‍♂️ *Race Commands:*\n" +
         "• `/races` \\- View race calendar\n" +
@@ -378,38 +373,6 @@ async def clear_credentials(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN_V2
         )
 
-async def set_meta(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle the /setmeta command - Set user meta information."""
-    message = update.message or update.callback_query.message
-    message_text = message.text.strip() if message else ""
-    user_id = update.effective_user.id
-    logger.info(f"Processing setmeta command for user {user_id}: {message_text}")
-    
-    try:
-        # Extract meta information from command
-        parts = message_text.split(maxsplit=1)
-        if len(parts) < 2:
-            await message.reply_text(
-                "❌ Please provide your meta information after the command.\n"
-                "Example: /setmeta Training for a marathon, prefer morning workouts",
-                parse_mode=ParseMode.MARKDOWN_V2
-            )
-            return
-            
-        # Store meta information as plain text
-        meta = {"description": parts[1]}
-        user_tracker.set_meta(user_id, meta)
-        await message.reply_text(
-            escape_markdown("✅ Successfully updated your meta information\\!"),
-            parse_mode=ParseMode.MARKDOWN_V2
-        )
-        
-    except Exception as e:
-        logger.error(f"Failed to set meta for user {user_id}: {e}")
-        await message.reply_text(
-            "❌ Failed to update meta information\\. Please try again\\.",
-            parse_mode=ParseMode.MARKDOWN_V2
-        )
 
 async def races(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /races command - List upcoming competitions."""

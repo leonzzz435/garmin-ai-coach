@@ -64,11 +64,10 @@ weekly_plan_task:
 
     ## Athlete Information
     - Name: {athlete_name}
-    - Custom Context: {athlete_context}
     - Current Date: {current_date}
     - Upcoming Week: {week_dates}
     - Upcoming Competitions: {competitions}
-    - Training Philosophy: {meta}
+    - Custom User Instructions: {athlete_context}
 
     ## Analysis Information
     Coach Elena Petrova has provided specific "WEEKLY PLANNING GUIDANCE" in her activity analysis, which Dr. Chen has integrated into her training context analysis. Review both of these carefully:
