@@ -6,7 +6,7 @@ import tempfile
 from datetime import date, datetime as dt
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.constants import ParseMode
-from bot.formatters import escape_markdown, format_and_send_report
+from bot.formatters import escape_markdown
 from telegram.ext import (
     ContextTypes,
     ConversationHandler,

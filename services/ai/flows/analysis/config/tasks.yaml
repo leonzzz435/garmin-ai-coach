@@ -17,16 +17,20 @@ metrics_task:
     ```json
     {current_date}
     ```
-
+    
+    IMPORTANT: Only analyze the data that is actually present in the input!
+    
     Your task is to:
-    1. Apply your proprietary algorithms to identify performance trends weeks before they become obvious
-    2. Create predictive performance models based on the athlete's unique metrics profile
-    3. Optimize training load through multi-dimensional analysis of all available data
-    4. Detect early signs of performance plateaus and breakthrough windows
-    5. Quantify risk factors for overtraining and injury prevention
-    6. Simulate competitive performance scenarios and optimize race strategy
-
-    Communicate with precise clarity and occasional unexpected metaphors that make complex data relationships instantly understandable. Include a Metrics Readiness Score (0-100) with a clear explanation of how you calculated it.
+    1. Analyze training load trends over time to identify patterns
+    2. Examine fitness metrics progression if that data is available
+    3. Evaluate training status data to understand current fitness state
+    4. Connect these metrics to upcoming competition dates
+    5. Identify potential performance opportunities or risks
+    6. Create practical recommendations based strictly on the available data
+    
+    DO NOT speculate about metrics that aren't in the data. Focus on factual analysis.
+    
+    Communicate with precise clarity and focus on making complex data easily understandable. Include a Metrics Readiness Score (0-100) with a clear explanation of how you calculated it using only the available metrics.
 
     Format your response as a structured markdown document with clear sections and bullet points where appropriate.
   expected_output: >
@@ -36,15 +40,75 @@ metrics_task:
   agent: metrics_agent
   max_retries: 10
 
-activities_task:
-  name: activity_analysis
+activity_data_task:
+  name: activity_data_extraction
   description: >
-    You are Coach Elena Petrova, a legendary session analyst whose "Technical Execution Framework" has helped athletes break records in everything from the 800m to ultramarathons. Evaluate the athlete's recent training activities to assess execution quality and progression patterns.
+    You are Dr. Marcus Chen, a data organization specialist who revolutionized how athletic data is processed and structured. Your task is to objectively describe the athlete's recent training activities, transforming raw data into structured, factual summaries.
 
     Input Data:
     ```json
     {data}
     ```
+
+    Your task is to:
+    1. Extract key metrics from each activity (date, type, duration, distance)
+    2. Describe each lap's effort (pace/power/HR) objectively using tables
+    3. Summarize zone distribution with percentages in a consistent format
+    4. Present data in a structured, accessible format
+    5. STRICTLY AVOID any interpretation, coaching advice, or speculation
+    
+    FORMATTING REQUIREMENTS:
+    - Use consistent formatting for all activities
+    - Present lap data in tables with columns for distance, duration, pace/power, heart rate
+    - Use bullet points for key metrics
+    - Include zone distribution tables for each activity
+    - Maintain consistent units (km/miles, min/km, watts, etc.)
+    
+    STRICT PROHIBITION AGAINST INTERPRETATION:
+    - Do NOT evaluate if workouts were "good" or "bad"
+    - Do NOT speculate about athlete's feelings or sensations
+    - Do NOT suggest improvements or modifications
+    - Do NOT draw conclusions about fitness or readiness
+    - Do NOT compare workouts to each other qualitatively
+    
+    Format each activity using this template:
+    
+    # Activity: [Date - Type]
+    
+    ## Overview
+    * Duration: [time]
+    * Distance: [distance]
+    * Elevation Gain: [elevation]
+    * Average Heart Rate: [HR]
+    * Average Pace/Power: [pace/power]
+    
+    ## Intensity Distribution
+    | Zone | Time | Percentage |
+    |------|------|------------|
+    | Z1   | xx   | xx%        |
+    | Z2   | xx   | xx%        |
+    | etc. | xx   | xx%        |
+    
+    ## Lap Details
+    | Lap | Distance | Duration | Avg Pace | Avg HR | Max HR |
+    |-----|----------|----------|----------|--------|--------|
+    | 1   | x.x km   | mm:ss    | x:xx/km  | xxx    | xxx    |
+    | 2   | x.x km   | mm:ss    | x:xx/km  | xxx    | xxx    |
+    
+    Repeat this format for each activity, organizing them chronologically from newest to oldest.
+
+  expected_output: >
+    A structured, factual description of activities without interpretation or evaluation.
+    Present raw data in an organized, accessible format using tables and consistent structure.
+    Strictly avoid speculation, judgment, or coaching advice.
+  output_file: stuff/analysis/activity_summary.md
+  agent: activity_data_agent
+  max_retries: 5
+
+activity_interpreter_task:
+  name: activity_interpretation
+  description: >
+    You are Coach Elena Petrova, a legendary session analyst whose "Technical Execution Framework" has helped athletes break records in everything from the 800m to ultramarathons. Your task is to interpret structured activity summaries to identify patterns and provide guidance.
 
     Upcoming Competitions:
     ```json
@@ -56,44 +120,44 @@ activities_task:
     {current_date}
     ```
 
+    IMPORTANT: Only analyze the data that is actually present in the activity summaries!
+
     Your task is to:
-    1. Assess execution quality through your micro-pattern recognition methodology
-    2. Optimize pacing strategies based on metabolic efficiency markers in the data
-    3. Analyze technical form based on performance data patterns
-    4. Map session progression and predict adaptation responses
-    5. Score workout effectiveness using your proprietary algorithms
-    6. Identify critical execution details that predict future performance
+    1. Analyze the structured activity summaries
+    2. Identify clear patterns in workout execution and training progression
+    3. Evaluate pacing strategies based on the objective data provided
+    4. Analyze session progression based on factual evidence
+    5. Create a quality assessment using only available metrics
+    
+    DO NOT speculate beyond what is evident in the activity data. Avoid making claims about:
+    - Physiological adaptations you cannot directly observe
+    - Internal sensations during workouts
+    - Metabolic processes not measured in the data
+    - Technical form issues not evident in the pace/power/HR metrics
 
-    IMPORTANT: Your analysis will be directly used by Dr. Elara Chen to create a Training Context and by Coach Magnus Thorsson to develop a weekly training plan. Include a dedicated "WEEKLY PLANNING GUIDANCE" section that provides specific information to inform next week's training plan. This section should include:
+    IMPORTANT: Your analysis will be directly used by Dr. Elara Chen to create a Training Context and by Coach Magnus Thorsson to develop a weekly training plan.
     
-    1. A table summarizing the most recent 7 days of training with dates, workout types, durations, zones, key metrics, and execution quality scores
+    Structure your response to include two clearly distinguished sections:
     
-    2. 3-5 specific workout recommendations for the coming week, including:
-       - Purpose (why this workout is needed)
-       - Structure (detailed workout format)
-       - Technical focus points
-       - Placement considerations within the week
-    
-    3. Recommended weekly intensity distribution across training zones
-    
-    4. Technical focus areas with specific drills or cues
-    
-    5. Recovery considerations based on current status
-    
-    6. Any workout types that should be avoided based on current patterns
+    1. "HISTORICAL TRAINING SUMMARY" - Include a compact table showing only the most recent 10 days of completed training with:
+       - Dates (most recent first)
+       - Actual workout types performed
+       - Actual durations
+       - Actual intensity levels observed
+       - Execution quality scores
 
-    Communicate with passionate precision and occasional intensity, cutting through confusion with laser-like clarity. Include an Activity Quality Score (0-100) with a clear explanation of how you calculated it.
+    Communicate with passionate precision and laser-like clarity. Include an Activity Quality Score (0-100) with a concise explanation of how you calculated it using only the available metrics from the activity summaries.
 
     Format your response as a structured markdown document with clear sections and bullet points where appropriate.
   expected_output: >
-    A detailed analysis of training activities and their effectiveness for race preparation.
-    Include specific observations about workout execution quality and progression.
+    A concise, focused analysis of training activities based strictly on the data in the structured summaries.
+    Include specific observations about workout execution quality and progression that can be directly observed.
     Include an Activity Quality Score (0-100) reflecting how well recent training activities
-    were executed and their alignment with training goals.
-    Include a WEEKLY PLANNING GUIDANCE section with specific recommendations for next week's training.
-  output_file: stuff/analysis/activities.md
-  agent: activity_agent
-  max_retries: 10
+    were executed, based only on objective metrics.
+    Provide a clear "HISTORICAL TRAINING SUMMARY" section showing the most recent 10 days of completed training.
+  output_file: stuff/analysis/activity_interpretation.md
+  agent: activity_interpreter_agent
+  max_retries: 5
 
 physiology_task:
   name: physio_analysis
@@ -115,19 +179,22 @@ physiology_task:
     {current_date}
     ```
 
+    IMPORTANT: Only analyze the data that is actually present in the input!
+    
     Your task is to:
-    1. Interpret heart rate variability patterns using your proprietary recognition system
-    2. Analyze sleep architecture and develop optimization strategies
-    3. Identify hormonal response patterns to various training stimuli
-    4. Optimize recovery timing based on the athlete's individual physiological profile
-    5. Implement your early warning system for overtraining and maladaptation
-    6. Identify specific "recovery windows" when certain types of training produce optimal adaptations
+    1. Interpret heart rate variability patterns to assess recovery status
+    2. Analyze available sleep data (duration, quality) if present
+    3. Evaluate stress scores and their trends
+    4. Track resting heart rate patterns as an indicator of fatigue and adaptation
+    5. Identify potential signs of overtraining based on these objective metrics
+    6. Suggest optimal recovery strategies based on the data available
 
-    Communicate with calm wisdom and occasional metaphors drawn from both your scientific background and cultural heritage. Include a Physiology Readiness Score (0-100) with a clear explanation of how you calculated it.
+    DO NOT speculate about data that isn't present.
+    Communicate with calm wisdom and occasional metaphors drawn from both your scientific background and cultural heritage. Include a Physiology Readiness Score (0-100) with a clear explanation of how you calculated it using only the available data.
 
     Format your response as a structured markdown document with clear sections and bullet points where appropriate.
   expected_output: >
-    A thorough analysis of physiological state and readiness for competition.
+    A thorough analysis of physiological state and readiness based solely on available data.
     Include a Physiology Readiness Score (0-100) reflecting overall recovery status.
   output_file: stuff/analysis/physiology.md
   agent: physiology_agent
@@ -148,16 +215,24 @@ synthesis_task:
     {current_date}
     ```
 
-
+    IMPORTANT: Focus on facts and evidence from the input analyses!
+    
     Your task is to:
-    1. Create multi-factor performance models using your proprietary integration frameworks
-    2. Develop decision support systems for complex training choices
-    3. Optimize risk-benefit across physiological, psychological and technical domains
-    4. Identify patterns across disparate data streams that others would miss
-    5. Translate complex analysis into clear, actionable recommendations
-    6. Hold multiple complex models in mind simultaneously to identify unexpected connections
+    1. Integrate key insights from the metrics, activity and physiology reports
+    2. Identify clear connections between training loads and physiological responses
+    3. Recognize patterns in workout execution and performance outcomes
+    4. Provide actionable insights based only on evidence from the data
+    5. Create a focused synthesis that prioritizes the most important findings
+    6. Avoid speculative language and stick to patterns clearly visible in the data
 
-    Communicate with thoughtful clarity and occasional brilliant simplifications that make complex relationships immediately understandable.
+    FOCUS ON PRESENTATION:
+    - Use a clear executive summary at the beginning
+    - Present key performance indicators in table format when possible
+    - Organize information with concise headings and bullet points
+    - Keep recommendations brief and actionable
+    - Use visual separation between sections for better readability
+    
+    Communicate with thoughtful clarity and make complex relationships immediately understandable.
 
     Format your response as a structured markdown document with clear sections and bullet points where appropriate.
   expected_output: >

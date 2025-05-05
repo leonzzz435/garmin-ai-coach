@@ -24,26 +24,30 @@ training_context_task:
     4. Create a cohesive framework that Coach Thorsson can use for weekly planning
 
     ## Your Task
-    Calculate a Training Readiness Score (0-100) based on:
-    - Recent training load and recovery patterns
-    - HRV trends and sleep quality
-    - Physiological markers (resting HR, etc.)
+    IMPORTANT: Only integrate and analyze the data that is actually present in the input analyses!
+    
+    Calculate a Training Readiness Score (0-100) based only on available data:
+    - Recent training load and recovery patterns (if present)
+    - HRV trends and sleep data (only what's actually provided)
+    - Available physiological markers (resting HR, etc.)
     - Upcoming competition schedule
 
-    Then provide a comprehensive analysis of the athlete's current training status that will help create an effective weekly training plan. Include:
+    Provide a practical analysis of the athlete's current training status that will help create an effective weekly training plan. Include:
 
-    1. TRAINING READINESS SCORE: Provide a score (0-100) with clear explanation of factors
-    2. PHYSIOLOGICAL STATUS: Assess recovery status, fatigue levels, and overall readiness to train
-    3. TRAINING PATTERN ANALYSIS: Analyze recent training load, intensity distribution, and volume trends
-    4. COMPETITION CONTEXT: Evaluate upcoming races and their implications for training
-    5. SPECIFIC RECOMMENDATIONS: Identify key areas to focus on based on the athlete's goals and current status
+    1. TRAINING READINESS SCORE: Provide a score (0-100) with clear explanation based only on available factors
+    2. PHYSIOLOGICAL STATUS: Assess recovery status and readiness using only metrics present in the analysis
+    3. TRAINING PATTERN ANALYSIS: Summarize actual training load, intensity distribution, and volume data
+    4. COMPETITION CONTEXT: Connect factual training data to upcoming races
+    5. SPECIFIC RECOMMENDATIONS: Identify key areas to focus on based on concrete evidence
     
-    6. WEEKLY PLANNING INTEGRATION: This is a new critical section where you should:
+    6. WEEKLY PLANNING INTEGRATION: This is a critical section where you should:
        - Reference Coach Petrova's WEEKLY PLANNING GUIDANCE
-       - Validate which of her recommended workouts align with the current physiological state
-       - Suggest modifications to her recommendations based on physiological readiness
-       - Identify optimal days for key workouts based on recovery windows
-       - Provide a cohesive framework that integrates all three analyses (metrics, activities, physiology)
+       - Validate which recommended workouts align with current physiological data
+       - Suggest practical modifications based on objective readiness indicators
+       - Propose workout timing based on available recovery data
+       - Create a cohesive framework that integrates all three analyses without speculation
+       
+    DO NOT speculate beyond what is evident in the input analyses. Base all recommendations on factual evidence.
 
     Format your response as a structured markdown document with clear sections and bullet points where appropriate.
   expected_output: >
@@ -77,21 +81,29 @@ weekly_plan_task:
     2. The WEEKLY PLANNING INTEGRATION section in Dr. Chen's analysis validates these recommendations against the athlete's physiological readiness and suggests optimal timing
 
     ## Your Task
+    IMPORTANT: Create a concrete, practical training plan based only on the information provided in the analyses.
+    
     Create a detailed 7-day training plan that adapts to the athlete's current Training Readiness Score and physiological status. For each day of the week, provide:
 
     1. DAY & DATE: The day of the week and date
-    2. DAILY READINESS: How to assess readiness for this specific day
-    3. WORKOUT TYPE: The primary workout type (e.g., Easy Run, Interval Session, Long Ride)
-    4. PURPOSE: The specific purpose of this workout in the training plan
+    2. DAILY READINESS: Practical, measurable ways to assess readiness
+    3. WORKOUT TYPE: Clear workout type (e.g., Easy Run, Interval Session, Long Ride)
+    4. PURPOSE: The concrete purpose of this workout
     5. DETAILED STRUCTURE: A clear breakdown of the workout including:
-       - Warm-up
-       - Main set with specific intensities, durations, and rest periods
-       - Cool-down
-    6. INTENSITY GUIDANCE: Target intensity zones, perceived effort levels, or pace guidelines
-    7. ADAPTATION OPTIONS: How to adjust the workout based on daily readiness (easier/harder options)
-    8. RECOVERY GUIDANCE: Any specific recovery protocols to follow
+       - Warm-up with specific duration and intensity
+       - Main set with exact intensities, durations, and rest periods
+       - Cool-down with specific guidance
+    6. INTENSITY GUIDANCE: Specific target zones, effort levels, or pace guidelines
+    7. ADAPTATION OPTIONS: Practical workout adjustments based on daily readiness
+    8. RECOVERY GUIDANCE: Specific, actionable recovery protocols
 
-    Begin with a brief overview of the week's focus and goals, including how the plan adapts to the Training Readiness Score. Then provide the day-by-day plan in a structured format.
+    Begin with a concise overview of the week's focus and goals, including how the plan adapts to the Training Readiness Score. Then provide the day-by-day plan in a structured format.
+    
+    Focus on creating workouts that are:
+    - Specific and measurable (exact distances, times, intensities)
+    - Practical and executable (clear instructions)
+    - Adaptable with concrete options
+    - Connected to the athlete's goals and current fitness
 
     Use the following essential style guidelines:
     - Use clear headings and subheadings

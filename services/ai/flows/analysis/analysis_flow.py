@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 class AnalysisState(BaseModel):
     """State management for analysis flow."""
     metrics_result: str = ""
-    activities_result: str = ""
+    activity_summary_result: str = ""
+    activity_interpretation_result: str = ""
     physiology_result: str = ""
     synthesis_result: str = ""
     html_result: str = ""
@@ -77,11 +78,19 @@ class AnalysisCrew:
         )
 
     @agent
-    def activity_agent(self) -> Agent:
-        """Create activity analysis agent."""
+    def activity_data_agent(self) -> Agent:
+        """Create activity data extraction agent."""
         return Agent(
-            config=self.agents_config['activity_agent'],
-            llm=ModelSelector.get_llm(AgentRole.ACTIVITY)
+            config=self.agents_config['activity_data_agent'],
+            llm=ModelSelector.get_llm(AgentRole.ACTIVITY_DATA)
+        )
+        
+    @agent
+    def activity_interpreter_agent(self) -> Agent:
+        """Create activity interpretation agent."""
+        return Agent(
+            config=self.agents_config['activity_interpreter_agent'],
+            llm=ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER)
         )
 
     @agent
@@ -116,11 +125,18 @@ class AnalysisCrew:
         )
 
     @task
-    def activities_task(self) -> Task:
-        """Create activities analysis task."""
+    def activity_data_task(self) -> Task:
+        """Create activity data extraction task."""
         return Task(
-            config=self.tasks_config['activities_task']
+            config=self.tasks_config['activity_data_task']
         )
+        
+    @task
+    def activity_interpreter_task(self) -> Task:
+        """Create activity interpretation task."""
+        task_config = self.tasks_config['activity_interpreter_task']
+        task_config['context'] = [self.activity_data_task()]
+        return Task(config=task_config)
 
     @task
     def physiology_task(self) -> Task:
@@ -135,7 +151,7 @@ class AnalysisCrew:
         task_config = self.tasks_config['synthesis_task']
         task_config['context'] = [
             self.metrics_task(),
-            self.activities_task(),
+            self.activity_interpreter_task(),
             self.physiology_task()
         ]
         return Task(config=task_config)
@@ -158,11 +174,21 @@ class AnalysisCrew:
         )
 
     @crew
-    def activities_crew(self) -> Crew:
-        """Create activities analysis crew."""
+    def activity_data_crew(self) -> Crew:
+        """Create activity data extraction crew."""
         return Crew(
-            agents=[self.activity_agent()],
-            tasks=[self.activities_task()],
+            agents=[self.activity_data_agent()],
+            tasks=[self.activity_data_task()],
+            process=Process.sequential,
+            #verbose=True,
+        )
+        
+    @crew
+    def activity_interpreter_crew(self) -> Crew:
+        """Create activity interpretation crew."""
+        return Crew(
+            agents=[self.activity_interpreter_agent()],
+            tasks=[self.activity_interpreter_task()],
             process=Process.sequential,
             #verbose=True,
         )
@@ -232,30 +258,48 @@ class AnalysisFlow(Flow[AnalysisState]):
             raise
 
     @listen(analyze_metrics)
-    async def analyze_activities(self):
-        """Perform activities analysis."""
+    async def extract_activity_data(self):
+        """Extract and structure activity data."""
         try:
             activities_data = {
                 'recent_activities': self.analysis_crew.data.get('recent_activities', []),  # Includes laps and weather
                 'training_status': self.analysis_crew.data.get('training_status', {})
             }
-            logger.info("Starting activities analysis")
-            result = await self.analysis_crew.activities_crew().kickoff_async(
+            logger.info("Starting activity data extraction")
+            result = await self.analysis_crew.activity_data_crew().kickoff_async(
                 inputs={
-                    'data': activities_data,
+                    'data': activities_data
+                }
+            )
+            self.state.activity_summary_result = result
+            logger.info("Activity data extraction completed successfully")
+            return result
+        except Exception as e:
+            logger.error(f"Activity data extraction failed: {str(e)}")
+            self.state.activity_summary_result = f"Error during activity data extraction: {str(e)}"
+            raise
+            
+    @listen(extract_activity_data)
+    async def interpret_activities(self):
+        """Interpret structured activity data."""
+        try:
+            logger.info("Starting activity interpretation")
+            # We don't need to pass activity_summary as input since it's passed via context
+            result = await self.analysis_crew.activity_interpreter_crew().kickoff_async(
+                inputs={
                     'competitions': self.analysis_crew.competitions,
                     'current_date': self.analysis_crew.current_date
                 }
             )
-            self.state.activities_result = result
-            logger.info("Activities Analysis completed successfully")
+            self.state.activity_interpretation_result = result
+            logger.info("Activity interpretation completed successfully")
             return result
         except Exception as e:
-            logger.error(f"Activities Analysis failed: {str(e)}")
-            self.state.activities_result = f"Error during activities analysis: {str(e)}"
+            logger.error(f"Activity interpretation failed: {str(e)}")
+            self.state.activity_interpretation_result = f"Error during activity interpretation: {str(e)}"
             raise
 
-    @listen(analyze_activities)
+    @listen(interpret_activities)
     async def analyze_physiology(self):
         """Perform physiology analysis."""
         try:

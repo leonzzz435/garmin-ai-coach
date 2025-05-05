@@ -13,7 +13,7 @@ from core.security import SecureCredentialManager, SecureReportManager
 from core.security.cache import SecureMetricsCache, SecureActivityCache, SecurePhysiologyCache
 from core.security.execution import ExecutionTracker
 from services.garmin import TriathlonCoachDataExtractor, ExtractionConfig, TimeRange, GarminData
-from bot.formatters import format_and_send_report, escape_markdown
+from bot.formatters import escape_markdown
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -88,7 +88,7 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         # Store analysis results as strings
         metrics_cache.store(str(flow.state.metrics_result))
-        activity_cache.store(str(flow.state.activities_result))
+        activity_cache.store(str(flow.state.activity_interpretation_result))
         physiology_cache.store(str(flow.state.physiology_result))
         
         # Store both raw data and final synthesis result

@@ -10,7 +10,8 @@ from core.config import get_config, AIMode
 class AgentRole(Enum):
     """Different roles for specialized agents."""
     METRICS = "metrics"
-    ACTIVITY = "activity"
+    ACTIVITY_DATA = "activity_data"           # Data extraction agent
+    ACTIVITY_INTERPRETER = "activity_interpreter"  # Interpretation agent
     PHYSIO = "physio"
     SYNTHESIS = "synthesis"
     WORKOUT = "workout"
@@ -27,31 +28,44 @@ class AISettings:
     # Model assignments for different roles
     model_assignments: Dict[AIMode, Dict[AgentRole, str]] = field(default_factory=lambda: {
         AIMode.STANDARD: {
-            AgentRole.METRICS: "claude-3-7-sonnet",
-            AgentRole.ACTIVITY: "claude-3-7-sonnet",
-            AgentRole.PHYSIO: "claude-3-7-sonnet", 
-            AgentRole.SYNTHESIS: "claude-3-7-sonnet",
-            AgentRole.WORKOUT: "claude-3-7-sonnet",
-            AgentRole.COMPETITION_PLANNER: "claude-3-7-sonnet",
-            AgentRole.FORMATTER: "claude-3-7-sonnet"
+            # Data processing roles benefit from thinking mode
+            AgentRole.METRICS: "claude-3-7-thinking",              # Data-intensive pattern analysis
+            AgentRole.ACTIVITY_DATA: "claude-3-7-thinking",        # Raw data extraction and structuring
+            AgentRole.PHYSIO: "claude-3-7-thinking",               # Complex physiological pattern analysis
+            AgentRole.ACTIVITY_INTERPRETER: "claude-3-7-thinking", # precise interpretation of activity data
+            
+            # Creative roles work better with standard mode
+            AgentRole.SYNTHESIS: "claude-3-7-sonnet",            # Creative synthesis of multiple analyses
+            AgentRole.WORKOUT: "claude-3-7-sonnet",              # Domain-specific workout planning
+            AgentRole.COMPETITION_PLANNER: "claude-3-7-sonnet",  # Creative race strategy development
+            
+            # Code generation role
+            AgentRole.FORMATTER: "claude-3-7-sonnet"            # HTML/CSS code generation
         },
         AIMode.COST_EFFECTIVE: {
             AgentRole.METRICS: "claude-3-haiku",
-            AgentRole.ACTIVITY: "gpt-4o-mini",
-            AgentRole.PHYSIO: "claude-3-haiku", 
+            AgentRole.ACTIVITY_DATA: "claude-3-haiku",
+            AgentRole.ACTIVITY_INTERPRETER: "gpt-4o-mini",
+            AgentRole.PHYSIO: "claude-3-haiku",
             AgentRole.SYNTHESIS: "gpt-4o-mini",
-            AgentRole.WORKOUT: "claude-3-haiku",
+            AgentRole.WORKOUT: "gpt-4o-mini",
             AgentRole.COMPETITION_PLANNER: "claude-3-haiku",
             AgentRole.FORMATTER: "claude-3-haiku"
         },
         AIMode.DEVELOPMENT: {
-            AgentRole.METRICS: "claude-3-7-sonnet",
-            AgentRole.ACTIVITY: "claude-3-7-sonnet",
-            AgentRole.PHYSIO: "claude-3-7-sonnet", 
-            AgentRole.SYNTHESIS: "claude-3-7-sonnet",
-            AgentRole.WORKOUT: "claude-3-7-sonnet",
-            AgentRole.COMPETITION_PLANNER: "claude-3-7-sonnet",
-            AgentRole.FORMATTER: "claude-3-7-sonnet"
+            # Data processing roles benefit from thinking mode
+            AgentRole.METRICS: "claude-3-7-thinking",           # Data-intensive pattern analysis
+            AgentRole.ACTIVITY_DATA: "claude-3-7-thinking",     # Raw data extraction and structuring
+            AgentRole.PHYSIO: "claude-3-7-thinking",            # Complex physiological pattern analysis
+            
+            # Creative roles work better with standard mode
+            AgentRole.ACTIVITY_INTERPRETER: "claude-3-7-sonnet", # Creative interpretation of activity data
+            AgentRole.SYNTHESIS: "claude-3-7-sonnet",           # Creative synthesis of multiple analyses
+            AgentRole.WORKOUT: "claude-3-7-sonnet",             # Domain-specific workout planning
+            AgentRole.COMPETITION_PLANNER: "claude-3-7-sonnet", # Creative race strategy development
+            
+            # Code generation role
+            AgentRole.FORMATTER: "claude-3-7-sonnet"            # HTML/CSS code generation
         }
     })
 

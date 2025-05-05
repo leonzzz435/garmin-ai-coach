@@ -28,6 +28,14 @@ class ModelSelector:
             name="gpt-4o",
             base_url="https://api.openai.com/v1"
         ),
+        "gpt-4.1": ModelConfiguration(
+            name="gpt-4.1",
+            base_url="https://api.openai.com/v1"
+        ),
+        "gpt-4.5": ModelConfiguration(
+            name="gpt-4.5-preview",
+            base_url="https://api.openai.com/v1"
+        ),
         "gpt-4o-mini": ModelConfiguration(
             name="gpt-4o-mini",
             base_url="https://api.openai.com/v1"
@@ -41,13 +49,25 @@ class ModelSelector:
             base_url="https://api.openai.com/v1"
         ),
         "o3": ModelConfiguration(
-            name="openai/o3-mini",
+            name="o3",
+            base_url="https://api.openai.com/v1"
+        ),
+        "o3-mini": ModelConfiguration(
+            name="o3-mini",
+            base_url="https://api.openai.com/v1"
+        ),
+        "o4-mini": ModelConfiguration(
+            name="o4-mini",
             base_url="https://api.openai.com/v1"
         ),
         
         # Anthropic Models
         "claude-3-7-sonnet": ModelConfiguration(
-            name="claude-3-7-sonnet-20250219",
+            name="claude-3-7-sonnet-latest",
+            base_url="https://api.anthropic.com"
+        ),
+        "claude-3-7-thinking": ModelConfiguration(
+            name="claude-3-7-sonnet-latest",
             base_url="https://api.anthropic.com"
         ),
         "claude-3-haiku": ModelConfiguration(
@@ -101,10 +121,14 @@ class ModelSelector:
             "api_key": api_key,
         }
         
-        # Only add thinking parameter for Claude 3.7 Sonnet model
-        if model_name == "claude-3-7-sonnet":
-            llm_params["thinking"] = {"type": "enabled", "budget_tokens": 8000}
+        # Configure thinking mode and token limits based on model
+        if model_name == "claude-3-7-thinking":
+            llm_params["thinking"] = {"type": "enabled", "budget_tokens": 16000}
             llm_params["max_tokens"] = 64000
+            logger.info(f"Using thinking mode for {role.value}")
+        elif model_name == "claude-3-7-sonnet":
+            llm_params["max_tokens"] = 64000
+            llm_params["temperature"] = 0.
             
         llm = LLM(**llm_params)
         logger.info(f"LLM configured for {model_config.name}")
