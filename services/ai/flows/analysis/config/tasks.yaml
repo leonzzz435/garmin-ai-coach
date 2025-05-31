@@ -82,13 +82,6 @@ activity_data_task:
     * Average Heart Rate: [HR]
     * Average Pace/Power: [pace/power]
     
-    ## Intensity Distribution
-    | Zone | Time | Percentage |
-    |------|------|------------|
-    | Z1   | xx   | xx%        |
-    | Z2   | xx   | xx%        |
-    | etc. | xx   | xx%        |
-    
     ## Lap Details
     | Lap | Distance | Duration | Avg Pace | Avg HR | Max HR |
     |-----|----------|----------|----------|--------|--------|

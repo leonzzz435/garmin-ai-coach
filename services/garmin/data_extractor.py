@@ -477,7 +477,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
                         'activityType': child_type,
                         'startTime': child_start_time,
                         'summary': child_summary,
-                        'hr_zones': self._extract_hr_zone_data(child_hr_zones),
+                        # Removed hr_zones data as requested
                         'laps': child_lap_data
                     })
                     logger.info(f"Successfully processed child activity {child_id} of type {child_type}")
@@ -645,7 +645,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 start_time=start_time,
                 summary=summary,
                 weather=self._extract_weather_data(weather_data),
-                hr_zones=self._extract_hr_zone_data(hr_zones_data),
+                # Removed hr_zones data as requested
                 laps=lap_data
             )
         except Exception as e:
@@ -746,7 +746,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             'weekly_avg': hrv_summary.get('weeklyAvg'),
             'last_night_avg': hrv_summary.get('lastNightAvg'),
             'last_night_5min_high': hrv_summary.get('lastNight5MinHigh'),
-            'status': hrv_summary.get('status'),
+            # Removed 'status' field as requested
             'baseline': {
                 'low_upper': hrv_summary.get('baseline', {}).get('lowUpper'),
                 'balanced_low': hrv_summary.get('baseline', {}).get('balancedLow'),
@@ -834,7 +834,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
                     },
                     'restless_moments': sleep_data.get('restlessMomentsCount'),
                     'avg_overnight_hrv': sleep_data.get('avgOvernightHrv'),
-                    'hrv_status': sleep_data.get('hrvStatus'),
+                    # Removed 'hrv_status' field as requested
                     'resting_heart_rate': sleep_data.get('restingHeartRate')
                 },
                 stress={
@@ -916,11 +916,20 @@ class TriathlonCoachDataExtractor(DataExtractor):
             }
         )
 
-    def get_vo2_max_history(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
-        """Get VO2 Max history for the given date range."""
-        history = []
+    def get_vo2_max_history(self, start_date: date, end_date: date) -> Dict[str, List[Dict[str, Any]]]:
+        """Get VO2 Max history for both running and cycling for the given date range."""
+        history = {
+            'running': [],
+            'cycling': []
+        }
         current_date = start_date
         logger.info(f"Fetching VO2 max history from {start_date} to {end_date}")
+        
+        # Track dates we've already processed to avoid duplicates
+        processed_dates = {
+            'running': set(),
+            'cycling': set()
+        }
         
         while current_date <= end_date:
             try:
@@ -939,32 +948,75 @@ class TriathlonCoachDataExtractor(DataExtractor):
                     current_date += timedelta(days=1)
                     continue
                 
-                # Check for generic data
+                # Get running VO2max data from generic field
                 generic_data = most_recent_vo2max.get('generic')
-                if generic_data is None:
-                    logger.warning(f"generic data is None in mostRecentVO2Max for date {current_date.isoformat()}")
-                    current_date += timedelta(days=1)
-                    continue
+                if generic_data is not None:
+                    vo2max_value = generic_data.get('vo2MaxValue')
+                    calendar_date = generic_data.get('calendarDate')
+                    
+                    if vo2max_value is not None and calendar_date is not None and calendar_date not in processed_dates['running']:
+                        logger.info(f"Found Running VO2Max data for date {current_date.isoformat()}: value={vo2max_value}, date={calendar_date}")
+                        history['running'].append({
+                            'date': calendar_date,
+                            'value': vo2max_value,
+                        })
+                        processed_dates['running'].add(calendar_date)
+                    elif vo2max_value is None or calendar_date is None:
+                        logger.warning(f"Running VO2Max data missing value or date for {current_date.isoformat()}")
                 
-                vo2max_data = generic_data
-                vo2max_value = vo2max_data.get('vo2MaxValue')
-                calendar_date = vo2max_data.get('calendarDate')
+                # Get cycling VO2max data - check multiple possible locations
+                cycling_data = None
                 
-                if vo2max_value is not None and calendar_date is not None:
-                    logger.info(f"Found VO2Max data for date {current_date.isoformat()}: value={vo2max_value}, date={calendar_date}")
-                    history.append({
-                        'date': calendar_date,
-                        'value': vo2max_value,
-                    })
-                else:
-                    logger.warning(f"VO2Max data missing value or date for {current_date.isoformat()}")
+                # First check if cycling data exists directly in mostRecentVO2Max
+                potential_fields = ['cycling', 'bike', 'cycle']
+                for field in potential_fields:
+                    if field in most_recent_vo2max:
+                        cycling_data = most_recent_vo2max.get(field)
+                        break
+                
+                # If not found, look for sport-specific fields
+                if cycling_data is None and 'sportSpecific' in most_recent_vo2max:
+                    sport_specific = most_recent_vo2max.get('sportSpecific', {})
+                    for field in potential_fields:
+                        if field in sport_specific:
+                            cycling_data = sport_specific.get(field)
+                            break
+                
+                # If still not found, check if there are other fields with cycling data
+                if cycling_data is None:
+                    # Check if there's a "sport" array
+                    sport_field = most_recent_vo2max.get('sport')
+                    if isinstance(sport_field, list):
+                        for entry in sport_field:
+                            if isinstance(entry, dict) and 'sportType' in entry:
+                                sport_type = entry.get('sportType')
+                                if 'cycling' in str(sport_type).lower() or 'bike' in str(sport_type).lower():
+                                    cycling_data = entry
+                                    break
+                
+                # Process cycling data if found
+                if cycling_data and isinstance(cycling_data, dict):
+                    vo2max_value = cycling_data.get('vo2MaxValue')
+                    calendar_date = cycling_data.get('calendarDate')
+                    
+                    if vo2max_value is not None and calendar_date is not None and calendar_date not in processed_dates['cycling']:
+                        logger.info(f"Found Cycling VO2Max data for date {current_date.isoformat()}: value={vo2max_value}, date={calendar_date}")
+                        history['cycling'].append({
+                            'date': calendar_date,
+                            'value': vo2max_value,
+                        })
+                        processed_dates['cycling'].add(calendar_date)
+                    elif vo2max_value is None or calendar_date is None:
+                        logger.warning(f"Cycling VO2Max data missing value or date for {current_date.isoformat()}")
+                
             except Exception as e:
                 logger.error(f"Error getting VO2 max history for date {current_date.isoformat()}: {str(e)}")
                 logger.debug(traceback.format_exc())
             
             current_date += timedelta(days=1)
         
-        logger.info(f"Collected {len(history)} VO2 max history entries")
+        logger.info(f"Collected {len(history['running'])} running VO2max history entries")
+        logger.info(f"Collected {len(history['cycling'])} cycling VO2max history entries")
         return history
 
     def get_training_load_history(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:

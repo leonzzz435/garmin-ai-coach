@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 class WeeklyPlanState(BaseModel):
     """State management for weekly planning flow."""
     training_context: str = ""
-    weekly_plan: str = ""
+    season_plan: str = ""     # New field for high-level season plan
+    two_week_plan: str = ""   # Renamed from weekly_plan
     html_result: str = ""
 
 @CrewBase
@@ -56,9 +57,9 @@ class WeeklyPlanCrew:
             'date_formatted': current_date.strftime('%Y-%m-%d')
         }
         
-        # Calculate the week dates
+        # Calculate the two-week dates
         self.week_dates = []
-        for i in range(7):
+        for i in range(14):
             day = current_date + timedelta(days=i)
             self.week_dates.append({
                 'date': day.isoformat(),
@@ -76,6 +77,14 @@ class WeeklyPlanCrew:
         return Agent(
             config=self.agents_config['training_context_agent'],
             llm=ModelSelector.get_llm(AgentRole.SYNTHESIS)
+        )
+    
+    @agent
+    def season_planner_agent(self) -> Agent:
+        """Create season planning agent."""
+        return Agent(
+            config=self.agents_config['season_planner_agent'],
+            llm=ModelSelector.get_llm(AgentRole.SEASON_PLANNER)
         )
     
     @agent
@@ -102,11 +111,19 @@ class WeeklyPlanCrew:
         )
     
     @task
+    def season_plan_task(self) -> Task:
+        """Create season planning task."""
+        return Task(
+            config=self.tasks_config['season_plan_task'],
+            context=[self.training_context_task()]
+        )
+    
+    @task
     def weekly_plan_task(self) -> Task:
-        """Create weekly planning task."""
+        """Create two-week planning task."""
         return Task(
             config=self.tasks_config['weekly_plan_task'],
-            context=[self.training_context_task()]
+            context=[self.training_context_task(), self.season_plan_task()]
         )
     
     @task
@@ -127,8 +144,17 @@ class WeeklyPlanCrew:
         )
     
     @crew
+    def season_planner_crew(self) -> Crew:
+        """Create season planner crew."""
+        return Crew(
+            agents=[self.season_planner_agent()],
+            tasks=[self.season_plan_task()],
+            process=Process.sequential
+        )
+    
+    @crew
     def weekly_planner_crew(self) -> Crew:
-        """Create weekly planning crew."""
+        """Create two-week planning crew."""
         return Crew(
             agents=[self.weekly_planner_agent()],
             tasks=[self.weekly_plan_task()],
@@ -145,7 +171,7 @@ class WeeklyPlanCrew:
         )
 
 class WeeklyPlanFlow(Flow[WeeklyPlanState]):
-    """Weekly planning flow implementation."""
+    """Weekly planning flow implementation with integrated season planning."""
     
     def __init__(self, user_id: str, athlete_name: str, garmin_data: GarminData, athlete_context: str = ""):
         """Initialize the weekly planning flow."""
@@ -171,13 +197,9 @@ class WeeklyPlanFlow(Flow[WeeklyPlanState]):
             result = await self.crew_instance.training_context_crew().kickoff_async(
                 inputs={
                     'athlete_name': self.athlete_name,
-                    'athlete_context': self.athlete_context,
                     'metrics_analysis': metrics_analysis,
                     'activity_analysis': activity_analysis,
                     'physiology_analysis': physiology_analysis,
-                    'competitions': json.dumps(self.crew_instance.competitions, indent=2),
-                    'current_date': json.dumps(self.crew_instance.current_date, indent=2),
-                    'week_dates': json.dumps(self.crew_instance.week_dates, indent=2)
                 }
             )
             self.state.training_context = result
@@ -189,8 +211,27 @@ class WeeklyPlanFlow(Flow[WeeklyPlanState]):
             raise
     
     @listen(analyze_training_context)
-    async def generate_weekly_plan(self):
-        """Generate weekly training plan."""
+    async def generate_season_plan(self):
+        """Generate high-level season plan."""
+        try:
+            result = await self.crew_instance.season_planner_crew().kickoff_async(
+                inputs={
+                    'athlete_name': self.athlete_name,
+                    'competitions': json.dumps(self.crew_instance.competitions, indent=2),
+                    'current_date': json.dumps(self.crew_instance.current_date, indent=2)
+                }
+            )
+            self.state.season_plan = result
+            logger.info("Season Plan Generation completed")
+            return result
+        except Exception as e:
+            logger.error(f"Season plan generation failed: {str(e)}")
+            self.state.season_plan = f"Error during season plan generation: {str(e)}"
+            raise
+    
+    @listen(generate_season_plan)
+    async def generate_two_week_plan(self):
+        """Generate two-week training plan."""
         try:
             result = await self.crew_instance.weekly_planner_crew().kickoff_async(
                 inputs={
@@ -201,15 +242,15 @@ class WeeklyPlanFlow(Flow[WeeklyPlanState]):
                     'week_dates': json.dumps(self.crew_instance.week_dates, indent=2)
                 }
             )
-            self.state.weekly_plan = result
-            logger.info("Weekly Plan Generation completed")
+            self.state.two_week_plan = result
+            logger.info("Two-Week Plan Generation completed")
             return result
         except Exception as e:
-            logger.error(f"Weekly plan generation failed: {str(e)}")
-            self.state.weekly_plan = f"Error during weekly plan generation: {str(e)}"
+            logger.error(f"Two-week plan generation failed: {str(e)}")
+            self.state.two_week_plan = f"Error during two-week plan generation: {str(e)}"
             raise
     
-    @listen(generate_weekly_plan)
+    @listen(generate_two_week_plan)
     async def format_to_html(self):
         """Convert weekly plan markdown to HTML."""
         try:

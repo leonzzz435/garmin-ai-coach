@@ -1,3 +1,11 @@
+import sys
+import os
+from pathlib import Path
+
+# Add the project root directory to the Python path
+project_root = Path(__file__).parent.parent  # Go up one level from the scripts directory
+sys.path.append(str(project_root))
+
 from services.garmin.data_extractor import TriathlonCoachDataExtractor
 from services.garmin.models import ExtractionConfig
 import json

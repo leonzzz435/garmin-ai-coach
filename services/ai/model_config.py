@@ -62,12 +62,20 @@ class ModelSelector:
         ),
         
         # Anthropic Models
-        "claude-3-7-sonnet": ModelConfiguration(
-            name="claude-3-7-sonnet-latest",
+        "claude-4": ModelConfiguration(
+            name="claude-sonnet-4-20250514",
             base_url="https://api.anthropic.com"
         ),
-        "claude-3-7-thinking": ModelConfiguration(
-            name="claude-3-7-sonnet-latest",
+        "claude-4-thinking": ModelConfiguration(
+            name="claude-sonnet-4-20250514",
+            base_url="https://api.anthropic.com"
+        ),
+        "claude-opus": ModelConfiguration(
+            name="claude-opus-4-20250514",
+            base_url="https://api.anthropic.com"
+        ),
+        "claude-opus-thinking": ModelConfiguration(
+            name="claude-opus-4-20250514",
             base_url="https://api.anthropic.com"
         ),
         "claude-3-haiku": ModelConfiguration(
@@ -122,13 +130,13 @@ class ModelSelector:
         }
         
         # Configure thinking mode and token limits based on model
-        if model_name == "claude-3-7-thinking":
+        if model_name == "claude-opus-thinking":
             llm_params["thinking"] = {"type": "enabled", "budget_tokens": 16000}
-            llm_params["max_tokens"] = 64000
+            llm_params["max_tokens"] = 32000
             logger.info(f"Using thinking mode for {role.value}")
-        elif model_name == "claude-3-7-sonnet":
+        elif model_name == "claude-4-thinking":
             llm_params["max_tokens"] = 64000
-            llm_params["temperature"] = 0.
+            llm_params["thinking"] = {"type": "enabled", "budget_tokens": 16000}
             
         llm = LLM(**llm_params)
         logger.info(f"LLM configured for {model_config.name}")

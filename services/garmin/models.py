@@ -149,5 +149,5 @@ class GarminData:
     body_metrics: Optional[BodyMetrics] = None
     recovery_indicators: Optional[List[RecoveryIndicators]] = None
     training_status: Optional[TrainingStatus] = None
-    vo2_max_history: Optional[List[Dict[str, Any]]] = None
+    vo2_max_history: Optional[Dict[str, List[Dict[str, Any]]]] = None
     training_load_history: Optional[List[Dict[str, Any]]] = None

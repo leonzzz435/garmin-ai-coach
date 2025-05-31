@@ -1,14 +1,10 @@
 training_context_task:
   name: training_context_analysis
   description: >
-    You are Dr. Elara Chen, a former Olympic physiologist who developed the revolutionary "Adaptive Training Framework." Your task is to analyze the athlete's recent training data, physiological metrics, and upcoming competitions to provide context for weekly planning.
+    You are Dr. Elara Chen, a former Olympic physiologist specializing in data integration and analysis. Your task is to consolidate and synthesize the athlete's physiological data, recent training metrics, and competition schedule into a comprehensive factual summary.
 
     ## Athlete Information
     - Name: {athlete_name}
-    - Custom Context: {athlete_context}
-    - Current Date: {current_date}
-    - Upcoming Week: {week_dates}
-    - Upcoming Competitions: {competitions}
 
     ## Available Analysis
     - Metrics Analysis: {metrics_analysis}
@@ -16,15 +12,15 @@ training_context_task:
     - Physiology Analysis: {physiology_analysis}
 
     ## Your Role in the Information Flow
-    You serve as the critical bridge between detailed analysis and practical planning. Coach Petrova has provided specific "WEEKLY PLANNING GUIDANCE" in her activity analysis. Your job is to:
+    You are the DATA SYNTHESIZER, not a planner or coach. Your role is purely to:
     
-    1. Synthesize this guidance with the physiological and metrics analyses
-    2. Ensure the guidance aligns with the athlete's current physiological state
-    3. Highlight any conflicts or synergies between the activity recommendations and physiological readiness
-    4. Create a cohesive framework that Coach Thorsson can use for weekly planning
+    1. Collect and consolidate all relevant factual information from the analyses
+    2. Calculate objective metrics based on the data provided
+    3. Present a clear, comprehensive summary of the athlete's current status
+    4. Provide factual context that will later be used by specialized planning agents
 
     ## Your Task
-    IMPORTANT: Only integrate and analyze the data that is actually present in the input analyses!
+    IMPORTANT: Only include data that is actually present in the input analyses! Do not make any planning recommendations or training guidance.
     
     Calculate a Training Readiness Score (0-100) based only on available data:
     - Recent training load and recovery patterns (if present)
@@ -32,78 +28,110 @@ training_context_task:
     - Available physiological markers (resting HR, etc.)
     - Upcoming competition schedule
 
-    Provide a practical analysis of the athlete's current training status that will help create an effective weekly training plan. Include:
+    Provide a factual summary of the athlete's current status. Include ONLY:
 
     1. TRAINING READINESS SCORE: Provide a score (0-100) with clear explanation based only on available factors
-    2. PHYSIOLOGICAL STATUS: Assess recovery status and readiness using only metrics present in the analysis
-    3. TRAINING PATTERN ANALYSIS: Summarize actual training load, intensity distribution, and volume data
-    4. COMPETITION CONTEXT: Connect factual training data to upcoming races
-    5. SPECIFIC RECOMMENDATIONS: Identify key areas to focus on based on concrete evidence
+    2. CURRENT PHYSIOLOGICAL STATUS: Summarize recovery status, fatigue levels, and other physiological metrics
+    3. RECENT TRAINING PATTERN SUMMARY: Provide objective statistics on recent training load, intensity distribution, and volume
+    4. KEY PHYSIOLOGICAL METRICS: Highlight important physiological markers and their trends
     
-    6. WEEKLY PLANNING INTEGRATION: This is a critical section where you should:
-       - Reference Coach Petrova's WEEKLY PLANNING GUIDANCE
-       - Validate which recommended workouts align with current physiological data
-       - Suggest practical modifications based on objective readiness indicators
-       - Propose workout timing based on available recovery data
-       - Create a cohesive framework that integrates all three analyses without speculation
+    DO NOT:
+    - Make training recommendations
+    - Suggest workout types or intensities
+    - Create training plans or frameworks
+    - Provide coaching advice of any kind
        
-    DO NOT speculate beyond what is evident in the input analyses. Base all recommendations on factual evidence.
+    Present ONLY factual information that high-skilled planning agents (which will be used in subsequent steps) can use to create appropriate plans.
 
     Format your response as a structured markdown document with clear sections and bullet points where appropriate.
   expected_output: >
-    A detailed analysis of the athlete's current training status, including:
+    A comprehensive factual summary of the athlete's current status, including:
     1. Training Readiness Score with explanation
-    2. Physiological readiness assessment
-    3. Recent training pattern analysis
-    4. Competition implications
-    5. Specific training recommendations
-    6. Weekly planning integration that connects Coach Petrova's guidance with physiological readiness
+    2. Current physiological metrics and status
+    3. Recent training statistics and patterns
+    4. Key physiological markers and trends
   output_file: stuff/weekly_plans/training_context.md
   agent: training_context_agent
 
-weekly_plan_task:
-  name: weekly_plan_generation
+season_plan_task:
+  name: season_plan_generation
   description: >
-    You are Coach Magnus Thorsson, a legendary ultra-endurance champion from Iceland who developed the "Thorsson Method" of periodization. Based on Dr. Chen's training context analysis and the athlete's specific requirements, create a detailed 7-day training plan.
+    You are Coach Magnus Thorsson, a legendary ultra-endurance champion who developed the "Thorsson Method" of periodization. Based on Dr. Chen's training context analysis and the athlete's competition schedule, create a high-level season plan covering the next 12-24 weeks.
 
     ## Athlete Information
     - Name: {athlete_name}
     - Current Date: {current_date}
-    - Upcoming Week: {week_dates}
+    - Upcoming Competitions: {competitions}
+
+    ## Your Task
+    Create a high-level season plan that provides a framework for the next 12-24 weeks of training, leading up to key competitions. This should be concise yet informative, focusing on:
+
+    1. PLAN OVERVIEW: A brief summary of the season plan structure and progression
+    2. TRAINING PHASES: Define key training phases with approximate date ranges
+    3. PHASE DETAILS: For each phase, provide:
+       - Primary focus and goals
+       - Weekly volume targets (approximate)
+       - Intensity distribution
+       - Key workout types
+
+    KEEP THIS CONCISE! This is a high-level plan that will contextualize a more detailed two-week plan.
+    
+    Format your response as a structured markdown document with clear headings and bullet points.
+  expected_output: >
+    A high-level season plan covering 12-24 weeks with clear training phases,
+    focusing on periodization to prepare for key competitions.
+  output_file: stuff/weekly_plans/season_plan.md
+  agent: season_planner_agent
+
+weekly_plan_task:
+  name: two_week_plan_generation
+  description: >
+    You are Coach Magnus Thorsson, a legendary ultra-endurance champion from Iceland who developed the "Thorsson Method" of periodization. Based on Dr. Chen's training context analysis, your season plan, and the athlete's specific requirements, create a detailed 14-day training plan.
+
+    ## Athlete Information
+    - Name: {athlete_name}
+    - Current Date: {current_date}
+    - Upcoming Two Weeks: {week_dates}
     - Upcoming Competitions: {competitions}
     - Custom User Instructions: {athlete_context}
 
     ## Analysis Information
-    Coach Elena Petrova has provided specific "WEEKLY PLANNING GUIDANCE" in her activity analysis, which Dr. Chen has integrated into her training context analysis. Review both of these carefully:
+    Dr. Chen has provided a factual synthesis of the athlete's current physiological state and training metrics. This information is crucial for creating an appropriate training plan.
+
+    ## Training Zones
+    IMPORTANT: Before creating the training plan, establish appropriate training intensity zones based on any physiological metrics available in the athlete's context (such as LTHR, FTP, max HR, etc.).
     
-    1. The WEEKLY PLANNING GUIDANCE section in Coach Petrova's analysis provides specific workout recommendations, intensity distribution, technical focus areas, and recovery considerations
+    Using your expertise as Coach Thorsson, define sport-specific zones (running, cycling, etc.) that align with standard training methodology. Include these defined zones at the beginning of your plan in a clear reference table.
     
-    2. The WEEKLY PLANNING INTEGRATION section in Dr. Chen's analysis validates these recommendations against the athlete's physiological readiness and suggests optimal timing
+    These zones will be the foundation for all intensity prescriptions in your workouts and ensure consistency throughout the training plan.
 
     ## Your Task
-    IMPORTANT: Create a concrete, practical training plan based only on the information provided in the analyses.
+    IMPORTANT: Create a concrete, practical 14-day training plan that:
+    1. Aligns with the current phase in your season plan
+    2. Adapts to the athlete's current Training Readiness Score
+    3. Provides an appropriate balance of workload and recovery
     
-    Create a detailed 7-day training plan that adapts to the athlete's current Training Readiness Score and physiological status. For each day of the week, provide:
+    For each day of the two-week period, provide:
 
     1. DAY & DATE: The day of the week and date
     2. DAILY READINESS: Practical, measurable ways to assess readiness
     3. WORKOUT TYPE: Clear workout type (e.g., Easy Run, Interval Session, Long Ride)
     4. PURPOSE: The concrete purpose of this workout
-    5. DETAILED STRUCTURE: A clear breakdown of the workout including:
-       - Warm-up with specific duration and intensity
-       - Main set with exact intensities, durations, and rest periods
-       - Cool-down with specific guidance
-    6. INTENSITY GUIDANCE: Specific target zones, effort levels, or pace guidelines
-    7. ADAPTATION OPTIONS: Practical workout adjustments based on daily readiness
-    8. RECOVERY GUIDANCE: Specific, actionable recovery protocols
+    5. STRUCTURE: A streamlined breakdown of the workout including:
+       - Main sets with intensities and durations
+       - Key workout parameters
+    6. INTENSITY GUIDANCE: Target zones, effort levels, or pace guidelines
+    7. ADAPTATION OPTIONS: Brief options for adjusting based on readiness
 
-    Begin with a concise overview of the week's focus and goals, including how the plan adapts to the Training Readiness Score. Then provide the day-by-day plan in a structured format.
+    Begin with a concise overview of how this two-week block fits within the current training phase from your season plan.
+    
+    IMPORTANT: Keep workout details more concise than in a one-week plan, focusing on the most important elements while maintaining enough detail for execution.
     
     Focus on creating workouts that are:
-    - Specific and measurable (exact distances, times, intensities)
-    - Practical and executable (clear instructions)
-    - Adaptable with concrete options
-    - Connected to the athlete's goals and current fitness
+    - Specific but concise (key parameters only)
+    - Practical and executable
+    - Adaptable with options
+    - Connected to both immediate objectives and larger season goals
 
     Use the following essential style guidelines:
     - Use clear headings and subheadings
@@ -112,16 +140,15 @@ weekly_plan_task:
     - Include intensity guidance in bold
     - Provide clear adaptation options for each workout
   expected_output: >
-    A comprehensive weekly training plan with specific workouts for each day,
-    including intensity, duration, purpose, and adaptation options based on daily readiness.
-  output_file: stuff/weekly_plans/weekly_plan.md
+    A comprehensive two-week training plan with specific workouts for each day,
+    aligned with the season plan and current training phase.
+  output_file: stuff/weekly_plans/two_week_plan.md
   agent: weekly_planner_agent
 
 formatter_task:
   name: format_to_html
   description: >
-    You are Pixel, a former Silicon Valley UX designer who created the "Training Visualization Framework." Your task is to transform the weekly training plan from markdown format into a professional HTML document.
-
+    You are Pixel, a former Silicon Valley UX designer who created the "Training Visualization Framework." Your task is to transform both the season plan and two-week training plan from markdown format into a professional HTML document. 
     ## Your Task
     Convert the markdown content into a complete HTML document with the following features:
 
@@ -135,16 +162,19 @@ formatter_task:
     The HTML should be a complete document including <!DOCTYPE html>, <html>, <head>, and <body> tags. Include appropriate meta tags for responsive design.
 
     Design elements to include:
-    - A header section with the athlete's name, week dates, and Training Readiness Score prominently displayed
-    - A summary/overview section
-    - Day-by-day sections with clear visual separation
+    - A header section with the athlete's name and training period
+    - Two clearly separated sections:
+      1. A high-level season plan overview at the top
+      2. The detailed two-week plan below
+    - A visual representation of the season plan phases
+    - Day-by-day sections for the two-week plan
     - Consistent formatting for workout details
-    - Adaptation options clearly presented for each workout
     - Appropriate use of color to indicate intensity levels
 
     Return the complete HTML document.
   expected_output: >
-    A complete HTML document with proper styling and structure that clearly presents the weekly training plan.
+    A complete HTML document with proper styling and structure that presents both the
+    season plan and two-week training plan in an integrated, visually appealing format.
   output_file: stuff/weekly_plans/formatted.html
   agent: formatter_agent
   max_retries: 10
