@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 class WeeklyPlanState(BaseModel):
     """State management for weekly planning flow."""
-    training_context: str = ""
     season_plan: str = ""     # New field for high-level season plan
     two_week_plan: str = ""   # Renamed from weekly_plan
     html_result: str = ""
@@ -72,14 +71,6 @@ class WeeklyPlanCrew:
         logger.info("Initialized WeeklyPlanCrew")
     
     @agent
-    def training_context_agent(self) -> Agent:
-        """Create training context analysis agent."""
-        return Agent(
-            config=self.agents_config['training_context_agent'],
-            llm=ModelSelector.get_llm(AgentRole.SYNTHESIS)
-        )
-    
-    @agent
     def season_planner_agent(self) -> Agent:
         """Create season planning agent."""
         return Agent(
@@ -104,18 +95,10 @@ class WeeklyPlanCrew:
         )
     
     @task
-    def training_context_task(self) -> Task:
-        """Create training context analysis task."""
-        return Task(
-            config=self.tasks_config['training_context_task']
-        )
-    
-    @task
     def season_plan_task(self) -> Task:
         """Create season planning task."""
         return Task(
-            config=self.tasks_config['season_plan_task'],
-            context=[self.training_context_task()]
+            config=self.tasks_config['season_plan_task']
         )
     
     @task
@@ -123,7 +106,7 @@ class WeeklyPlanCrew:
         """Create two-week planning task."""
         return Task(
             config=self.tasks_config['weekly_plan_task'],
-            context=[self.training_context_task(), self.season_plan_task()]
+            context=[self.season_plan_task()]
         )
     
     @task
@@ -132,15 +115,6 @@ class WeeklyPlanCrew:
         return Task(
             config=self.tasks_config['formatter_task'],
             context=[self.weekly_plan_task()]
-        )
-    
-    @crew
-    def training_context_crew(self) -> Crew:
-        """Create training context analysis crew."""
-        return Crew(
-            agents=[self.training_context_agent()],
-            tasks=[self.training_context_task()],
-            process=Process.sequential
         )
     
     @crew
@@ -181,36 +155,6 @@ class WeeklyPlanFlow(Flow[WeeklyPlanState]):
         self.athlete_context = athlete_context
     
     @start()
-    async def analyze_training_context(self):
-        """Analyze training context."""
-        try:
-            # Load cached analysis results
-            metrics_cache = SecureMetricsCache(self.crew_instance.user_id)
-            activity_cache = SecureActivityCache(self.crew_instance.user_id)
-            physiology_cache = SecurePhysiologyCache(self.crew_instance.user_id)
-            
-            # Get cached results
-            metrics_analysis = metrics_cache.get() or ""
-            activity_analysis = activity_cache.get() or ""
-            physiology_analysis = physiology_cache.get() or ""
-            
-            result = await self.crew_instance.training_context_crew().kickoff_async(
-                inputs={
-                    'athlete_name': self.athlete_name,
-                    'metrics_analysis': metrics_analysis,
-                    'activity_analysis': activity_analysis,
-                    'physiology_analysis': physiology_analysis,
-                }
-            )
-            self.state.training_context = result
-            logger.info("Training Context Analysis completed")
-            return result
-        except Exception as e:
-            logger.error(f"Training context analysis failed: {str(e)}")
-            self.state.training_context = f"Error during training context analysis: {str(e)}"
-            raise
-    
-    @listen(analyze_training_context)
     async def generate_season_plan(self):
         """Generate high-level season plan."""
         try:
@@ -233,10 +177,23 @@ class WeeklyPlanFlow(Flow[WeeklyPlanState]):
     async def generate_two_week_plan(self):
         """Generate two-week training plan."""
         try:
+            # Load cached analysis results directly
+            metrics_cache = SecureMetricsCache(self.crew_instance.user_id)
+            activity_cache = SecureActivityCache(self.crew_instance.user_id)
+            physiology_cache = SecurePhysiologyCache(self.crew_instance.user_id)
+            
+            # Get cached results
+            metrics_analysis = metrics_cache.get() or ""
+            activity_analysis = activity_cache.get() or ""
+            physiology_analysis = physiology_cache.get() or ""
+            
             result = await self.crew_instance.weekly_planner_crew().kickoff_async(
                 inputs={
                     'athlete_name': self.athlete_name,
                     'athlete_context': self.athlete_context,
+                    'metrics_analysis': metrics_analysis,
+                    'activity_analysis': activity_analysis,
+                    'physiology_analysis': physiology_analysis,
                     'competitions': json.dumps(self.crew_instance.competitions, indent=2),
                     'current_date': json.dumps(self.crew_instance.current_date, indent=2),
                     'week_dates': json.dumps(self.crew_instance.week_dates, indent=2)

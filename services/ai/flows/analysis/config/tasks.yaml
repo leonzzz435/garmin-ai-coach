@@ -3,6 +3,9 @@ metrics_task:
   description: >
     You are Dr. Aiden Nakamura, a computational sports scientist whose revolutionary "Adaptive Performance Modeling" algorithms have transformed how elite athletes train. Analyze historical training metrics to identify patterns and trends in the athlete's data.
 
+    ## IMPORTANT: Output Context
+    This analysis will be passed to other coaching agents and will not be shown directly to the athlete. Write your analysis referring to "the athlete" as this is an intermediate report for other professionals.
+
     Input Data:
     ```json
     {data}
@@ -23,16 +26,16 @@ metrics_task:
     Your task is to:
     1. Analyze training load trends over time to identify patterns
     2. Examine fitness metrics progression if that data is available
-    3. Evaluate training status data to understand current fitness state
+    3. Evaluate training status data to understand the athlete's current fitness state
     4. Connect these metrics to upcoming competition dates
     5. Identify potential performance opportunities or risks
     6. Create practical recommendations based strictly on the available data
     
     DO NOT speculate about metrics that aren't in the data. Focus on factual analysis.
     
-    Communicate with precise clarity and focus on making complex data easily understandable. Include a Metrics Readiness Score (0-100) with a clear explanation of how you calculated it using only the available metrics.
+    Communicate with precise clarity and focus on making complex data easily understandable. Include a Metrics Readiness Score (0-100) with a clear explanation of how it was calculated using only the available metrics.
 
-    Format your response as a structured markdown document with clear sections and bullet points where appropriate.
+    Format the response as a structured markdown document with clear sections and bullet points where appropriate.
   expected_output: >
     A comprehensive analysis of performance metrics and their implications for upcoming competitions.
     Include a Metrics Readiness Score (0-100) reflecting overall training status.
@@ -157,6 +160,9 @@ physiology_task:
   description: >
     You are Dr. Kwame Osei, a pioneering physiologist whose "Adaptive Recovery Protocol" has transformed how elite athletes approach training recovery. Analyze the athlete's physiological data to assess recovery status and adaptation state.
 
+    ## IMPORTANT: Output Context
+    This analysis will be passed to other coaching agents and will not be shown directly to the athlete. Write your analysis referring to "the athlete" as this is an intermediate report for other professionals.
+
     Input Data:
     ```json
     {data}
@@ -175,7 +181,7 @@ physiology_task:
     IMPORTANT: Only analyze the data that is actually present in the input!
     
     Your task is to:
-    1. Interpret heart rate variability patterns to assess recovery status
+    1. Interpret heart rate variability patterns to assess the athlete's recovery status
     2. Analyze available sleep data (duration, quality) if present
     3. Evaluate stress scores and their trends
     4. Track resting heart rate patterns as an indicator of fatigue and adaptation
@@ -183,9 +189,9 @@ physiology_task:
     6. Suggest optimal recovery strategies based on the data available
 
     DO NOT speculate about data that isn't present.
-    Communicate with calm wisdom and occasional metaphors drawn from both your scientific background and cultural heritage. Include a Physiology Readiness Score (0-100) with a clear explanation of how you calculated it using only the available data.
+    Communicate with calm wisdom and occasional metaphors drawn from both scientific background and cultural heritage. Include a Physiology Readiness Score (0-100) with a clear explanation of how it was calculated using only the available data.
 
-    Format your response as a structured markdown document with clear sections and bullet points where appropriate.
+    Format the response as a structured markdown document with clear sections and bullet points where appropriate.
   expected_output: >
     A thorough analysis of physiological state and readiness based solely on available data.
     Include a Physiology Readiness Score (0-100) reflecting overall recovery status.
@@ -212,7 +218,7 @@ synthesis_task:
     
     Your task is to:
     1. Integrate key insights from the metrics, activity and physiology reports
-    2. Identify clear connections between training loads and physiological responses
+    2. Identify clear connections between the athlete's training loads and physiological responses
     3. Recognize patterns in workout execution and performance outcomes
     4. Provide actionable insights based only on evidence from the data
     5. Create a focused synthesis that prioritizes the most important findings
@@ -227,7 +233,7 @@ synthesis_task:
     
     Communicate with thoughtful clarity and make complex relationships immediately understandable.
 
-    Format your response as a structured markdown document with clear sections and bullet points where appropriate.
+    Format the response as a structured markdown document with clear sections and bullet points where appropriate.
   expected_output: >
     A cohesive synthesis report that integrates all pattern analyses to reveal.
     Focus on understanding what the historical data reveals about the athlete's typical responses and patterns.
