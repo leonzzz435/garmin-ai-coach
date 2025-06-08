@@ -21,12 +21,10 @@ from bot.handlers.conversation_handlers import (
     login_handler,
     add_race_handler,
     edit_race_handler,
-    weekplan_handler,
     start_add_race,
-    start_edit_race,
-    start_weekplan
+    start_edit_race
 )
-from bot.handlers.data_handlers import generate
+from bot.handlers.coach_handlers import coach_handler
 from bot.handlers.error_handlers import error_handler
 
 # Configure logging
@@ -56,12 +54,10 @@ class TelegramBot:
         self.app.add_handler(login_handler)
         self.app.add_handler(add_race_handler)
         self.app.add_handler(edit_race_handler)
-        self.app.add_handler(weekplan_handler)
+        self.app.add_handler(coach_handler)
         
         # Add command handlers
         self.app.add_handler(CommandHandler("start", start))
-        self.app.add_handler(CommandHandler("generate", generate))
-        self.app.add_handler(CommandHandler("weekplan", start_weekplan))
         self.app.add_handler(CommandHandler("races", races))
         self.app.add_handler(CommandHandler("addrace", start_add_race))
         self.app.add_handler(CommandHandler("editrace", start_edit_race))

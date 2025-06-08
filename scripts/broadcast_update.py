@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file
 load_dotenv()
-BOT_TOKEN = os.getenv('TELE_BOT_KEY')
+BOT_TOKEN = "7868546308:AAGJFibceJv0fcUtfStIXRYeR0VeykcxrJ0"#os.getenv('TELE_BOT_KEY')
 if not BOT_TOKEN:
     raise ValueError("TELE_BOT_KEY not found in .env file")
 
@@ -44,13 +44,48 @@ async def broadcast_update():
     logger.info(f"Found {len(user_ids)} users")
     
     message = (
-        "🤖 *Breaking News\\!* 📢\n\n"
-        "While you were out there crushing your workouts, our developer Zett has been "
-        "living on coffee and code, working harder than a treadmill during training\\! 🏃‍♂️☕️\n\n"
-        "He's been up so late that his keyboard started complaining about overtime\\! ⌨️😴\n\n"
-        "Want to see what all this caffeine\\-fueled coding resulted in?\n"
-        "Just hit `/start` and prepare to be amazed\\! ✨\n\n"
-        "\\(Warning: New interface may cause excessive motivation and random bursts of running\\! 🏃‍♂️💨\\)"
+        "🚨 *EMERGENCY BROADCAST\\!* 🚨\n\n"
+        "**The Great AI Coach Revolution \\- NOW LIVE\\!**\n\n"
+        "📖 *Chapter 1: Marco's Shocking Discovery*\n"
+        "Marco found a MASSIVE bug\\! The AI was mixing up long\\-term memory data between users "
+        "like me accidentally mixing my indica and sativa strains \\- totally defeating the purpose of my precise medical dosing\\! 🌿😵\n\n"
+        "📖 *Chapter 2: Zett's 4\\-Hour Coding Sprint*\n"
+        "Armed with determination and some \\*questionable\\* indica/sativa fuel 🌿😅, "
+        "I went into beast mode for a 4\\-hour coding marathon yesterday\\!\n\n"
+        "📖 *Chapter 3: The Great Architecture Switch*\n"
+        "Ditched the old system and switched to something WAY better\\. "
+        "Think upgrading from a rusty bike to a Ferrari\\! 🏎️💨\n\n"
+        "🎉 **THE EPIC RESULTS:**\n\n"
+        "**🔥 Bye\\-Bye Two\\-Step Dance\\!**\n"
+        "That annoying `/generate` \\+ weekplan combo? DESTROYED\\! "
+        "Meet your new single\\-command superhero: `/coach`\\!\n\n"
+        "**🧠 Dual\\-Context Intelligence \\- The Game Changer\\!**\n"
+        "The AI now collects TWO crucial pieces of intel before analyzing your data:\n\n"
+        "**🔍 Analysis Context** \\(What's affecting your body right now?\\)\n"
+        "Tell the AI about current factors that might skew your data interpretation:\n"
+        "• \\\"Recovering from flu last week, HRV still low\\\"\n"
+        "• \\\"Work stress through the roof, sleep quality terrible\\\"\n"
+        "• \\\"Started new indica medication that affects heart rate\\\"\n"
+        "• \\\"Jet lag from travel, all metrics are wonky\\\"\n\n"
+        "**📅 Planning Context** \\(What constraints shape your training?\\)\n"
+        "Share your real\\-world limitations and goals:\n"
+        "• \\\"Only 45min sessions, gym closes early\\\"\n"
+        "• \\\"Focus on 10K speed, race in 6 weeks\\\"\n"
+        "• \\\"Avoiding high intensity, recovering from injury\\\"\n"
+        "• \\\"Training for Ironman, need periodization focus\\\"\n\n"
+        "This dual context makes the AI recommendations laser\\-focused and actually useful\\!\n\n"
+        "**💎 BREAKING: Behind\\-the\\-Scenes Access\\!**\n"
+        "For the FIRST TIME EVER, you get the raw AI agent insights\\!\n"
+        "• Metrics analysis \\(markdown\\)\n"
+        "• Activity interpretation \\(markdown\\)\n"
+        "• Physiology breakdown \\(markdown\\)\n"
+        "• Season planning \\(markdown\\)\n"
+        "Plus your usual HTML reports\\!\n\n"
+        "**🔒 Fort Knox Security**\n"
+        "Your data stays YOURS\\. No more accidental cross\\-contamination\\!\n\n"
+        "🚀 **IT'S LIVE RIGHT NOW\\!**\n"
+        "\\(Still one coach request per day because I'm not running a charity 😏\\)\n\n"
+        "Ready? Try `/coach` and prepare to be blown away\\! 🚀💪"
     )
 
     # Send message to each user

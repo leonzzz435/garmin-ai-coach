@@ -57,19 +57,19 @@ class AISettings:
         },
         AIMode.DEVELOPMENT: {
             # Data processing roles benefit from thinking mode
-            AgentRole.METRICS: "claude-3-7-thinking",           # Data-intensive pattern analysis
-            AgentRole.ACTIVITY_DATA: "claude-3-7-thinking",     # Raw data extraction and structuring
-            AgentRole.PHYSIO: "claude-3-7-thinking",            # Complex physiological pattern analysis
+            AgentRole.METRICS: "claude-3-haiku",           # Data-intensive pattern analysis
+            AgentRole.ACTIVITY_DATA: "claude-3-haiku",     # Raw data extraction and structuring
+            AgentRole.PHYSIO: "claude-3-haiku",            # Complex physiological pattern analysis
             
             # Creative roles work better with standard mode
-            AgentRole.ACTIVITY_INTERPRETER: "claude-3-7-thinking", # Creative interpretation of activity data
-            AgentRole.SYNTHESIS: "claude-3-7-thinking",           # Creative synthesis of multiple analyses
-            AgentRole.WORKOUT: "claude-3-7-thinking",             # Domain-specific workout planning
-            AgentRole.COMPETITION_PLANNER: "claude-3-7-thinking", # Creative race strategy development
-            AgentRole.SEASON_PLANNER: "claude-3-7-thinking",      # High-level season planning
+            AgentRole.ACTIVITY_INTERPRETER: "claude-3-haiku", # Creative interpretation of activity data
+            AgentRole.SYNTHESIS: "claude-3-haiku",           # Creative synthesis of multiple analyses
+            AgentRole.WORKOUT: "claude-3-haiku",             # Domain-specific workout planning
+            AgentRole.COMPETITION_PLANNER: "claude-3-haiku", # Creative race strategy development
+            AgentRole.SEASON_PLANNER: "claude-3-haiku",      # High-level season planning
             
             # Code generation role
-            AgentRole.FORMATTER: "claude-3-7-thinking"            # HTML/CSS code generation
+            AgentRole.FORMATTER: "claude-3-haiku"            # HTML/CSS code generation
         }
     })
 

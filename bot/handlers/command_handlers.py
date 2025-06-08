@@ -5,8 +5,8 @@ from datetime import date
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
-from bot.handlers.conversation_handlers import start_login, start_weekplan
-from bot.handlers.data_handlers import generate
+from bot.handlers.conversation_handlers import start_login
+from bot.handlers.coach_handlers import start_coach
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -50,18 +50,42 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "• Communication is secure\n"
                 "• Data is stored locally"
             ),
+            "coach": (
+                "🏃‍♂️ *AI Coach Help*\n\n"
+                "*Command:*\n"
+                "• `/coach` \\- Complete training analysis \\+ weekly plan\n\n"
+                "*Process:*\n"
+                "1\\. Provide analysis context \\(health, stress, injuries\\)\n"
+                "2\\. Provide planning context \\(schedule, goals, focus\\)\n"
+                "3\\. Receive comprehensive analysis \\+ 2\\-week plan\n\n"
+                "*Delivered Reports:*\n"
+                "• HTML training analysis report\n"
+                "• HTML weekly plan report\n"
+                "• Detailed metrics analysis\n"
+                "• Activity interpretation\n"
+                "• Physiology analysis\n"
+                "• Season planning insights\n\n"
+                "*Tips:*\n"
+                "• Use `/skip` if no special context applies\n"
+                "• Be specific about constraints and goals\n"
+                "• Daily usage limits apply"
+            ),
             "training": (
                 "📊 *Training Features Help*\n\n"
                 "*Commands:*\n"
+                "• `/coach` \\- Complete training analysis \\+ weekly plan\n"
                 "• `/generate` \\- Get AI training insights\n\n"
-                "*Features:*\n"
-                "• Smart analysis of your training data\n"
-                "• Personalized workout recommendations\n"
-                "• Recovery and intensity guidance\n"
-                "• Race\\-specific training plans\n\n"
+                "*Coach Features:*\n"
+                "• Comprehensive training data analysis\n"
+                "• Two\\-week personalized training plans\n"
+                "• Context\\-aware recommendations\n"
+                "• Multi\\-report delivery \\(HTML \\+ detailed breakdowns\\)\n"
+                "• Metrics, activity, and physiology analysis\n"
+                "• Season planning integration\n\n"
                 "*Tips:*\n"
                 "• Keep your Garmin data up to date\n"
-                "• Log all your workouts\n"
+                "• Provide context about health/training state\n"
+                "• Specify planning considerations \\(time, focus, travel\\)\n"
                 "• Include race goals for better suggestions"
             ),
             "races": (
@@ -178,11 +202,10 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
     handlers = {
         "login": start_login,
-        "generate": generate,
         "races": races,
         "help": help,
         "roadmap": roadmap,
-        "weekplan": start_weekplan
+        "coach": start_coach
     }
     
     handler = handlers.get(query.data)
@@ -234,10 +257,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
             InlineKeyboardButton("🔐 Login", callback_data="login"),
-            InlineKeyboardButton("📊 Generate Insights", callback_data="generate")
-        ],
-        [
-            InlineKeyboardButton("📅 Weekly Plan", callback_data="weekplan")
+            InlineKeyboardButton("🏃‍♂️ AI Coach", callback_data="coach")
         ],
         [
             InlineKeyboardButton("🏃 Race Calendar", callback_data="races"),
@@ -250,26 +270,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await message.reply_text(
-        escape_markdown(f"Hey {user_name}! 🏃‍♂️ Welcome to your AI Training Assistant!\n\n") +
-        "*Quick Commands:*\n\n" +
+        escape_markdown(f"AI Training Assistant") + f" \\- {escape_markdown(user_name)}\n\n" +
+        "*Available Commands:*\n\n" +
         "🔐 *Authentication:*\n" +
         "• `/login` \\- Connect Garmin account\n\n" +
-        "📊 *Training:*\n" +
-        "• `/generate` \\- Get AI training insights\n" +
-        "• `/weekplan` \\- Get weekly training plan\n\n" +
-        "🏃‍♂️ *Races:*\n" +
+        "🏃‍♂️ *AI Coach:*\n" +
+        "• `/coach` \\- Complete training analysis \\+ weekly plan\n\n" +
+        "🏃‍♂️ *Competition Management:*\n" +
         "• `/races` \\- View race calendar\n" +
         "• `/addrace` \\- Add competition\n" +
         "• `/editrace` \\- Edit competition\n" +
         "• `/delrace` \\- Remove competition\n\n" +
-        "ℹ️ *Help & Info:*\n" +
-        "• `/help` \\- Detailed help\n" +
-        "• `/roadmap` \\- Future features\n\n" +
-        "🔒 *Security:*\n" +
-        "• End\\-to\\-end encrypted\n" +
+        "ℹ️ *Information:*\n" +
+        "• `/help` \\- Command reference\n" +
+        "• `/roadmap` \\- Development roadmap\n\n" +
+        "🔒 *Security Features:*\n" +
+        "• End\\-to\\-end encrypted communication\n" +
         "• Secure credential storage\n" +
-        "• Privacy\\-focused design\n\n" +
-        "Use the buttons below for quick access or type a command to get started\\! 🚀",
+        "• Privacy\\-focused architecture\n\n" +
+        "Select an option below or enter a command directly\\.",
         reply_markup=reply_markup,
         parse_mode=ParseMode.MARKDOWN_V2
     )
@@ -281,10 +300,13 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
             InlineKeyboardButton("🔐 Authentication", callback_data="help_auth"),
-            InlineKeyboardButton("📊 Training", callback_data="help_training")
+            InlineKeyboardButton("🏃‍♂️ AI Coach", callback_data="help_coach")
         ],
         [
-            InlineKeyboardButton("🏃 Races", callback_data="help_races"),
+            InlineKeyboardButton("📊 Training", callback_data="help_training"),
+            InlineKeyboardButton("🏃 Races", callback_data="help_races")
+        ],
+        [
             InlineKeyboardButton("ℹ️ Other", callback_data="help_other")
         ]
     ]
@@ -295,6 +317,8 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🔐 *Authentication Commands:*\n" +
         "• `/login` \\- Connect Garmin account\n" +
         "• `/clear_credentials` \\- Remove credentials\n\n" +
+        "🏃‍♂️ *AI Coach Commands:*\n" +
+        "• `/coach` \\- Complete training analysis \\+ weekly plan\n\n" +
         "📊 *Training Commands:*\n" +
         "• `/generate` \\- Get AI training insights\n" +
         "• `/weekplan` \\- Get weekly training plan\n\n" +
@@ -425,36 +449,6 @@ async def races(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "❌ Failed to retrieve race calendar\\. Please try again\\.",
             parse_mode=ParseMode.MARKDOWN_V2
         )
-
-async def weekplan(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle the /weekplan command."""
-    message = update.message or update.callback_query.message
-    user_id = update.effective_user.id
-    
-    # Check for stored credentials
-    cred_manager = SecureCredentialManager(user_id)
-    if not cred_manager.has_stored_credentials():
-        await message.reply_text(
-            "🔒 No stored credentials found\\. Use `/login` to connect your account\\!",
-            parse_mode=ParseMode.MARKDOWN_V2
-        )
-        return
-    
-    # Check for cached data
-    from core.security.reports import SecureReportManager
-    data_manager = SecureReportManager(user_id)
-    cached_data = data_manager.get_report()
-    
-    if not cached_data:
-        await message.reply_text(
-            "❌ No recent data found\\.\n" +
-            "Please use /generate first\\!",
-            parse_mode=ParseMode.MARKDOWN_V2
-        )
-        return
-    
-    # Start the weekly planning conversation
-    await start_weekplan(update, context)
 
 async def delrace(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /delrace command - Remove a competition."""
