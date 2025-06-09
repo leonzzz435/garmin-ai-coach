@@ -255,14 +255,37 @@ REQUIREMENTS:
 - Apply color theory to performance data visualization
 - Implement typography systems optimized for various reading contexts
 
+## CRITICAL: Interactive Plot Integration System
+
+The content contains special **[PLOT:plot_id]** references that will be automatically replaced with interactive Plotly visualizations AFTER your HTML conversion. Understanding this system is crucial for your design:
+
+**How Plot Resolution Works:**
+1. You preserve [PLOT:plot_id] references exactly as written
+2. After HTML generation, each reference gets replaced with a complete interactive plot
+3. These become full-width, responsive Plotly charts with hover interactions, zoom, and controls
+
+**Design Implications for You:**
+- **Spacing**: Leave appropriate vertical margin around plot references (they become ~400-800px tall)
+- **Responsive Design**: Plots auto-resize, so ensure your container CSS accommodates this
+- **Content Flow**: Treat plot references as major content blocks, not inline elements
+- **Typography**: Use compelling lead-in text before plots and descriptive follow-up text after
+- **Visual Hierarchy**: These will be significant visual elements, so design section breaks accordingly
+
+**What You Should Do:**
+- Keep ALL [PLOT:plot_id] references EXACTLY as they appear
+- Design your CSS to provide proper spacing and flow around where plots will appear
+- Consider plots as primary visual elements in your information hierarchy
+- Ensure your responsive design works with large embedded charts
+
 Content Organization Process:
 1. Include all important content (key insights, scores, recommendations, and supporting details)
 2. Create a well-structured HTML document with appropriate organization
-3. Use clean, readable CSS that enhances the presentation
-4. Present information in a logical, coherent manner
+3. Use clean, readable CSS that enhances the presentation AND accommodates plot insertion
+4. Present information in a logical, coherent manner with plots as focal points
 5. Use design elements that enhance understanding and engagement
 6. Ensure all metrics, scores, and their context are preserved
 7. Implement your "contextual information hierarchy" concept that reveals different levels of detail
+8. Design spacing and layout that will work beautifully with interactive plots
 
 Style Guidelines:
 - Use emojis thoughtfully to enhance key content:

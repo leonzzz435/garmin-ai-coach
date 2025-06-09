@@ -1,41 +1,96 @@
 """LangChain analysis chains for AI-powered training analysis."""
 
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain_core.prompts import ChatPromptTemplate
+from langchain.callbacks.manager import CallbackManager
 
 from ..model_config import ModelSelector
 from ..ai_settings import AgentRole
 from .prompts.prompt_templates import PromptTemplateManager
+from ..tools.plotting import PythonPlottingTool, PlotListTool, PlotStorage
+from .tool_usage_limiter import PlottingLimiter, create_plotting_limiter
 
 logger = logging.getLogger(__name__)
 
 class AnalysisChains:
-    """LangChain implementation of analysis flows with no shared storage."""
+    """LangChain implementation of analysis flows with plotting capabilities."""
     
-    def __init__(self, user_id: str):
+    def __init__(self, user_id: str, plot_storage: PlotStorage = None,
+                 tool_limiter: Optional[PlottingLimiter] = None, max_plots_per_agent: int = 2,
+                 progress_manager: Optional[Any] = None):
         """Initialize analysis chains for a specific user execution.
         
         Args:
             user_id: User identifier (for logging/context only, no persistence)
+            plot_storage: Plot storage instance for this execution
+            tool_limiter: Custom tool limiter instance. If None, creates default PlottingLimiter
+            max_plots_per_agent: Maximum plots each agent can create (default: 2)
+            progress_manager: Optional progress manager for real-time updates
         """
         self.user_id = user_id
         self.execution_id = f"{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        logger.info(f"Initialized analysis chains for execution {self.execution_id}")
+        self.plot_storage = plot_storage or PlotStorage(self.execution_id)
+        self.progress_manager = progress_manager
+        self.tool_limiter = tool_limiter or create_plotting_limiter(
+            max_plots=max_plots_per_agent,
+            strict_mode=True
+        )
+        logger.info(f"Initialized analysis chains with plotting and tool limiting for execution {self.execution_id}")
+        logger.info(f"Tool limits: {self.tool_limiter.tool_limits}")
+    
+    def _create_agent_executor(self, prompt, llm, tools, agent_name: str):
+        """Create an AgentExecutor using LangChain's native tool calling agent with tool limiting."""
+        try:
+            # Create the tool calling agent
+            agent = create_tool_calling_agent(llm, tools, prompt)
+            
+            # Create callback manager with tool limiter only
+            callback_manager = CallbackManager([self.tool_limiter])
+            
+            # Create executor with built-in retry and error handling
+            agent_executor = AgentExecutor(
+                agent=agent,
+                tools=tools,
+                max_iterations=20,  # Allow for tool use + analysis completion
+                max_execution_time=600,  # 60 second timeout
+                handle_parsing_errors=True,  # Built-in error handling
+                handle_tool_error=True,  # Enable graceful tool failure handling
+                verbose=True,  # Enhanced logging
+                return_intermediate_steps=True,  # For debugging
+                early_stopping_method="force",
+                callback_manager=callback_manager  # Add tool usage limiting
+            )
+            
+            logger.info(f"Created AgentExecutor for {agent_name} agent with {len(tools)} tools and usage limits")
+            return agent_executor
+            
+        except Exception as e:
+            logger.error(f"Failed to create AgentExecutor for {agent_name}: {e}")
+            # Fallback to simple chain without tools
+            return prompt | llm | StrOutputParser()
     
     def create_metrics_chain(self):
-        """Create metrics analysis chain (replaces metrics_agent)."""
+        """Create metrics analysis chain with plotting capability."""
         metrics_prompt = PromptTemplateManager.create_metrics_template()
         llm = ModelSelector.get_llm(AgentRole.METRICS)
         
-        return (
-            metrics_prompt
-            | llm
-            | StrOutputParser()
-        ).with_config({"run_name": f"metrics_analysis_{self.execution_id}"})
+        # Add plotting tools for the metrics agent
+        plotting_tool = PythonPlottingTool(
+            plot_storage=self.plot_storage,
+            progress_manager=self.progress_manager
+        )
+        plotting_tool.agent_name = "metrics"
+        tools = [plotting_tool]
+        
+        return self._create_agent_executor(metrics_prompt, llm, tools, "metrics").with_config({
+            "run_name": f"metrics_analysis_{self.execution_id}"
+        })
     
     def create_activity_data_chain(self):
         """Create activity data extraction chain (replaces activity_data_agent)."""
@@ -49,40 +104,54 @@ class AnalysisChains:
         ).with_config({"run_name": f"activity_data_{self.execution_id}"})
     
     def create_activity_interpreter_chain(self):
-        """Create activity interpretation chain (replaces activity_interpreter_agent)."""
+        """Create activity interpretation chain with plotting capability."""
         activity_interpreter_prompt = PromptTemplateManager.create_activity_interpreter_template()
         llm = ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER)
         
-        return (
-            activity_interpreter_prompt
-            | llm
-            | StrOutputParser()
-        ).with_config({"run_name": f"activity_interpreter_{self.execution_id}"})
+        # Add plotting tools for the activity agent
+        plotting_tool = PythonPlottingTool(
+            plot_storage=self.plot_storage,
+            progress_manager=self.progress_manager
+        )
+        plotting_tool.agent_name = "activity"
+        tools = [plotting_tool]
+        
+        return self._create_agent_executor(activity_interpreter_prompt, llm, tools, "activity").with_config({
+            "run_name": f"activity_interpreter_{self.execution_id}"
+        })
     
     def create_physiology_chain(self):
-        """Create physiology analysis chain (replaces physiology_agent)."""
+        """Create physiology analysis chain with plotting capability."""
         physiology_prompt = PromptTemplateManager.create_physiology_template()
         llm = ModelSelector.get_llm(AgentRole.PHYSIO)
         
-        return (
-            physiology_prompt
-            | llm
-            | StrOutputParser()
-        ).with_config({"run_name": f"physiology_{self.execution_id}"})
+        # Add plotting tools for the physiology agent
+        plotting_tool = PythonPlottingTool(
+            plot_storage=self.plot_storage,
+            progress_manager=self.progress_manager
+        )
+        plotting_tool.agent_name = "physiology"
+        tools = [plotting_tool]
+        
+        return self._create_agent_executor(physiology_prompt, llm, tools, "physiology").with_config({
+            "run_name": f"physiology_{self.execution_id}"
+        })
     
     def create_synthesis_chain(self):
-        """Create synthesis chain (replaces synthesis_agent)."""
+        """Create synthesis chain with plot referencing capability."""
         synthesis_prompt = PromptTemplateManager.create_synthesis_template()
         llm = ModelSelector.get_llm(AgentRole.SYNTHESIS)
         
-        return (
-            synthesis_prompt
-            | llm
-            | StrOutputParser()
-        ).with_config({"run_name": f"synthesis_{self.execution_id}"})
+        # Add plot listing tool for synthesis agent to reference available plots
+        plot_list_tool = PlotListTool(plot_storage=self.plot_storage)
+        tools = [plot_list_tool]
+        
+        return self._create_agent_executor(synthesis_prompt, llm, tools, "synthesis").with_config({
+            "run_name": f"synthesis_{self.execution_id}"
+        })
     
     def create_formatter_chain(self):
-        """Create HTML formatter chain (replaces formatter_agent)."""
+        """Create HTML formatter chain with plot resolution capability."""
         formatter_prompt = PromptTemplateManager.create_formatter_template()
         llm = ModelSelector.get_llm(AgentRole.FORMATTER)
         
@@ -91,3 +160,27 @@ class AnalysisChains:
             | llm
             | StrOutputParser()
         ).with_config({"run_name": f"formatter_{self.execution_id}"})
+    
+    def get_plot_storage(self) -> PlotStorage:
+        """Get the plot storage instance for this execution.
+        
+        Returns:
+            Plot storage instance
+        """
+        return self.plot_storage
+    
+    def get_tool_usage_stats(self) -> Dict[str, Dict[str, int]]:
+        """Get current tool usage statistics.
+        
+        Returns:
+            Dictionary with usage stats for each limited tool
+        """
+        return self.tool_limiter.get_usage_stats()
+    
+    def reset_tool_usage(self) -> None:
+        """Reset tool usage counters for a new analysis session.
+        
+        Useful when reusing the same AnalysisChains instance for multiple analyses.
+        """
+        self.tool_limiter.reset_counts()
+        logger.info(f"Reset tool usage counters for execution {self.execution_id}")

@@ -15,7 +15,7 @@ from core.security.execution import ExecutionTracker
 from services.garmin import TriathlonCoachDataExtractor, ExtractionConfig, TimeRange, GarminData
 from services.ai.langchain.master_orchestrator import LangChainFullAnalysisFlow
 from bot.formatters import escape_markdown
-from bot.utils.progress_manager import AICoachProgressManager
+from bot.utils.enhanced_progress_manager import AICoachDetailedProgressManager
 from bot.utils.message_formatter import MessageFormatter, FileDeliveryManager
 
 # Configure logging
@@ -107,9 +107,9 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
     if update.message.text != "/skip":
         user_data[user_id]["planning_context"] = update.message.text.strip()
     
-    # Initialize progress manager for live updates
-    progress_manager = AICoachProgressManager(context, update.effective_chat.id)
-    await progress_manager.start_analysis()
+    # Initialize enhanced progress manager for live updates
+    progress_manager = AICoachDetailedProgressManager(context, update.effective_chat.id)
+    await progress_manager.start_coach_analysis()
     
     try:
         # Get stored credentials
@@ -129,7 +129,7 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
         physiology_cache.clear()
         
         # Update progress to data extraction
-        await progress_manager.extracting_data()
+        await progress_manager.extracting_data_detailed()
         
         extractor = TriathlonCoachDataExtractor(email, password)
         data = extractor.extract_data(ExtractionConfig(
@@ -139,20 +139,18 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
             include_metrics=True
         ))
         
-        # Update progress to analysis phase
-        await progress_manager.running_analysis()
-        
-        # Run full analysis using master orchestrator
+        # Run full analysis using master orchestrator with progress manager
         athlete_name = user_name or "Athlete"
         analysis_context = user_data[user_id].get("analysis_context", "")
         planning_context = user_data[user_id].get("planning_context", "")
         
         result = await LangChainFullAnalysisFlow.run_full_analysis(
-            user_id, athlete_name, data, analysis_context, planning_context
+            user_id, athlete_name, data, analysis_context, planning_context,
+            progress_manager=progress_manager
         )
         
         # Update progress to planning phase
-        await progress_manager.generating_plan()
+        await progress_manager.planning_phase()
         
         # Cache specialized analysis results (same as current generate command)
         metrics_cache = SecureMetricsCache(user_id)
@@ -185,7 +183,7 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
         file_sequence = file_delivery.get_file_sequence()
         
         # Complete progress tracking
-        await progress_manager.analysis_complete()
+        await progress_manager.analysis_complete_detailed()
         
         # Send files in organized sequence
         for file_info in file_sequence:

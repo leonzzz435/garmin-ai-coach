@@ -3,7 +3,7 @@ Prompt template manager for LangChain implementation.
 Combines system and user prompts into proper ChatPromptTemplate objects.
 """
 
-from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate, MessagesPlaceholder
 from .system_prompts import SystemPrompts
 from .user_prompts import UserPrompts
 
@@ -13,13 +13,14 @@ class PromptTemplateManager:
     
     @staticmethod
     def create_metrics_template() -> ChatPromptTemplate:
-        """Create metrics analysis prompt template."""
+        """Create metrics analysis prompt template with tool calling support."""
         system_message = SystemMessagePromptTemplate.from_template(SystemPrompts.METRICS_AGENT)
         user_message = HumanMessagePromptTemplate.from_template(UserPrompts.METRICS_ANALYSIS)
         
         return ChatPromptTemplate.from_messages([
             system_message,
-            user_message
+            user_message,
+            MessagesPlaceholder(variable_name="agent_scratchpad")
         ])
     
     @staticmethod
@@ -35,35 +36,38 @@ class PromptTemplateManager:
     
     @staticmethod
     def create_activity_interpreter_template() -> ChatPromptTemplate:
-        """Create activity interpretation prompt template."""
+        """Create activity interpretation prompt template with tool calling support."""
         system_message = SystemMessagePromptTemplate.from_template(SystemPrompts.ACTIVITY_INTERPRETER_AGENT)
         user_message = HumanMessagePromptTemplate.from_template(UserPrompts.ACTIVITY_INTERPRETATION)
         
         return ChatPromptTemplate.from_messages([
             system_message,
-            user_message
+            user_message,
+            MessagesPlaceholder(variable_name="agent_scratchpad")
         ])
     
     @staticmethod
     def create_physiology_template() -> ChatPromptTemplate:
-        """Create physiology analysis prompt template."""
+        """Create physiology analysis prompt template with tool calling support."""
         system_message = SystemMessagePromptTemplate.from_template(SystemPrompts.PHYSIOLOGY_AGENT)
         user_message = HumanMessagePromptTemplate.from_template(UserPrompts.PHYSIOLOGY_ANALYSIS)
         
         return ChatPromptTemplate.from_messages([
             system_message,
-            user_message
+            user_message,
+            MessagesPlaceholder(variable_name="agent_scratchpad")
         ])
     
     @staticmethod
     def create_synthesis_template() -> ChatPromptTemplate:
-        """Create synthesis prompt template."""
+        """Create synthesis prompt template with tool calling support."""
         system_message = SystemMessagePromptTemplate.from_template(SystemPrompts.SYNTHESIS_AGENT)
         user_message = HumanMessagePromptTemplate.from_template(UserPrompts.SYNTHESIS_ANALYSIS)
         
         return ChatPromptTemplate.from_messages([
             system_message,
-            user_message
+            user_message,
+            MessagesPlaceholder(variable_name="agent_scratchpad")
         ])
     
     @staticmethod

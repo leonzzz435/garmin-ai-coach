@@ -26,52 +26,22 @@ class AISettings:
     agentops_enabled: bool
     agentops_api_key: Optional[str]
     
-    # Model assignments for different roles
-    model_assignments: Dict[AIMode, Dict[AgentRole, str]] = field(default_factory=lambda: {
-        AIMode.STANDARD: {
-            # Data processing roles benefit from thinking mode
-            AgentRole.METRICS: "claude-4-thinking",              # Data-intensive pattern analysis
-            AgentRole.ACTIVITY_DATA: "claude-4-thinking",        # Raw data extraction and structuring
-            AgentRole.PHYSIO: "claude-4-thinking",               # Complex physiological pattern analysis
-            AgentRole.ACTIVITY_INTERPRETER: "claude-4-thinking", # precise interpretation of activity data
-            
-            # Creative roles work better with standard mode
-            AgentRole.SYNTHESIS: "claude-4-thinking",            # Creative synthesis of multiple analyses
-            AgentRole.WORKOUT: "claude-4-thinking",              # Domain-specific workout planning
-            AgentRole.COMPETITION_PLANNER: "claude-4-thinking",  # Creative race strategy development
-            AgentRole.SEASON_PLANNER: "claude-4-thinking",       # High-level season planning
-            
-            # Code generation role
-            AgentRole.FORMATTER: "claude-4-thinking"            # HTML/CSS code generation
-        },
-        AIMode.COST_EFFECTIVE: {
-            AgentRole.METRICS: "claude-3-haiku",
-            AgentRole.ACTIVITY_DATA: "claude-3-haiku",
-            AgentRole.ACTIVITY_INTERPRETER: "gpt-4o-mini",
-            AgentRole.PHYSIO: "claude-3-haiku",
-            AgentRole.SYNTHESIS: "gpt-4o-mini",
-            AgentRole.WORKOUT: "gpt-4o-mini",
-            AgentRole.COMPETITION_PLANNER: "claude-3-haiku",
-            AgentRole.SEASON_PLANNER: "claude-3-haiku",
-            AgentRole.FORMATTER: "claude-3-haiku"
-        },
-        AIMode.DEVELOPMENT: {
-            # Data processing roles benefit from thinking mode
-            AgentRole.METRICS: "claude-3-haiku",           # Data-intensive pattern analysis
-            AgentRole.ACTIVITY_DATA: "claude-3-haiku",     # Raw data extraction and structuring
-            AgentRole.PHYSIO: "claude-3-haiku",            # Complex physiological pattern analysis
-            
-            # Creative roles work better with standard mode
-            AgentRole.ACTIVITY_INTERPRETER: "claude-3-haiku", # Creative interpretation of activity data
-            AgentRole.SYNTHESIS: "claude-3-haiku",           # Creative synthesis of multiple analyses
-            AgentRole.WORKOUT: "claude-3-haiku",             # Domain-specific workout planning
-            AgentRole.COMPETITION_PLANNER: "claude-3-haiku", # Creative race strategy development
-            AgentRole.SEASON_PLANNER: "claude-3-haiku",      # High-level season planning
-            
-            # Code generation role
-            AgentRole.FORMATTER: "claude-3-haiku"            # HTML/CSS code generation
-        }
+    # Model assignments - one model per stage for all agents
+    stage_models: Dict[AIMode, str] = field(default_factory=lambda: {
+        AIMode.STANDARD: "claude-4-thinking",      # Production: Best performance with reasoning
+        AIMode.COST_EFFECTIVE: "claude-3-haiku",   # Budget: Fast and cost-effective
+        AIMode.DEVELOPMENT: "claude-3-haiku"       # Development: Fast iteration
     })
+    
+    # Derived model assignments for compatibility
+    model_assignments: Dict[AIMode, Dict[AgentRole, str]] = field(default_factory=lambda: {})
+    
+    def __post_init__(self):
+        """Initialize model assignments from stage models."""
+        for mode, model in self.stage_models.items():
+            self.model_assignments[mode] = {
+                role: model for role in AgentRole
+            }
 
     def get_model_for_role(self, role: AgentRole) -> str:
         """Get the appropriate model name for a given role based on current mode."""

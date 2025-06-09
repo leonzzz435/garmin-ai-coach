@@ -14,7 +14,7 @@ class MasterOrchestrator:
     @staticmethod
     async def run_full_analysis(user_id: str, athlete_name: str,
                                garmin_data: GarminData, analysis_context: str = "",
-                               planning_context: str = "") -> Dict[str, Any]:
+                               planning_context: str = "", progress_manager=None) -> Dict[str, Any]:
         """
         Run complete analysis and weekly planning in sequence.
         
@@ -24,6 +24,7 @@ class MasterOrchestrator:
             garmin_data: Garmin data for analysis and planning
             analysis_context: Context for data analysis interpretation (health, stress, etc.)
             planning_context: Context for weekly planning (constraints, goals, etc.)
+            progress_manager: Optional progress manager for live updates
             
         Returns:
             Dict containing both analysis and planning results:
@@ -40,14 +41,15 @@ class MasterOrchestrator:
             # Step 1: Run Analysis Orchestrator
             logger.info("Running analysis orchestrator...")
             analysis_html, analysis_intermediates = await LangChainAnalysisFlow.run_analysis(
-                garmin_data, user_id, athlete_name, analysis_context
+                garmin_data, user_id, athlete_name, analysis_context,
+                progress_manager=progress_manager
             )
             logger.info("Analysis orchestrator completed successfully")
             
             # Step 2: Run Weekly Plan Orchestrator
             logger.info("Running weekly plan orchestrator...")
             planning_html, planning_intermediates = await LangChainWeeklyPlanFlow.run_weekly_planning(
-                user_id, athlete_name, garmin_data, planning_context
+                user_id, athlete_name, garmin_data, planning_context, progress_manager
             )
             logger.info("Weekly plan orchestrator completed successfully")
             
@@ -73,7 +75,7 @@ class LangChainFullAnalysisFlow:
     @staticmethod
     async def run_full_analysis(user_id: str, athlete_name: str,
                                garmin_data: GarminData, analysis_context: str = "",
-                               planning_context: str = "") -> Dict[str, Any]:
+                               planning_context: str = "", progress_manager=None) -> Dict[str, Any]:
         """
         Run complete analysis and weekly planning.
         
@@ -83,8 +85,9 @@ class LangChainFullAnalysisFlow:
             garmin_data: Garmin data for analysis and planning
             analysis_context: Context for data analysis interpretation (health, stress, etc.)
             planning_context: Context for weekly planning (constraints, goals, etc.)
+            progress_manager: Optional progress manager for live updates
             
         Returns:
             Dict containing both analysis and planning results
         """
-        return await MasterOrchestrator.run_full_analysis(user_id, athlete_name, garmin_data, analysis_context, planning_context)
+        return await MasterOrchestrator.run_full_analysis(user_id, athlete_name, garmin_data, analysis_context, planning_context, progress_manager)
