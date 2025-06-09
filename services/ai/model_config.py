@@ -1,14 +1,14 @@
 """
-Model configuration and selection for CrewAI LLM integration.
+Model configuration and selection for LangChain LLM integration.
 """
 
 import logging
 from dataclasses import dataclass
-from typing import Dict
-from crewai import LLM
+from typing import Dict, Any
+from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from core.config import get_config
 from .ai_settings import ai_settings, AgentRole
-import litellm
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class ModelConfiguration:
     base_url: str
 
 class ModelSelector:
-    """Model selection and configuration for CrewAI LLM."""
+    """Model selection and configuration for LangChain LLM."""
     
     # Model configurations
     CONFIGURATIONS: Dict[str, ModelConfiguration] = {
@@ -95,15 +95,15 @@ class ModelSelector:
     }
 
     @classmethod
-    def get_llm(cls, role: AgentRole) -> LLM:
+    def get_llm(cls, role: AgentRole):
         """
-        Get a configured LLM instance for CrewAI based on agent role.
+        Get a configured LLM instance for LangChain based on agent role.
         
         Args:
             role: Agent role to get model for
             
         Returns:
-            LLM: Configured CrewAI LLM instance
+            LangChain LLM instance (ChatOpenAI, ChatAnthropic, etc.)
         """
         config = get_config()
         
@@ -122,22 +122,32 @@ class ModelSelector:
         # Add timeout settings to prevent hanging
         logger.info(f"Configuring LLM for role {role.value} with model {model_config.name}")
         
-        # Base LLM parameters
+        # Base LLM parameters - optimized for training analysis tasks
         llm_params = {
             "model": model_config.name,
-            "base_url": model_config.base_url,
-            "api_key": api_key,
         }
         
         # Configure thinking mode and token limits based on model
         if model_name == "claude-opus-thinking":
-            llm_params["thinking"] = {"type": "enabled", "budget_tokens": 16000}
             llm_params["max_tokens"] = 32000
-            logger.info(f"Using thinking mode for {role.value}")
+            llm_params["thinking"] = {"type": "enabled", "budget_tokens": 16000}
+            logger.info(f"Using extended thinking mode for {role.value} (max_tokens: 32000, budget_tokens: 16000)")
         elif model_name == "claude-4-thinking":
             llm_params["max_tokens"] = 64000
             llm_params["thinking"] = {"type": "enabled", "budget_tokens": 16000}
+            logger.info(f"Using extended thinking mode for {role.value} (max_tokens: 64000, budget_tokens: 16000)")
+        
+        # Create the appropriate LangChain LLM based on provider
+        if "anthropic" in model_config.base_url:
+            llm_params["api_key"] = api_key
+            llm = ChatAnthropic(**llm_params)
+        elif "openrouter" in model_config.base_url:
+            llm_params["openai_api_key"] = api_key
+            llm_params["openai_api_base"] = model_config.base_url
+            llm = ChatOpenAI(**llm_params)
+        else:
+            llm_params["openai_api_key"] = api_key
+            llm = ChatOpenAI(**llm_params)
             
-        llm = LLM(**llm_params)
         logger.info(f"LLM configured for {model_config.name}")
         return llm

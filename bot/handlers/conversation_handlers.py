@@ -15,8 +15,7 @@ from telegram.ext import (
     filters
 )
 
-from core.security import SecureCredentialManager, SecureCompetitionManager, SecureReportManager
-from core.security.execution import ExecutionTracker
+from core.security import SecureCredentialManager, SecureCompetitionManager
 from services.garmin import TriathlonCoachDataExtractor, GarminData
 from services.garmin.competition_models import Competition, RacePriority
 
@@ -30,9 +29,6 @@ EXPECTING_PASSWORD = 2
 
 # Workout states
 EXPECTING_CONTEXT = 30
-
-# Weekly planning states
-EXPECTING_WEEKPLAN_CONTEXT = 40
 
 # Add race states
 RACE_NAME = 10
@@ -101,7 +97,7 @@ async def process_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Ask for password
     await message.reply_text(
-        "Great\\! Now please enter your password:",
+        "Enter your Garmin password:",
         parse_mode=ParseMode.MARKDOWN_V2
     )
     return EXPECTING_PASSWORD
@@ -129,9 +125,9 @@ async def process_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if cred_manager.store_credentials(email, password):
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                text="✅ Connection successful\\!\n" +
+                text="✅ Connection established\\.\n" +
                     "🔒 Credentials securely stored\\.\n" +
-                    "Use /generate for insights or /workout for training suggestions\\! 🚀",
+                    "Use `/coach` for comprehensive analysis and training plans\\.",
                 parse_mode=ParseMode.MARKDOWN_V2
             )
         else:
@@ -169,8 +165,8 @@ async def start_add_race(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_data[user_id] = {"race_data": {}}
     
     await update.message.reply_text(
-        "Let's add a new race to your calendar\\! 🏃‍♂️\n\n" +
-        "First, what's the name of the race\\?",
+        "**Add New Competition**\n\n" +
+        "Enter the race name:",
         parse_mode=ParseMode.MARKDOWN_V2
     )
     return RACE_NAME
@@ -542,112 +538,6 @@ async def process_edit_value(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
 
 
-# Weekly Planning Conversation Handlers
-async def start_weekplan(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start the weekly planning process."""
-    message = update.message or update.callback_query.message
-    user_id = update.effective_user.id
-    
-    # Initialize user data
-    user_data[user_id] = {"weekplan_context": ""}
-    
-    # Ask for additional context
-    await message.reply_text(
-        "📅 Let's create your weekly training plan\\!\n\n" +
-        "Is there anything specific I should consider for this week\\?\n" +
-        "For example:\n" +
-        "• Time constraints\n" +
-        "• Special focus areas\n" +
-        "• Recovery needs\n" +
-        "• Upcoming events\n\n" +
-        "Or use /skip if there's nothing specific\\.",
-        parse_mode=ParseMode.MARKDOWN_V2
-    )
-    return EXPECTING_WEEKPLAN_CONTEXT
-
-async def process_weekplan_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process weekly planning context and generate plan."""
-    message = update.message or update.callback_query.message
-    user_id = update.effective_user.id
-    user_name = update.effective_user.full_name
-    
-    # Store context if provided
-    if update.message.text != "/skip":
-        user_data[user_id]["weekplan_context"] = update.message.text.strip()
-    
-    await message.reply_text(
-        "🔄 Generating your weekly training plan\\.\\.\\.\n"
-        "This may take 2\\-3 minutes to complete\\.",
-        parse_mode=ParseMode.MARKDOWN_V2
-    )
-    
-    try:
-        # Get cached data
-        data_manager = SecureReportManager(user_id)
-        report = data_manager.get_report()
-        
-        if not report:
-            raise ValueError("No data available. Please use /generate first.")
-            
-        data, timestamp = report
-        stored_data = json.loads(data)
-        
-        # Parse stored Garmin data
-        if not stored_data or 'raw_data' not in stored_data:
-            raise ValueError("No workout data available. Please sync your data first.")
-            
-        garmin_data = GarminData(**stored_data['raw_data'])
-        
-        # Generate weekly plan using Flow
-        from services.ai.flows import WeeklyPlanFlow
-        athlete_name = user_name or "Athlete"
-        flow = WeeklyPlanFlow(
-            str(user_id),
-            athlete_name,
-            garmin_data,
-            user_data[user_id].get("weekplan_context", "")
-        )
-        
-        # Inform user that this might take a few minutes
-        await message.reply_text(
-            "⏳ This may take 2\\-3 minutes\\. You'll receive the plan when it's ready\\.",
-            parse_mode=ParseMode.MARKDOWN_V2
-        )
-        
-        # Use a longer timeout for this operation (5 minutes)
-        try:
-            result = await flow.kickoff_async()
-        except Exception as e:
-            logger.error(f"Error in weekly plan flow: {str(e)}")
-            # Even if we get an error, we'll continue and check if the file was created
-            # This handles the case where the flow completes but takes longer than expected
-        
-        # Create a temporary file and send the HTML report
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=True) as tmp:
-            tmp.write(str(result))  # result is HTML from the formatter task
-            tmp.flush()
-            
-            # Reopen in binary mode for sending
-            with open(tmp.name, 'rb') as doc:
-                await message.reply_document(
-                    document=doc,
-                    filename=f"weekplan_{dt.now().strftime('%Y%m%d')}.html",
-                    caption="📅 Your Weekly Training Plan",
-                    read_timeout=300, write_timeout=300, connect_timeout=300, pool_timeout=300
-                )
-            
-    except Exception as e:
-        logger.error(f"Error generating weekly plan: {str(e)}")
-        await message.reply_text(
-            escape_markdown(f"❌ Error: {str(e)}\n\nPlease try again."),
-            parse_mode=ParseMode.MARKDOWN_V2
-        )
-    
-    # Clean up user data
-    if user_id in user_data:
-        del user_data[user_id]
-    
-    return ConversationHandler.END
 
 # Create conversation handlers
 from telegram.ext import CallbackQueryHandler
@@ -752,19 +642,3 @@ edit_race_handler = ConversationHandler(
     fallbacks=[CommandHandler("cancel", cancel)]
 )
 
-weekplan_handler = ConversationHandler(
-    entry_points=[
-        CommandHandler("weekplan", start_weekplan),
-        MessageHandler(filters.Regex("^📅 Weekly Plan$"), start_weekplan),
-        CallbackQueryHandler(start_weekplan, pattern="^weekplan$")
-    ],
-    states={
-        EXPECTING_WEEKPLAN_CONTEXT: [
-            MessageHandler(
-                (filters.TEXT & ~filters.COMMAND) | filters.Regex("^/skip$"),
-                process_weekplan_context
-            )
-        ]
-    },
-    fallbacks=[CommandHandler("cancel", cancel)]
-)
