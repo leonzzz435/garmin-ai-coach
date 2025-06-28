@@ -163,7 +163,7 @@ Please try again with both python_code and description parameters."""
             
             if not success:
                 # Return detailed error message that guides the agent to fix the issue
-                logger.info(f"Agent {actual_agent_name} plotting failed: {error}")
+                logger.error(f"Agent {actual_agent_name} plotting failed: {error}")
                 return f"""Error executing plotting code: {error}
 
 Please fix the following issues and try again:
@@ -182,7 +182,7 @@ Please review your code and try again with the corrections."""
             
             if not html_content:
                 # HTML conversion failure guidance
-                logger.info(f"Agent {actual_agent_name} plot HTML conversion failed")
+                logger.error(f"Agent {actual_agent_name} plot HTML conversion failed - no HTML content generated")
                 return """Error: Failed to convert plot to HTML.
 
 This usually means the 'fig' variable was not created properly. Please ensure:
@@ -216,16 +216,20 @@ Please try again with a properly created 'fig' variable."""
                         self.progress_manager.plot_generated(actual_agent_name, plot_id, description)
                     )
                 except Exception as e:
-                    logger.debug(f"Progress manager notification failed: {e}")
+                    import traceback
+                    full_traceback = traceback.format_exc()
+                    logger.error(f"Progress manager notification failed: {e}\n\nFull traceback:\n{full_traceback}")
             
             success_msg = f"Plot created successfully! Reference as [PLOT:{plot_id}]"
             logger.info(f"Agent {actual_agent_name} created plot {plot_id}")
             return success_msg
             
         except Exception as e:
-            # Handle all other exceptions gracefully
+            # Handle all other exceptions gracefully with full traceback
+            import traceback
+            full_traceback = traceback.format_exc()
             error_msg = f"Plotting tool error: {str(e)}. Please check your input and try again."
-            logger.warning(f"Agent {actual_agent_name} plotting failed: {e}")
+            logger.error(f"Agent {actual_agent_name} plotting failed: {e}\n\nFull traceback:\n{full_traceback}")
             return error_msg
     
     async def _arun(self, python_code: Optional[str] = None, description: Optional[str] = None,

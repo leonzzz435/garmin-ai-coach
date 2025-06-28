@@ -109,7 +109,8 @@ class SecurePythonExecutor:
                 're': re
             })
         except ImportError as e:
-            logger.warning(f"Could not import some libraries: {e}")
+            full_traceback = traceback.format_exc()
+            logger.error(f"Could not import some libraries: {e}\n\nFull traceback:\n{full_traceback}")
         
         return safe_globals
     
@@ -164,10 +165,10 @@ class SecurePythonExecutor:
                         
             except Exception as e:
                 sys.stdout = old_stdout
-                result['error'] = f"Execution error: {str(e)}"
-                # Include traceback for agent learning
-                if logger.isEnabledFor(logging.DEBUG):
-                    result['error'] += f"\n{traceback.format_exc()}"
+                # Always include full traceback for plotting failures
+                full_traceback = traceback.format_exc()
+                result['error'] = f"Execution error: {str(e)}\n\nFull traceback:\n{full_traceback}"
+                logger.error(f"Code execution failed with full traceback:\n{full_traceback}")
         
         # Run with generous timeout
         thread = threading.Thread(target=target)
@@ -240,5 +241,6 @@ class SecurePythonExecutor:
                 return str(fig)  # Fallback to string representation
                 
         except Exception as e:
-            logger.error(f"Failed to convert plot to HTML: {e}")
+            full_traceback = traceback.format_exc()
+            logger.error(f"Failed to convert plot to HTML: {e}\n\nFull traceback:\n{full_traceback}")
             return None

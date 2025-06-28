@@ -19,19 +19,12 @@ markers = [
 [project]
 name = "tele_garmin"
 version = "0.1.0"
-description = "Telegram bot for Garmin data analysis"
-requires-python = ">=3.8"
+description = "Telegram bot for Garmin data analysis with AI-powered insights"
+requires-python = ">=3.10"
 authors = [
     {name = "Developer"}
 ]
-dependencies = [
-    "python-telegram-bot==20.3",
-    "garminconnect",
-    "anthropic",
-    "pandas",
-    "cryptography>=41.0.0",
-    "python-dotenv==1.0.0"
-]
+# Dependencies now managed by Pixi in pixi.toml
 
 [tool.setuptools]
 packages = ["bot", "core", "services", "utils"]
