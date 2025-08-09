@@ -7,7 +7,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 def summarize_activities(activities: List[Dict[str, Any]]) -> str:
-    """Generate a summary of recent activities."""
     logger = logging.getLogger(__name__)
     
     if not activities:
@@ -49,7 +48,6 @@ def summarize_activities(activities: List[Dict[str, Any]]) -> str:
         raise
 
 def _format_activity(activity: Dict[str, Any]) -> str:
-    """Format a single activity for the report."""
     try:
         if activity.get('error'):
             return f"### Error in activity\n- Error: {activity['error'].get('message', 'Unknown error')}\n"
@@ -87,7 +85,6 @@ def _format_activity(activity: Dict[str, Any]) -> str:
         return "### Error formatting activity\n"
 
 def _format_child_activity(child: Dict[str, Any]) -> str:
-    """Format a child activity for multisport activities."""
     try:
         summary = child.get('summary', {})
         return f"""##### {child.get('activity_type', 'Unknown').capitalize()}
@@ -103,7 +100,6 @@ def _format_child_activity(child: Dict[str, Any]) -> str:
         return "##### Error formatting child activity\n"
 
 def _format_hr_zones(zones: List[Dict[str, Any]]) -> str:
-    """Format heart rate zones data."""
     try:
         if not zones:
             return "No heart rate zone data available\n"
@@ -123,7 +119,6 @@ def _format_hr_zones(zones: List[Dict[str, Any]]) -> str:
         return "Error formatting heart rate zones\n"
 
 def summarize_training_volume(activities: List[Dict[str, Any]]) -> str:
-    """Generate weekly training volume summary."""
     try:
         # Extract data safely with defaults
         processed_activities = []
@@ -167,7 +162,6 @@ def summarize_training_volume(activities: List[Dict[str, Any]]) -> str:
         return "Error generating training volume summary\n"
 
 def summarize_training_intensity(activities: List[Dict[str, Any]]) -> str:
-    """Generate training intensity distribution summary."""
     try:
         intensity_data = []
         
@@ -214,7 +208,6 @@ def summarize_training_intensity(activities: List[Dict[str, Any]]) -> str:
         return "Error generating training intensity summary\n"
 
 def _extract_intensity_data(activity: Dict[str, Any], date: str) -> List[Dict[str, Any]]:
-    """Extract intensity data from an activity."""
     try:
         if not activity.get('hr_zones'):
             logger.warning(f"No HR zones found for activity type: {activity.get('activity_type', 'Unknown')}")
@@ -237,7 +230,6 @@ def _extract_intensity_data(activity: Dict[str, Any], date: str) -> List[Dict[st
         return []
 
 def summarize_recovery(recovery_data: List[Dict[str, Any]]) -> str:
-    """Generate recovery metrics summary."""
     try:
         processed_data = []
         for item in recovery_data:
@@ -296,7 +288,6 @@ def summarize_recovery(recovery_data: List[Dict[str, Any]]) -> str:
         return "Error generating recovery summary\n"
 
 def summarize_training_load(load_history: List[Dict[str, Any]]) -> str:
-    """Generate training load summary."""
     try:
         processed_data = []
         for item in load_history:
@@ -342,7 +333,6 @@ def summarize_training_load(load_history: List[Dict[str, Any]]) -> str:
         return "Error generating training load summary\n"
 
 def summarize_vo2max_evolution(vo2max_history: List[Dict[str, Any]]) -> str:
-    """Generate VO2max evolution summary."""
     try:
         processed_data = []
         for item in vo2max_history:
@@ -380,7 +370,6 @@ def summarize_vo2max_evolution(vo2max_history: List[Dict[str, Any]]) -> str:
         return "Error generating VO2max evolution summary\n"
 
 def summarize_readiness_evolution(readiness_data: List[Dict[str, Any]]) -> str:
-    """Generate training readiness evolution summary."""
     try:
         processed_data = []
         for item in readiness_data:
@@ -422,7 +411,6 @@ def summarize_readiness_evolution(readiness_data: List[Dict[str, Any]]) -> str:
         return "Error generating readiness evolution summary\n"
 
 def summarize_race_predictions_weekly(predictions: List[Dict[str, Any]]) -> str:
-    """Generate weekly race predictions summary."""
     try:
         processed_data = []
         for item in predictions:
@@ -465,7 +453,6 @@ def summarize_race_predictions_weekly(predictions: List[Dict[str, Any]]) -> str:
         return "Error generating race predictions summary\n"
 
 def summarize_hill_score_weekly(hill_scores: List[Dict[str, Any]]) -> str:
-    """Generate weekly hill score summary."""
     try:
         processed_data = []
         for item in hill_scores:
@@ -514,7 +501,6 @@ def summarize_hill_score_weekly(hill_scores: List[Dict[str, Any]]) -> str:
         return "Error generating hill score summary\n"
 
 def summarize_endurance_score_weekly(endurance_scores: List[Dict[str, Any]]) -> str:
-    """Generate weekly endurance score summary."""
     try:
         processed_data = []
         for item in endurance_scores:

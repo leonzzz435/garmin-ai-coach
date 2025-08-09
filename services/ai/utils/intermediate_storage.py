@@ -1,4 +1,3 @@
-"""Utility for storing intermediate agent results to files."""
 
 import os
 import logging
@@ -9,21 +8,13 @@ from typing import Dict, Any
 logger = logging.getLogger(__name__)
 
 class IntermediateResultStorage:
-    """Stores intermediate LangChain agent results to user-specific directories."""
     
     def __init__(self, user_name: str, base_path: str = "stuff"):
-        """Initialize storage for a specific user.
-        
-        Args:
-            user_name: User name for directory naming
-            base_path: Base directory for storage (default: "stuff")
-        """
         # Sanitize user_name for filesystem safety
         self.user_name = self._sanitize_username(user_name)
         self.base_path = Path(base_path)
         
     def _sanitize_username(self, user_name: str) -> str:
-        """Sanitize username for safe filesystem usage."""
         # Remove or replace problematic characters
         sanitized = re.sub(r'[<>:"/\\|?*]', '_', user_name)
         # Limit length and strip whitespace
@@ -32,12 +23,6 @@ class IntermediateResultStorage:
         return sanitized if sanitized else "unknown_user"
         
     def store_analysis_results(self, intermediate_results: Dict[str, str], overwrite: bool = True):
-        """Store analysis intermediate results to individual files.
-        
-        Args:
-            intermediate_results: Dict with keys like 'metrics_result', 'activity_result', etc.
-            overwrite: Whether to overwrite existing files (default: True for privacy)
-        """
         analysis_dir = self.base_path / "analysis"
         
         # Create user-specific subdirectory for privacy
@@ -72,13 +57,6 @@ class IntermediateResultStorage:
         return stored_files
     
     def store_weekly_plan_results(self, season_plan: str, weekly_plan: str, overwrite: bool = True):
-        """Store weekly planning intermediate results.
-        
-        Args:
-            season_plan: Season planning result
-            weekly_plan: Weekly planning result  
-            overwrite: Whether to overwrite existing files (default: True for privacy)
-        """
         plans_dir = self.base_path / "weekly_plans"
         
         # Create user-specific subdirectory for privacy
@@ -112,7 +90,6 @@ class IntermediateResultStorage:
         return stored_files
     
     def get_stored_analysis_summary(self) -> str:
-        """Get a summary of stored analysis files."""
         analysis_dir = self.base_path / "analysis"
         files = list(analysis_dir.glob("*.md")) if analysis_dir.exists() else []
         

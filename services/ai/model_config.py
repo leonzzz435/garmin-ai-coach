@@ -1,6 +1,3 @@
-"""
-Model configuration and selection for LangChain LLM integration.
-"""
 
 import logging
 from dataclasses import dataclass
@@ -14,12 +11,10 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ModelConfiguration:
-    """Model configuration settings."""
     name: str
     base_url: str
 
 class ModelSelector:
-    """Model selection and configuration for LangChain LLM."""
     
     # Model configurations
     CONFIGURATIONS: Dict[str, ModelConfiguration] = {
@@ -105,15 +100,6 @@ class ModelSelector:
 
     @classmethod
     def get_llm(cls, role: AgentRole):
-        """
-        Get a configured LLM instance for LangChain based on agent role.
-        
-        Args:
-            role: Agent role to get model for
-            
-        Returns:
-            LangChain LLM instance (ChatOpenAI, ChatAnthropic, etc.)
-        """
         config = get_config()
         
         # Get model configuration based on role and current mode

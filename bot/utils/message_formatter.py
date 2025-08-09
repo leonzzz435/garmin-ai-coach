@@ -1,4 +1,3 @@
-"""Message formatter for enhanced Telegram bot UX."""
 
 import datetime
 from typing import Dict, List, Optional
@@ -6,7 +5,6 @@ from telegram.constants import ParseMode
 
 
 def escape_markdownv2(text: str) -> str:
-    """Escape special characters for Telegram MarkdownV2."""
     # Characters that need escaping in MarkdownV2
     escape_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
     
@@ -17,11 +15,9 @@ def escape_markdownv2(text: str) -> str:
 
 
 class MessageFormatter:
-    """Formats messages with emojis and better structure."""
     
     @staticmethod
     def create_analysis_summary(date_str: str) -> str:
-        """Create a grouped summary message for AI Coach analysis results."""
         summary = f"""📦 *AI Coach Analysis Report* — `{date_str}`
 
 🔍 *Comprehensive Analysis Complete:*
@@ -40,7 +36,6 @@ class MessageFormatter:
     
     @staticmethod
     def create_file_caption(file_type: str, description: str) -> str:
-        """Create enhanced captions for different file types."""
         # Escape the description
         escaped_desc = escape_markdownv2(description)
         
@@ -104,7 +99,6 @@ Long\\-term periodization and systematic development
     
     @staticmethod
     def create_completion_message() -> str:
-        """Create final completion message."""
         return """✅ *Comprehensive analysis completed\\!*
 
 📥 *You received:*
@@ -124,13 +118,11 @@ Need adjustments\\? I DONT CARE BICH\\! 💪"""
 
 
 class FileDeliveryManager:
-    """Manages organized file delivery with better UX."""
     
     def __init__(self, date_str: Optional[str] = None):
         self.date_str = date_str or datetime.datetime.now().strftime('%Y%m%d')
         
     def get_file_sequence(self) -> List[Dict[str, str]]:
-        """Get the recommended file delivery sequence."""
         return [
             {
                 'type': 'summary',

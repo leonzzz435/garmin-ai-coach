@@ -1,4 +1,3 @@
-"""AI Tools for the analysis system."""
 
 from .plotting import PythonPlottingTool, PlotListTool, PlotStorage, PlotReferenceResolver, SecurePythonExecutor
 

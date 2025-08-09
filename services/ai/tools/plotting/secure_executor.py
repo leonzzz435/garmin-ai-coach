@@ -1,4 +1,3 @@
-"""Secure Python executor for AI-generated plotting code with maximum agent freedom."""
 
 import logging
 import sys
@@ -12,7 +11,6 @@ import re
 logger = logging.getLogger(__name__)
 
 class SecurePythonExecutor:
-    """Secure execution environment for Python plotting code with agent freedom."""
     
     # Core plotting libraries - agents can import others if needed
     CORE_IMPORTS = {
@@ -43,24 +41,10 @@ class SecurePythonExecutor:
     ]
     
     def __init__(self, max_execution_time: int = 30, max_memory_mb: int = 200):
-        """Initialize secure executor with generous resource limits.
-        
-        Args:
-            max_execution_time: Maximum execution time in seconds
-            max_memory_mb: Maximum memory usage in MB
-        """
         self.max_execution_time = max_execution_time
         self.max_memory_mb = max_memory_mb
         
     def validate_code(self, code: str) -> tuple[bool, str]:
-        """Light validation - only block truly dangerous operations.
-        
-        Args:
-            code: Python code to validate
-            
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
         # Only check for truly dangerous patterns
         for pattern in self.BLOCKED_PATTERNS:
             if re.search(pattern, code, re.IGNORECASE):
@@ -69,11 +53,6 @@ class SecurePythonExecutor:
         return True, ""
     
     def create_safe_globals(self) -> Dict[str, Any]:
-        """Create globals with common libraries pre-imported.
-        
-        Returns:
-            Globals dictionary with common libraries
-        """
         # Start with standard builtins (much more permissive)
         safe_globals = {
             '__builtins__': __builtins__,
@@ -115,16 +94,6 @@ class SecurePythonExecutor:
         return safe_globals
     
     def execute_with_timeout(self, code: str, safe_globals: Dict[str, Any], safe_locals: Dict[str, Any]) -> tuple[bool, Any, str]:
-        """Execute code with timeout protection.
-        
-        Args:
-            code: Python code to execute
-            safe_globals: Globals dictionary
-            safe_locals: Locals dictionary
-            
-        Returns:
-            Tuple of (success, result, error_message)
-        """
         result = {'success': False, 'output': None, 'error': ''}
         
         def target():
@@ -183,14 +152,6 @@ class SecurePythonExecutor:
         return result['success'], result['output'], result['error']
     
     def execute_plotting_code(self, code: str) -> tuple[bool, Any, str]:
-        """Execute plotting code with maximum agent freedom.
-        
-        Args:
-            code: Complete Python plotting code to execute
-            
-        Returns:
-            Tuple of (success, plotly_figure_or_output, error_message)
-        """
         logger.info("Starting code execution with agent freedom")
         
         # Light validation - only block truly dangerous operations
@@ -214,14 +175,6 @@ class SecurePythonExecutor:
         return success, result, error
     
     def plot_to_html(self, fig) -> Optional[str]:
-        """Convert various plot objects to HTML string.
-        
-        Args:
-            fig: Plot object (Plotly figure, matplotlib, etc.)
-            
-        Returns:
-            HTML string or None if conversion fails
-        """
         try:
             # Plotly figures
             if hasattr(fig, 'to_html'):

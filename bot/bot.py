@@ -1,4 +1,3 @@
-"""Main bot module for initializing and running the Telegram bot."""
 
 import logging
 from telegram.ext import (
@@ -35,15 +34,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class TelegramBot:
-    """Main bot class that handles initialization and setup."""
     
     def __init__(self):
-        """Initialize the bot with configuration."""
         self.config = get_config()
         self.app = None
     
     def setup(self):
-        """Set up the bot with all handlers."""
         # Initialize application with increased timeouts
         self.app = ApplicationBuilder().token(self.config.bot_token).read_timeout(300).write_timeout(300).build()
         
@@ -75,7 +71,6 @@ class TelegramBot:
         logger.info("Bot setup completed")
     
     def run(self):
-        """Start the bot."""
         if not self.app:
             raise RuntimeError("Bot not set up. Call setup() first.")
         
@@ -83,7 +78,6 @@ class TelegramBot:
         self.app.run_polling()
 
 def create_bot():
-    """Create and configure a new bot instance."""
     bot = TelegramBot()
     bot.setup()
     return bot

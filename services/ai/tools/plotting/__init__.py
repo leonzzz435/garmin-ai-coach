@@ -1,4 +1,3 @@
-"""Generic AI Plotting System for secure visualization generation."""
 
 from .plotting_tool import PythonPlottingTool, PlotListTool
 from .plot_storage import PlotStorage

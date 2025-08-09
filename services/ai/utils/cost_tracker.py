@@ -1,4 +1,3 @@
-"""Real-time cost tracking for Claude and other LLM models using LangChain's usage metadata."""
 
 import json
 import logging
@@ -11,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ModelUsage:
-    """Container for model usage statistics."""
     model_name: str
     input_tokens: int = 0
     output_tokens: int = 0
@@ -22,7 +20,6 @@ class ModelUsage:
 
 @dataclass
 class AgentCostSummary:
-    """Cost summary for a specific agent."""
     agent_name: str
     model_usage: List[ModelUsage] = field(default_factory=list)
     total_cost_usd: float = 0.0
@@ -30,16 +27,13 @@ class AgentCostSummary:
     execution_time_seconds: float = 0.0
 
 class CostTracker:
-    """Real-time cost tracking for LLM usage with LangChain integration."""
     
     def __init__(self):
-        """Initialize cost tracker with pricing data."""
         self.pricing_data = self._load_pricing_data()
         self.session_costs: List[AgentCostSummary] = []
         self.total_session_cost = 0.0
         
     def _load_pricing_data(self) -> Dict[str, Dict[str, Any]]:
-        """Load model pricing data from config file."""
         try:
             config_path = Path(__file__).parent.parent.parent.parent / "config" / "model_pricing.json"
             with open(config_path, 'r') as f:
@@ -49,7 +43,6 @@ class CostTracker:
             return {}
     
     def _normalize_model_name(self, model_name: str) -> str:
-        """Normalize model name to match pricing keys."""
         # Handle common model name variations
         name_mappings = {
             "claude-3-7-sonnet-20250224": "claude-3-7-sonnet",
@@ -63,15 +56,6 @@ class CostTracker:
         return name_mappings.get(model_name, model_name)
     
     def calculate_cost_from_usage_metadata(self, usage_metadata: Dict[str, Any]) -> List[ModelUsage]:
-        """
-        Calculate costs from LangChain's usage metadata callback.
-        
-        Args:
-            usage_metadata: Dictionary from get_usage_metadata_callback()
-            
-        Returns:
-            List of ModelUsage objects with cost calculations
-        """
         model_usages = []
         
         if not usage_metadata:
@@ -143,17 +127,6 @@ class CostTracker:
     
     def add_agent_cost(self, agent_name: str, usage_metadata: Dict[str, Any], 
                       execution_time: float = 0.0) -> AgentCostSummary:
-        """
-        Add cost information for a specific agent execution.
-        
-        Args:
-            agent_name: Name of the agent
-            usage_metadata: Usage metadata from LangChain callback
-            execution_time: Agent execution time in seconds
-            
-        Returns:
-            AgentCostSummary with calculated costs
-        """
         model_usages = self.calculate_cost_from_usage_metadata(usage_metadata)
         total_cost = sum(usage.cost_usd for usage in model_usages)
         total_tokens = sum(usage.total_tokens for usage in model_usages)
@@ -175,7 +148,6 @@ class CostTracker:
         return agent_summary
     
     def get_session_summary(self) -> Dict[str, Any]:
-        """Get comprehensive cost summary for the current session."""
         if not self.session_costs:
             return {
                 "total_cost_usd": 0.0,
@@ -234,7 +206,6 @@ class CostTracker:
         }
     
     def format_cost_summary(self, include_model_breakdown: bool = True) -> str:
-        """Format cost summary as human-readable string."""
         summary = self.get_session_summary()
         
         if summary["total_cost_usd"] == 0:
@@ -259,7 +230,6 @@ class CostTracker:
         return "\n".join(lines)
     
     def reset_session(self):
-        """Reset session cost tracking."""
         self.session_costs.clear()
         self.total_session_cost = 0.0
         logger.info("Cost tracking session reset")

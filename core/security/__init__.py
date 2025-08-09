@@ -1,4 +1,3 @@
-"""Security module providing secure storage and credential management functionality."""
 
 from .base import SecureStorageBase, SecurityError, StorageError
 from .credentials import SecureCredentialManager

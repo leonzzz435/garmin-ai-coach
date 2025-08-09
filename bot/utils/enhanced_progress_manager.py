@@ -1,4 +1,3 @@
-"""Enhanced progress manager with detailed agent execution and plot generation updates."""
 
 import asyncio
 import logging
@@ -14,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class DetailedProgressManager(ProgressManager):
-    """Enhanced progress manager with detailed agent execution and plot information."""
     
     def __init__(self, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
         super().__init__(context, chat_id)
@@ -33,7 +31,6 @@ class DetailedProgressManager(ProgressManager):
         }
         
     def _format_duration(self, start_time: datetime) -> str:
-        """Format duration since start time."""
         if not start_time:
             return "0s"
         duration = datetime.now() - start_time
@@ -45,25 +42,21 @@ class DetailedProgressManager(ProgressManager):
             return f"{minutes}m {seconds}s"
     
     def _escape_markdown(self, text: str) -> str:
-        """Escape special characters for MarkdownV2."""
         special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
         for char in special_chars:
             text = text.replace(char, f'\\{char}')
         return text
     
     def _format_cost(self, cost: float) -> str:
-        """Format cost with proper markdown escaping."""
         return f"${cost:.4f}".replace('.', '\\.')
     
     def _create_progress_bar(self, current: int, total: int, width: int = 10) -> str:
-        """Create a visual progress bar."""
         filled = int((current / total) * width) if total > 0 else 0
         bar = "█" * filled + "░" * (width - filled)
         percentage = int((current / total) * 100) if total > 0 else 0
         return f"{bar} {percentage}%"
     
     async def start_detailed_analysis(self) -> None:
-        """Start detailed analysis progress tracking."""
         self.start_time = datetime.now()
         initial_message = f"""🚀 *Starting AI Analysis*
 
@@ -77,7 +70,6 @@ Initializing analysis system\\.\\.\\."""
         await self.start(initial_message)
     
     async def agent_started(self, agent_name: str, description: str) -> None:
-        """Update when an agent starts execution."""
         self.current_agent = agent_name
         self.agent_start_time = datetime.now()
         
@@ -101,7 +93,6 @@ Status: ⚙️ Processing\\.\\.\\."""
         await self.update(progress_message)
     
     async def agent_completed(self, agent_name: str, plots_created: List[str] = None, tool_calls: int = 0, cost_usd: float = 0.0, tokens: int = 0) -> None:
-        """Update when an agent completes execution."""
         self.analysis_stats['agents_completed'] += 1
         self.analysis_stats['tool_calls'] += tool_calls
         self.analysis_stats['total_cost_usd'] += cost_usd
@@ -150,7 +141,6 @@ Tool calls: {tool_calls}{cost_summary}{plot_summary}
         await self.update(progress_message)
     
     async def plot_generated(self, agent_name: str, plot_id: str, plot_description: str) -> None:
-        """Update when a plot is generated during agent execution."""
         self.analysis_stats['plots_created'] += 1
         self.plots_generated.append(f"{plot_id}: {plot_description}")
         
@@ -170,7 +160,6 @@ Description: {self._escape_markdown(plot_description)}"""
         await self.update(progress_message, delay=1.0)  # Longer delay to show plot generation
     
     async def tool_call_made(self, agent_name: str, tool_name: str, attempt: int = 1) -> None:
-        """Update when an agent makes a tool call."""
         self.analysis_stats['tool_calls'] += 1
         
         attempt_text = f" \\(attempt {attempt}\\)" if attempt > 1 else ""
@@ -188,7 +177,6 @@ Status: ⚙️ Processing\\.\\.\\."""
         await self.update(progress_message, delay=0.3)
     
     async def analysis_complete_detailed(self) -> None:
-        """Complete analysis with detailed summary."""
         total_duration = self._format_duration(self.start_time)
         
         # Create agent summary
@@ -227,7 +215,6 @@ Tool Calls: {self.analysis_stats['tool_calls']}
 
 
 class AICoachDetailedProgressManager(DetailedProgressManager):
-    """Specialized detailed progress manager for AI Coach analysis."""
     
     def __init__(self, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
         super().__init__(context, chat_id)
@@ -237,11 +224,9 @@ class AICoachDetailedProgressManager(DetailedProgressManager):
         # Total: 10 agents
     
     async def start_coach_analysis(self) -> None:
-        """Start AI coach analysis with detailed tracking."""
         await self.start_detailed_analysis()
     
     async def extracting_data_detailed(self) -> None:
-        """Enhanced data extraction update."""
         progress_message = f"""🚀 *AI Coach Analysis*
 
 📊 *Progress Overview*
@@ -257,7 +242,6 @@ Status: ⚙️ Extracting\\.\\.\\."""
         await self.update(progress_message)
     
     async def planning_phase(self) -> None:
-        """Update for planning phase."""
         progress_message = f"""🚀 *AI Coach Analysis*
 
 📊 *Progress Overview*
@@ -273,7 +257,6 @@ Status: ⚙️ Planning\\.\\.\\."""
         await self.update(progress_message)
     
     async def preparing_reports(self) -> None:
-        """Update to report preparation phase with detailed information."""
         progress_message = f"""🚀 *AI Coach Analysis*
 
 📊 *Progress Overview*

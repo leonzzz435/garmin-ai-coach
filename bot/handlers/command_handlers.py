@@ -1,4 +1,3 @@
-"""Basic command handlers for the Telegram bot."""
 
 import logging
 from datetime import date
@@ -16,7 +15,6 @@ from core.security import SecureCredentialManager, SecureCompetitionManager, Sto
 from core.security.users import UserTracker
 
 async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle inline keyboard button presses."""
     logger.debug(f"Update object: {update}")
     logger.debug(f"CallbackQuery object: {update.callback_query}")
     query = update.callback_query
@@ -235,7 +233,6 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 user_tracker = UserTracker()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle the /start command."""
     message = update.message or update.callback_query.message
     if not update.effective_user:
         logger.error("Update is missing effective_user")
@@ -295,7 +292,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle the /help command."""
     message = update.message or update.callback_query.message
     keyboard = [
         [
@@ -341,7 +337,6 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def roadmap(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle the /roadmap command."""
     message = update.message or update.callback_query.message
     keyboard = [
         [
@@ -380,7 +375,6 @@ async def roadmap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def clear_credentials(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle the /clear_credentials command."""
     user_id = update.effective_user.id
     message = update.message or update.callback_query.message
     cred_manager = SecureCredentialManager(user_id)
@@ -399,7 +393,6 @@ async def clear_credentials(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def races(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle the /races command - List upcoming competitions."""
     user_id = update.effective_user.id  # This works for both message and callback
     message = update.message or update.callback_query.message
     comp_manager = SecureCompetitionManager(user_id)
@@ -451,7 +444,6 @@ async def races(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 async def delrace(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle the /delrace command - Remove a competition."""
     message = update.message or update.callback_query.message
     message_text = message.text.strip() if message else ""
     user_id = update.effective_user.id

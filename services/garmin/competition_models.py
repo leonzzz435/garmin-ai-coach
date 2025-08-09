@@ -4,14 +4,12 @@ from enum import Enum
 from typing import Optional
 
 class RacePriority(Enum):
-    """Priority levels for races"""
     A = "A"  # Main season goal
     B = "B"  # Important but not primary
     C = "C"  # Training race or minor event
 
 @dataclass
 class Competition:
-    """Competition/Race event data with flexible input handling"""
     name: str
     date: date
     race_type: str  # Free text input (e.g., "Half Marathon", "Sprint Tri", "5k")

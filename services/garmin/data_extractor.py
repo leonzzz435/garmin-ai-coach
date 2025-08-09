@@ -22,20 +22,17 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 class DataExtractor:
-    """Base class for data extraction operations"""
     
     @staticmethod
     def safe_divide_and_round(numerator: Optional[float],
                             denominator: float,
                             decimal_places: int = 2) -> Optional[float]:
-        """Safely perform division and rounding."""
         if numerator is None:
             return None
         return round(numerator / denominator, decimal_places)
         
     @staticmethod
     def extract_start_time(activity_data: Dict[str, Any]) -> Optional[str]:
-        """Extract start time from activity data with fallbacks."""
         # Try different possible locations for start time
         start_time = None
         
@@ -64,7 +61,6 @@ class DataExtractor:
     
     @staticmethod
     def extract_activity_type(activity_data: Dict[str, Any]) -> str:
-        """Extract activity type from activity data with fallbacks."""
         # Try different possible locations for activity type
         activity_type = None
         
@@ -89,10 +85,6 @@ class DataExtractor:
 
     @staticmethod
     def convert_lactate_threshold_speed(speed_au: Optional[float]) -> Optional[float]:
-        """Convert lactate threshold speed from AU to m/s.
-        1 AU = 10 m/s
-        Returns speed in meters per second
-        """
         if speed_au is None:
             return None
         speed_ms = speed_au * 10  # Convert AU to m/s
@@ -101,7 +93,6 @@ class DataExtractor:
         return round(speed_ms, 2)  # Return speed in m/s
 
     def get_latest_sleep_duration(self, date_obj: date) -> Optional[float]:
-        """Get the most recent night's sleep duration from recovery indicators."""
         try:
             sleep_data = self.garmin.client.get_sleep_data(date_obj.isoformat())
             daily_sleep = sleep_data.get('dailySleepDTO', {})
@@ -112,7 +103,6 @@ class DataExtractor:
 
     @staticmethod
     def get_date_ranges(config: ExtractionConfig) -> Dict[str, Dict[str, date]]:
-        """Calculate date ranges for different data types."""
         end_date = date.today()
         
         return {
@@ -127,15 +117,12 @@ class DataExtractor:
         }
 
 class TriathlonCoachDataExtractor(DataExtractor):
-    """Extracts and processes triathlon-related data from Garmin Connect."""
 
     def __init__(self, email: str, password: str):
-        """Initialize the Garmin client and login."""
         self.garmin = GarminConnectClient()
         self.garmin.connect(email, password)
 
     def extract_data(self, config: ExtractionConfig = ExtractionConfig()) -> GarminData:
-        """Extract all relevant data based on configuration."""
         date_ranges = self.get_date_ranges(config)
         
         # Base data that's always included
@@ -184,7 +171,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
         return GarminData(**data)
 
     def get_user_profile(self) -> UserProfile:
-        """Get relevant user profile information."""
         full_profile = self.garmin.client.get_user_profile()
         user_data = full_profile.get('userData', {})
         sleep_data = full_profile.get('userSleep', {})
@@ -211,7 +197,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
         )
 
     def get_daily_stats(self, date_obj: date) -> DailyStats:
-        """Get daily stats for the given date."""
         raw_data = self.garmin.client.get_stats(date_obj.isoformat())
         
         # Get sleep duration from recovery indicators for the night's sleep only
@@ -242,7 +227,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
         )
 
     def get_activity_laps(self, activity_id: int) -> List[Dict[str, Any]]:
-        """Get detailed lap data for a specific activity."""
         try:
             lap_data = self.garmin.client.get_activity_splits(activity_id)['lapDTOs']
             processed_laps = []
@@ -280,7 +264,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
             return []
 
     def get_recent_activities(self, start_date: date, end_date: date) -> List[Activity]:
-        """Get recent activities with focused, relevant information."""
         try:
             logger.info(f"Fetching activities between {start_date} and {end_date}")
             
@@ -341,7 +324,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
             return []
 
     def _process_multisport_activity(self, detailed_activity: Dict[str, Any]) -> Optional[Activity]:
-        """Process a multisport activity."""
         try:
             activity_id = detailed_activity.get('activityId')
             if not activity_id:
@@ -540,7 +522,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
             return None
 
     def _process_single_sport_activity(self, detailed_activity: Dict[str, Any]) -> Activity:
-        """Process a single sport activity."""
         try:
             activity_id = detailed_activity.get('activityId')
             if not activity_id:
@@ -654,7 +635,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
             return None
 
     def _extract_activity_summary(self, summary: Dict[str, Any]) -> ActivitySummary:
-        """Extract relevant summary data."""
         # For cycling activities, power data might be in the top-level activity object
         # We'll handle this in the _process_single_sport_activity method
         return ActivitySummary(
@@ -681,7 +661,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
         )
 
     def _extract_weather_data(self, weather: Dict[str, Any]) -> WeatherData:
-        """Extract relevant weather data."""
         if not isinstance(weather, dict):
             return WeatherData(None, None, None, None, None)
 
@@ -697,7 +676,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
         )
 
     def _extract_hr_zone_data(self, hr_zones: List[Dict[str, Any]]) -> List[HeartRateZone]:
-        """Extract relevant heart rate zone data."""
         if not hr_zones or not isinstance(hr_zones, list):
             logger.warning("No heart rate zones data available or invalid format")
             return []
@@ -721,7 +699,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
         return processed_zones
 
     def get_physiological_markers(self, start_date: date, end_date: date) -> PhysiologicalMarkers:
-        """Get relevant physiological markers."""
         # Get resting heart rate
         rhr_data = self.garmin.client.get_rhr_day(end_date.isoformat())
         rhr_value = rhr_data.get('allMetrics', {}).get('metricsMap', {}).get('WELLNESS_RESTING_HEART_RATE', [])
@@ -761,7 +738,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
         )
 
     def get_body_metrics(self, start_date: date, end_date: date) -> BodyMetrics:
-        """Get relevant body metrics in a clean format."""
         weight_data = self.garmin.client.get_body_composition(start_date.isoformat(), end_date.isoformat())
         hydration_data = [
             self.garmin.client.get_hydration_data(date.isoformat()) 
@@ -806,7 +782,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
         )
 
     def get_recovery_indicators(self, start_date: date, end_date: date) -> List[RecoveryIndicators]:
-        """Get relevant recovery indicators including sleep and stress data."""
         processed_data = []
         current_date = start_date
 
@@ -847,7 +822,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
         return processed_data
 
     def get_training_status(self, date_obj: date) -> TrainingStatus:
-        """Get relevant training status information."""
         try:
             logger.info(f"Fetching training status for date: {date_obj.isoformat()}")
             raw_data = self.garmin.client.get_training_status(date_obj.isoformat())
@@ -917,7 +891,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
         )
 
     def get_vo2_max_history(self, start_date: date, end_date: date) -> Dict[str, List[Dict[str, Any]]]:
-        """Get VO2 Max history for both running and cycling for the given date range."""
         history = {
             'running': [],
             'cycling': []
@@ -1020,7 +993,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
         return history
 
     def get_training_load_history(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
-        """Get training load history for the given date range."""
         history = []
         current_date = start_date
         logger.info(f"Fetching training load history from {start_date} to {end_date}")

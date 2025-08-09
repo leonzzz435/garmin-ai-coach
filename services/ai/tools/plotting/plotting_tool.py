@@ -1,4 +1,3 @@
-"""LangChain plotting tool for AI agents to generate interactive visualizations."""
 
 import logging
 from typing import Dict, Any, Optional, Type, TYPE_CHECKING
@@ -15,7 +14,6 @@ from .plot_storage import PlotStorage
 logger = logging.getLogger(__name__)
 
 class PlottingInput(BaseModel):
-    """Input schema for the plotting tool."""
     python_code: Optional[str] = Field(
         default=None,
         description="Complete Python code including imports, data creation/processing, and plotting that creates a 'fig' variable"
@@ -31,7 +29,6 @@ class PlottingInput(BaseModel):
     
 
 class PythonPlottingTool(BaseTool):
-    """LangChain tool for secure Python plotting with maximum agent freedom."""
     
     name: str = "python_plotting_tool"
     description: str = """
@@ -72,39 +69,15 @@ class PythonPlottingTool(BaseTool):
     progress_manager: Optional[Any] = None
     
     def __init__(self, plot_storage: PlotStorage, progress_manager: Optional[Any] = None, **kwargs):
-        """Initialize plotting tool with plot storage.
-        
-        Args:
-            plot_storage: Plot storage instance for this execution
-            progress_manager: Optional progress manager for real-time updates
-        """
         executor = SecurePythonExecutor()
         super().__init__(plot_storage=plot_storage, executor=executor, progress_manager=progress_manager, **kwargs)
     
     def _count_agent_plots(self, agent_name: str) -> int:
-        """Count how many plots this agent has already created.
-        
-        Args:
-            agent_name: Name of the agent to count plots for
-            
-        Returns:
-            Number of plots created by this agent
-        """
         plots = self.plot_storage.list_available_plots()
         return len([plot for plot in plots if plot.get('agent_name') == agent_name])
         
     def _run(self, python_code: Optional[str] = None, description: Optional[str] = None,
              agent_name: str = "unknown") -> str:
-        """Execute plotting code and store the result.
-        
-        Args:
-            python_code: Complete Python code including imports, data handling, and plotting
-            description: Brief description of what the plot shows
-            agent_name: Name of the agent creating the plot (fallback if instance agent_name not set)
-            
-        Returns:
-            Plot ID for referencing or helpful error message for agent retry
-        """
         try:
             # Use instance agent name if available, otherwise use parameter
             actual_agent_name = getattr(self, 'agent_name', agent_name) or agent_name
@@ -234,11 +207,9 @@ Please try again with a properly created 'fig' variable."""
     
     async def _arun(self, python_code: Optional[str] = None, description: Optional[str] = None,
                     agent_name: str = "unknown") -> str:
-        """Async version of the plotting tool."""
         return self._run(python_code, description, agent_name)
 
 class PlotListTool(BaseTool):
-    """Tool for agents to list available plots for referencing."""
     
     name: str = "list_available_plots"
     description: str = """
@@ -253,22 +224,9 @@ class PlotListTool(BaseTool):
     plot_storage: PlotStorage = None
     
     def __init__(self, plot_storage: PlotStorage, **kwargs):
-        """Initialize plot list tool.
-        
-        Args:
-            plot_storage: Plot storage instance for this execution
-        """
         super().__init__(plot_storage=plot_storage, **kwargs)
     
     def _run(self, tool_input: str = "") -> str:
-        """List available plots.
-        
-        Returns:
-            Formatted string of available plots
-            
-        Raises:
-            Exception: For system errors (handled by handle_tool_error)
-        """
         plots = self.plot_storage.list_available_plots()
         
         if not plots:
@@ -284,5 +242,4 @@ class PlotListTool(BaseTool):
         return "\n".join(plot_list)
     
     async def _arun(self, tool_input: str = "") -> str:
-        """Async version of plot listing."""
         return self._run(tool_input)

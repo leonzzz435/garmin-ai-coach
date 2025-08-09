@@ -1,4 +1,3 @@
-"""Plot reference resolver for embedding plots in HTML reports."""
 
 import logging
 import re
@@ -9,25 +8,11 @@ from .plot_storage import PlotStorage
 logger = logging.getLogger(__name__)
 
 class PlotReferenceResolver:
-    """Resolves plot references in text and embeds actual HTML plots."""
     
     def __init__(self, plot_storage: PlotStorage):
-        """Initialize resolver with plot storage.
-        
-        Args:
-            plot_storage: Plot storage instance for this execution
-        """
         self.plot_storage = plot_storage
         
     def resolve_plot_references(self, text: str) -> str:
-        """Replace [PLOT:plot_id] references with actual HTML plots.
-        
-        Args:
-            text: Text containing plot references
-            
-        Returns:
-            Text with plot references replaced by HTML content
-        """
         # Pattern to match [PLOT:plot_id] references
         plot_pattern = r'\[PLOT:([^\]]+)\]'
         
@@ -48,14 +33,6 @@ class PlotReferenceResolver:
         return resolved_text
     
     def _embed_plot(self, plot_id: str) -> str:
-        """Embed a single plot as HTML.
-        
-        Args:
-            plot_id: Plot identifier to embed
-            
-        Returns:
-            HTML content or fallback message
-        """
         plot_html = self.plot_storage.get_plot_html(plot_id)
         
         if plot_html:
@@ -84,15 +61,6 @@ class PlotReferenceResolver:
             return fallback
     
     def _wrap_plot_html(self, plot_id: str, plot_html: str) -> str:
-        """Wrap plot HTML in responsive container with styling.
-        
-        Args:
-            plot_id: Plot identifier
-            plot_html: Raw plot HTML content
-            
-        Returns:
-            Wrapped HTML with responsive styling
-        """
         return f"""
         <div class="plot-container" id="plot-{plot_id}" style="margin: 20px 0; width: 100%; overflow: hidden;">
             <div class="plot-content" style="width: 100%; height: auto;">
@@ -102,26 +70,10 @@ class PlotReferenceResolver:
         """
     
     def extract_plot_references(self, text: str) -> list[str]:
-        """Extract all plot references from text.
-        
-        Args:
-            text: Text to search for plot references
-            
-        Returns:
-            List of plot IDs referenced in the text
-        """
         plot_pattern = r'\[PLOT:([^\]]+)\]'
         return re.findall(plot_pattern, text)
     
     def validate_plot_references(self, text: str) -> Dict[str, Any]:
-        """Validate all plot references in text.
-        
-        Args:
-            text: Text to validate
-            
-        Returns:
-            Validation report with found, missing, and invalid references
-        """
         referenced_plots = self.extract_plot_references(text)
         available_plots = set(self.plot_storage.get_all_plots().keys())
         
@@ -143,11 +95,6 @@ class PlotReferenceResolver:
         }
     
     def get_plot_summary(self) -> str:
-        """Get summary of all available plots for debugging.
-        
-        Returns:
-            Formatted summary of available plots
-        """
         plots = self.plot_storage.list_available_plots()
         
         if not plots:
@@ -162,15 +109,9 @@ class PlotReferenceResolver:
         return "\n".join(summary_lines)
 
 class HTMLPlotEmbedder:
-    """Helper class for embedding plots in complete HTML documents."""
     
     @staticmethod
     def add_plot_styles() -> str:
-        """Get CSS styles for plot containers.
-        
-        Returns:
-            CSS styles for responsive plot display
-        """
         return """
         <style>
         .plot-container {
@@ -222,14 +163,6 @@ class HTMLPlotEmbedder:
     
     @staticmethod
     def wrap_html_document(content: str) -> str:
-        """Wrap content in complete HTML document with plot styles.
-        
-        Args:
-            content: HTML content to wrap
-            
-        Returns:
-            Complete HTML document
-        """
         styles = HTMLPlotEmbedder.add_plot_styles()
         
         return f"""

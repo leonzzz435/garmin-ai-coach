@@ -5,14 +5,12 @@ from typing import Dict, Any, List, Optional
 import os
 
 class TimeRange(Enum):
-    """Time ranges for data extraction"""
     # Values are determined by AI_MODE environment variable
     RECENT = 7 if os.getenv('AI_MODE') == 'development' else 21
     EXTENDED = 14 if os.getenv('AI_MODE') == 'development' else 56
 
 @dataclass
 class ExtractionConfig:
-    """Configuration for data extraction"""
     activities_range: int = TimeRange.RECENT.value
     metrics_range: int = TimeRange.EXTENDED.value
     include_detailed_activities: bool = True
@@ -20,7 +18,6 @@ class ExtractionConfig:
 
 @dataclass
 class UserProfile:
-    """User profile data"""
     gender: Optional[str] = None
     weight: Optional[float] = None
     height: Optional[float] = None
@@ -38,7 +35,6 @@ class UserProfile:
 
 @dataclass
 class DailyStats:
-    """Daily statistics"""
     date: Optional[str] = None
     total_steps: Optional[int] = None
     total_distance_meters: Optional[float] = None
@@ -62,7 +58,6 @@ class DailyStats:
 
 @dataclass
 class ActivitySummary:
-    """Activity summary data - raw metrics only"""
     distance: Optional[float] = None
     duration: Optional[int] = None
     moving_duration: Optional[int] = None
@@ -86,7 +81,6 @@ class ActivitySummary:
 
 @dataclass
 class WeatherData:
-    """Weather data for an activity"""
     temp: Optional[float] = None
     apparent_temp: Optional[float] = None
     relative_humidity: Optional[float] = None
@@ -95,14 +89,12 @@ class WeatherData:
 
 @dataclass
 class HeartRateZone:
-    """Heart rate zone data"""
     zone_number: Optional[int] = None
     secs_in_zone: Optional[int] = None
     zone_low_boundary: Optional[int] = None
 
 @dataclass
 class Activity:
-    """Complete activity data"""
     activity_id: Optional[int] = None
     activity_type: Optional[str] = None
     activity_name: Optional[str] = None
@@ -114,33 +106,28 @@ class Activity:
 
 @dataclass
 class PhysiologicalMarkers:
-    """Physiological markers data"""
     resting_heart_rate: Optional[int] = None
     vo2_max: Optional[float] = None
     hrv: Optional[Dict[str, Any]] = None  # Complex nested structure, keeping as Dict for now
 
 @dataclass
 class BodyMetrics:
-    """Body metrics data"""
     weight: Optional[Dict[str, Any]] = None  # Complex nested structure with historical data
     hydration: Optional[List[Dict[str, Any]]] = None  # Complex structure with daily data
 
 @dataclass
 class RecoveryIndicators:
-    """Recovery indicators including sleep and stress data"""
     date: Optional[str] = None
     sleep: Optional[Dict[str, Any]] = None  # Complex nested structure
     stress: Optional[Dict[str, Any]] = None  # Complex nested structure
 
 @dataclass
 class TrainingStatus:
-    """Training status information - raw metrics only"""
     vo2_max: Optional[Dict[str, Any]] = None
     acute_training_load: Optional[Dict[str, Any]] = None
 
 @dataclass
 class GarminData:
-    """Complete Garmin data container - raw data only"""
     user_profile: Optional[UserProfile] = None
     daily_stats: Optional[DailyStats] = None
     recent_activities: Optional[List[Activity]] = None

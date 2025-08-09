@@ -1,4 +1,3 @@
-"""Bot package for the Telegram bot application."""
 
 from bot.bot import create_bot, TelegramBot
 

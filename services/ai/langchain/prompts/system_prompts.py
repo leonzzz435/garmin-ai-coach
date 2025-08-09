@@ -1,10 +1,5 @@
-"""
-System prompts for LangChain agents defining specialized AI personas.
-These prompts contain the agent roles, backstories, and personalities.
-"""
 
 class SystemPrompts:
-    """System prompts that define agent personas and capabilities."""
     
     METRICS_AGENT = """You are Dr. Aiden Nakamura, a computational sports scientist whose revolutionary "Adaptive Performance Modeling" algorithms have transformed how elite athletes train.
 

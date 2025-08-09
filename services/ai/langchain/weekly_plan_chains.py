@@ -1,4 +1,3 @@
-"""LangChain weekly planning chains for intelligent training plan generation."""
 
 import logging
 from typing import Dict, Any
@@ -13,20 +12,13 @@ from .prompts.prompt_templates import PromptTemplateManager
 logger = logging.getLogger(__name__)
 
 class WeeklyPlanChains:
-    """LangChain implementation of weekly planning flows with no shared storage."""
     
     def __init__(self, user_id: str):
-        """Initialize weekly planning chains for a specific user execution.
-        
-        Args:
-            user_id: User identifier (for logging/context only, no persistence)
-        """
         self.user_id = user_id
         self.execution_id = f"{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         logger.info(f"Initialized weekly planning chains for execution {self.execution_id}")
     
     def create_season_planner_chain(self):
-        """Create season planning chain (replaces season_planner_agent)."""
         season_planner_prompt = PromptTemplateManager.create_season_planner_template()
         llm = ModelSelector.get_llm(AgentRole.SEASON_PLANNER)
         
@@ -37,7 +29,6 @@ class WeeklyPlanChains:
         ).with_config({"run_name": f"season_planner_{self.execution_id}"})
     
     def create_weekly_planner_chain(self):
-        """Create two-week detailed planning chain (replaces weekly_planner_agent)."""
         weekly_planner_prompt = PromptTemplateManager.create_weekly_planner_template()
         llm = ModelSelector.get_llm(AgentRole.WORKOUT)
         
@@ -48,7 +39,6 @@ class WeeklyPlanChains:
         ).with_config({"run_name": f"weekly_planner_{self.execution_id}"})
     
     def create_weekly_plan_formatter_chain(self):
-        """Create HTML formatter chain for weekly plans (replaces formatter_agent)."""
         formatter_prompt = PromptTemplateManager.create_weekly_plan_formatter_template()
         llm = ModelSelector.get_llm(AgentRole.FORMATTER)
         

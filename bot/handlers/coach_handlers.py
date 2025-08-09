@@ -1,4 +1,3 @@
-"""Coach command handlers for the Telegram bot."""
 
 import logging
 import datetime
@@ -29,7 +28,6 @@ EXPECTING_PLANNING_CONTEXT = 61
 user_data = {}  # Structure: {user_id: {'analysis_context': str, 'planning_context': str}}
 
 async def start_coach(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start the AI coach process."""
     message = update.message or update.callback_query.message
     user_id = update.effective_user.id
     
@@ -73,7 +71,6 @@ async def start_coach(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return EXPECTING_ANALYSIS_CONTEXT
 
 async def process_analysis_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process analysis context and ask for planning context."""
     message = update.message or update.callback_query.message
     user_id = update.effective_user.id
     
@@ -98,7 +95,6 @@ async def process_analysis_context(update: Update, context: ContextTypes.DEFAULT
     return EXPECTING_PLANNING_CONTEXT
 
 async def process_planning_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process planning context and run AI coach workflow."""
     message = update.message or update.callback_query.message
     user_id = update.effective_user.id
     user_name = update.effective_user.full_name
@@ -317,7 +313,6 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
     return ConversationHandler.END
 
 async def cancel_coach(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Cancel the AI coach conversation."""
     message = update.message or update.callback_query.message
     user_id = update.effective_user.id
     

@@ -5,21 +5,11 @@ from garminconnect import Garmin
 logger = logging.getLogger(__name__)
 
 class GarminConnectClient:
-    """Handles Garmin Connect API client setup and connection management"""
     
     def __init__(self):
         self._client: Optional[Garmin] = None
         
     def connect(self, email: str, password: str) -> None:
-        """Initialize and connect to Garmin Connect.
-        
-        Args:
-            email: Garmin Connect account email
-            password: Garmin Connect account password
-            
-        Raises:
-            Exception: If connection fails
-        """
         try:
             logger.info("Initializing Garmin Connect client")
             self._client = Garmin(email, password)
@@ -31,15 +21,9 @@ class GarminConnectClient:
     
     @property
     def client(self) -> Optional[Garmin]:
-        """Get the underlying Garmin Connect client.
-        
-        Returns:
-            The Garmin Connect client instance if connected, None otherwise
-        """
         return self._client
     
     def disconnect(self) -> None:
-        """Disconnect from Garmin Connect."""
         if self._client:
             # Note: garminconnect doesn't have an explicit logout/disconnect method
             # So we just clear our reference
@@ -47,9 +31,7 @@ class GarminConnectClient:
             logger.info("Disconnected from Garmin Connect")
     
     def __enter__(self):
-        """Context manager entry."""
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
         self.disconnect()

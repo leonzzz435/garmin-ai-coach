@@ -11,6 +11,8 @@ from services.garmin.models import ExtractionConfig
 import json
 from datetime import datetime, date
 from typing import Any
+import logging
+logger = logging.getLogger(__name__)
 
 config = ExtractionConfig(
     activities_range=7,
@@ -20,7 +22,6 @@ config = ExtractionConfig(
 )
 
 class GarminEncoder(json.JSONEncoder):
-    """Custom JSON encoder to handle Garmin data objects"""
     def default(self, obj: Any) -> Any:
         if isinstance(obj, date):
             return obj.isoformat()
@@ -40,18 +41,18 @@ def main():
     )
     
     # Extract all data with default config (includes all metrics)
-    print("Extracting data from Garmin Connect...")
+    logger.info("Extracting data from Garmin Connect...")
     data = extractor.extract_data(config)
     
     # Save to a timestamped file
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"stuff/garmin_data_{timestamp}.json"
     
-    print(f"Saving data to {filename}...")
+    logger.info(f"Saving data to {filename}...")
     with open(filename, 'w') as f:
         json.dump(vars(data), f, indent=2, cls=GarminEncoder)
     
-    print(f"Data has been saved to {filename}")
+    logger.info(f"Data has been saved to {filename}")
 
 if __name__ == "__main__":
     main()

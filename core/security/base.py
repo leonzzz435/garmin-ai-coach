@@ -1,4 +1,3 @@
-"""Base classes for secure storage functionality."""
 
 import os
 import json
@@ -11,36 +10,17 @@ from cryptography.fernet import Fernet, InvalidToken
 logger = logging.getLogger(__name__)
 
 class SecurityError(Exception):
-    """Base exception for security-related errors."""
 
 class StorageError(SecurityError):
-    """Exception for storage-related errors."""
 
 class SecureStorageBase:
-    """Base class for secure storage implementations."""
     
     def __init__(self, user_id: str, storage_type: str):
-        """
-        Initialize secure storage for a specific user and type.
-        
-        Args:
-            user_id: Unique identifier for the user
-            storage_type: Type of storage (e.g., 'credentials', 'reports')
-            
-        Raises:
-            StorageError: If storage setup fails
-        """
         self.user_id = str(user_id)
         self.storage_type = storage_type
         self._setup_storage()
     
     def _setup_storage(self) -> None:
-        """
-        Set up the secure storage directory structure.
-        
-        Raises:
-            StorageError: If directory creation or permissions setup fails
-        """
         try:
             # Create secure storage directory in user's home
             storage_dir = Path.home() / '.garmin_bot' / self.storage_type
@@ -93,18 +73,6 @@ class SecureStorageBase:
             raise StorageError(error_msg) from e
     
     def _encrypt(self, data: Any) -> bytes:
-        """
-        Encrypt data using Fernet encryption.
-        
-        Args:
-            data: Data to encrypt (must be JSON serializable)
-            
-        Returns:
-            bytes: Encrypted data
-            
-        Raises:
-            StorageError: If encryption fails
-        """
         try:
             logger.debug("Encrypting data")
             logger.debug(f"Data before serialization: {data}")
@@ -131,18 +99,6 @@ class SecureStorageBase:
             raise StorageError(error_msg) from e
     
     def _decrypt(self, encrypted_data: bytes) -> Any:
-        """
-        Decrypt data using Fernet encryption.
-        
-        Args:
-            encrypted_data: Data to decrypt
-            
-        Returns:
-            Any: Decrypted data
-            
-        Raises:
-            StorageError: If decryption fails
-        """
         try:
             logger.debug(f"Decrypting data ({len(encrypted_data)} bytes)")
             
@@ -172,15 +128,6 @@ class SecureStorageBase:
             raise StorageError(error_msg) from e
     
     def _write(self, data: Any) -> None:
-        """
-        Write encrypted data to storage.
-        
-        Args:
-            data: Data to store (must be JSON serializable)
-            
-        Raises:
-            StorageError: If write operation fails
-        """
         try:
             logger.debug(f"Writing data to {self.user_file}")
             logger.debug(f"Data to write: {json.dumps(data, indent=2)}")
@@ -219,15 +166,6 @@ class SecureStorageBase:
             raise StorageError(error_msg) from e
     
     def _read(self) -> Optional[Any]:
-        """
-        Read and decrypt data from storage.
-        
-        Returns:
-            Optional[Any]: Decrypted data if file exists, None otherwise
-            
-        Raises:
-            StorageError: If read operation fails
-        """
         try:
             if not self.user_file.exists():
                 logger.debug(f"Storage file does not exist: {self.user_file}")
@@ -252,15 +190,6 @@ class SecureStorageBase:
             raise StorageError(error_msg) from e
     
     def clear(self) -> bool:
-        """
-        Remove stored data.
-        
-        Returns:
-            bool: True if successful or file didn't exist, False otherwise
-            
-        Raises:
-            StorageError: If deletion fails
-        """
         try:
             logger.info(f"Attempting to clear data file: {self.user_file}")
             

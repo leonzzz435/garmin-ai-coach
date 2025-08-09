@@ -1,34 +1,14 @@
-"""Secure storage implementation for managing user reports."""
 
 import datetime
 from typing import Optional, Tuple
 from .base import SecureStorageBase, StorageError
 
 class SecureReportManager(SecureStorageBase):
-    """Manager for securely storing and retrieving user reports with timestamp validation."""
     
     def __init__(self, user_id: str):
-        """
-        Initialize the report manager for a specific user.
-        
-        Args:
-            user_id: Unique identifier for the user
-        """
         super().__init__(user_id, 'reports')
 
     def store_report(self, report: str) -> bool:
-        """
-        Securely store user's latest report with timestamp.
-        
-        Args:
-            report: Report content to store
-            
-        Returns:
-            bool: True if successful, False otherwise
-            
-        Raises:
-            StorageError: If storing report fails
-        """
         try:
             data = {
                 'report': report,
@@ -43,15 +23,6 @@ class SecureReportManager(SecureStorageBase):
             raise StorageError(f"Failed to store report: {str(e)}") from e
 
     def clear_report(self) -> bool:
-        """
-        Clear stored report.
-        
-        Returns:
-            bool: True if successful or if no report exists
-            
-        Raises:
-            StorageError: If clearing report fails
-        """
         try:
             if self.user_file.exists():
                 self.user_file.unlink()
@@ -60,16 +31,6 @@ class SecureReportManager(SecureStorageBase):
             raise StorageError(f"Failed to clear report: {str(e)}") from e
 
     def get_report(self) -> Optional[Tuple[str, datetime.datetime]]:
-        """
-        Retrieve stored report and its timestamp if not expired.
-        
-        Returns:
-            Optional[Tuple[str, datetime.datetime]]: (report, timestamp) tuple if found and not expired,
-            None otherwise
-            
-        Raises:
-            StorageError: If retrieving report fails
-        """
         try:
             data = self._read()
             if not data:

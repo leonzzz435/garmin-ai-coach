@@ -1,4 +1,3 @@
-"""Conversation handlers for the Telegram bot."""
 
 import logging
 import json
@@ -61,7 +60,6 @@ TARGET_TIME_EXAMPLES = "Examples: sub 3, 2:30 hrs, 45 minutes, around 5 hours"
 LOCATION_EXAMPLES = "Examples: Berlin, Central Park NYC, Lake Placid NY"
 
 async def start_login(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start the login process."""
     user_id = update.effective_user.id
     message = update.message or update.callback_query.message
     # Check if user already has stored credentials
@@ -87,7 +85,6 @@ async def start_login(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return EXPECTING_EMAIL
 
 async def process_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process the email input and ask for password."""
     user_id = update.effective_user.id
     message = update.message or update.callback_query.message
     email = update.message.text.strip()
@@ -103,7 +100,6 @@ async def process_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return EXPECTING_PASSWORD
 
 async def process_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process the password and complete login."""
     user_id = update.effective_user.id
     message = update.message or update.callback_query.message
     password = update.message.text.strip()
@@ -149,7 +145,6 @@ async def process_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Cancel any conversation."""
     message = update.message or update.callback_query.message
     await message.reply_text(
         "Operation cancelled\\.",
@@ -160,7 +155,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Add Race Conversation Handlers
 async def start_add_race(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start the add race process."""
     user_id = update.effective_user.id
     user_data[user_id] = {"race_data": {}}
     
@@ -172,7 +166,6 @@ async def start_add_race(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return RACE_NAME
 
 async def process_race_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process race name and ask for date."""
     user_id = update.effective_user.id
     user_data[user_id]["race_data"]["name"] = update.message.text.strip()
     
@@ -185,7 +178,6 @@ async def process_race_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return RACE_DATE
 
 async def process_race_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process race date and ask for type."""
     try:
         user_id = update.effective_user.id
         date_input = update.message.text.strip().replace(".", "-")
@@ -207,7 +199,6 @@ async def process_race_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return RACE_DATE
 
 async def process_race_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process race type and ask for priority."""
     user_id = update.effective_user.id
     race_type = update.message.text.strip()
     
@@ -229,7 +220,6 @@ async def process_race_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return RACE_PRIORITY
 
 async def process_race_priority(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process race priority and ask for target time."""
     user_id = update.effective_user.id
     priority = update.message.text.strip()
     
@@ -252,7 +242,6 @@ async def process_race_priority(update: Update, context: ContextTypes.DEFAULT_TY
         return RACE_PRIORITY
 
 async def process_race_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process target time and ask for location."""
     user_id = update.effective_user.id
     if update.message.text != "/skip":
         user_data[user_id]["race_data"]["target_time"] = update.message.text.strip()
@@ -265,7 +254,6 @@ async def process_race_target(update: Update, context: ContextTypes.DEFAULT_TYPE
     return RACE_LOCATION
 
 async def process_race_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process location and ask for notes."""
     user_id = update.effective_user.id
     if update.message.text != "/skip":
         user_data[user_id]["race_data"]["location"] = update.message.text.strip()
@@ -276,7 +264,6 @@ async def process_race_location(update: Update, context: ContextTypes.DEFAULT_TY
     return RACE_NOTES
 
 async def process_race_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process notes and save the race."""
     user_id = update.effective_user.id
     if update.message.text != "/skip":
         user_data[user_id]["race_data"]["notes"] = update.message.text.strip()
@@ -314,7 +301,6 @@ async def process_race_notes(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 # Edit Race Conversation Handlers
 async def start_edit_race(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start the edit race process."""
     await update.message.reply_text(
         "What's the date of the race you want to edit\\? \\(YYYY\\-MM\\-DD\\)\n" +
         "Example: `2024\\-06\\-30`",
@@ -323,7 +309,6 @@ async def start_edit_race(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return EDIT_DATE
 
 async def process_edit_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process the date and show edit options."""
     try:
         date_input = update.message.text.strip().replace(".", "-")
         race_date = date.fromisoformat(date_input)
@@ -373,7 +358,6 @@ async def process_edit_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return EDIT_DATE
 
 async def process_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process the field selection and ask for new value."""
     field = update.message.text.strip()
     user_id = update.effective_user.id
     
@@ -445,7 +429,6 @@ async def process_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE)
     return EDIT_VALUE
 
 async def process_edit_value(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process the new value and update the race."""
     user_id = update.effective_user.id
     field = user_data[user_id]["edit_field"]
     value = update.message.text.strip()

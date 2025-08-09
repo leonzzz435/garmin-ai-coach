@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""One-time script to broadcast a fun update message to all bot users."""
 
 import asyncio
 import logging
@@ -22,7 +21,6 @@ if not BOT_TOKEN:
     raise ValueError("TELE_BOT_KEY not found in .env file")
 
 async def broadcast_update():
-    """Send fun update message to all users."""
     # Initialize bot
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     

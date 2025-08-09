@@ -1,4 +1,3 @@
-"""Secure storage implementation for competition data."""
 
 import logging
 from datetime import date
@@ -11,22 +10,11 @@ from services.garmin.competition_models import Competition, RacePriority
 logger = logging.getLogger(__name__)
 
 class SecureCompetitionManager(SecureStorageBase):
-    """Manages secure storage of user competition data."""
     
     def __init__(self, user_id: str):
-        """Initialize competition storage for a user."""
         super().__init__(user_id, "competitions")
         
     def add_competition(self, competition: Competition) -> None:
-        """
-        Add a new competition to storage.
-        
-        Args:
-            competition: Competition object to store
-            
-        Raises:
-            StorageError: If storage operation fails
-        """
         try:
             competitions = self._read() or {}
             
@@ -50,18 +38,6 @@ class SecureCompetitionManager(SecureStorageBase):
             raise StorageError(f"Failed to add competition: {str(e)}") from e
             
     def get_competition(self, competition_date: date) -> Optional[Competition]:
-        """
-        Retrieve a specific competition by date.
-        
-        Args:
-            competition_date: Date of the competition
-            
-        Returns:
-            Optional[Competition]: Competition object if found, None otherwise
-            
-        Raises:
-            StorageError: If retrieval fails
-        """
         try:
             competitions = self._read() or {}
             comp_dict = competitions.get(competition_date.isoformat())
@@ -85,18 +61,6 @@ class SecureCompetitionManager(SecureStorageBase):
             
             
     def get_upcoming_competitions(self, from_date: Optional[date] = None) -> List[Competition]:
-        """
-        Retrieve upcoming competitions from a given date.
-        
-        Args:
-            from_date: Starting date for query (defaults to today)
-            
-        Returns:
-            List[Competition]: List of upcoming competitions
-            
-        Raises:
-            StorageError: If retrieval fails
-        """
         try:
             if from_date is None:
                 from_date = date.today()
@@ -125,19 +89,6 @@ class SecureCompetitionManager(SecureStorageBase):
             raise StorageError(f"Failed to retrieve upcoming competitions: {str(e)}") from e
             
     def update_competition(self, competition_date: date, updated_competition: Competition) -> bool:
-        """
-        Update an existing competition.
-        
-        Args:
-            competition_date: Date of the competition to update
-            updated_competition: Updated competition object
-            
-        Returns:
-            bool: True if update successful, False if competition not found
-            
-        Raises:
-            StorageError: If update fails
-        """
         try:
             competitions = self._read() or {}
             
@@ -167,18 +118,6 @@ class SecureCompetitionManager(SecureStorageBase):
             raise StorageError(f"Failed to update competition: {str(e)}") from e
             
     def delete_competition(self, competition_date: date) -> bool:
-        """
-        Delete a competition.
-        
-        Args:
-            competition_date: Date of the competition to delete
-            
-        Returns:
-            bool: True if deletion successful, False if competition not found
-            
-        Raises:
-            StorageError: If deletion fails
-        """
         try:
             logger.info(f"Attempting to delete competition on {competition_date}")
             

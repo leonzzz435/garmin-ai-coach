@@ -1,4 +1,3 @@
-"""User tracking functionality for the Telegram bot."""
 
 import json
 import logging
@@ -10,16 +9,13 @@ from typing import Optional, List, Dict, Any
 logger = logging.getLogger(__name__)
 
 class UserTracker:
-    """Track users who interact with the bot."""
     
     def __init__(self):
-        """Initialize the user tracker."""
         self.storage_dir = Path.home() / '.garmin_bot' / 'users'
         self.users_file = self.storage_dir / 'users.json'
         self._setup_storage()
     
     def _setup_storage(self) -> None:
-        """Set up the storage directory and files."""
         try:
             # Create directory if it doesn't exist
             self.storage_dir.mkdir(parents=True, exist_ok=True)
@@ -33,7 +29,6 @@ class UserTracker:
             raise
     
     def _load_users(self) -> Dict:
-        """Load users from storage."""
         try:
             if self.users_file.exists():
                 return json.loads(self.users_file.read_text())
@@ -43,7 +38,6 @@ class UserTracker:
             return {}
     
     def _save_users(self, users: Dict) -> None:
-        """Save users to storage."""
         try:
             self.users_file.write_text(json.dumps(users, indent=2))
         except Exception as e:
@@ -51,14 +45,6 @@ class UserTracker:
             raise
     
     def track_user(self, user_id: int, first_name: str, username: Optional[str] = None) -> None:
-        """
-        Track a user's interaction with the bot.
-        
-        Args:
-            user_id: Telegram user ID
-            first_name: User's first name
-            username: Optional username
-        """
         try:
             users = self._load_users()
             
@@ -86,7 +72,6 @@ class UserTracker:
             logger.error(f"Failed to track user: {e}")
     
     def get_all_users(self) -> List[Dict]:
-        """Get all tracked users."""
         try:
             users = self._load_users()
             return [
@@ -101,7 +86,6 @@ class UserTracker:
             return []
     
     def get_user(self, user_id: int) -> Optional[Dict]:
-        """Get a specific user's data."""
         try:
             users = self._load_users()
             user_data = users.get(str(user_id))

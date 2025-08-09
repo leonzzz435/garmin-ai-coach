@@ -1,8 +1,3 @@
-"""Report generation service for athlete data analysis.
-
-This package provides functionality for generating formatted reports
-from athlete training data, including activities, metrics, and analysis.
-"""
 from .utils import (
     summarize_activities,
     summarize_training_volume,

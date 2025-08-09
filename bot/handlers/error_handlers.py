@@ -1,4 +1,3 @@
-"""Error handlers for the Telegram bot."""
 
 import logging
 from telegram import Update
@@ -11,7 +10,6 @@ from bot.formatters import escape_markdown
 logger = logging.getLogger(__name__)
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle errors occurring in the dispatcher."""
     logger.error(f"Update {update} caused error {context.error}")
     
     if update:

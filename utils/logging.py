@@ -1,4 +1,3 @@
-"""Logging configuration module providing structured logging with rotation."""
 
 import os
 import sys
@@ -10,14 +9,12 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 
 class StructuredFormatter(logging.Formatter):
-    """Custom formatter that outputs logs in a structured JSON format."""
     
     def __init__(self):
         super().__init__()
         self.hostname = os.uname().nodename
     
     def format(self, record: logging.LogRecord) -> str:
-        """Format the log record as a JSON string."""
         # Base log data
         log_data = {
             'timestamp': datetime.fromtimestamp(record.created).isoformat(),
@@ -51,16 +48,6 @@ def setup_logging(
     backup_count: int = 5,
     console: bool = True
 ) -> None:
-    """
-    Set up application-wide logging configuration with structured logging and rotation.
-    
-    Args:
-        log_dir: Directory to store log files. If None, logs only to console.
-        level: Logging level (default: INFO)
-        max_size: Maximum size of each log file in bytes (default: 10MB)
-        backup_count: Number of backup files to keep (default: 5)
-        console: Whether to also log to console (default: True)
-    """
     # Create root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
@@ -105,16 +92,6 @@ def log_with_context(
     context: Optional[Dict[str, Any]] = None,
     **kwargs
 ) -> None:
-    """
-    Log a message with additional context fields in structured format.
-    
-    Args:
-        logger: Logger instance to use
-        level: Logging level
-        msg: Log message
-        context: Dictionary of additional context fields
-        **kwargs: Additional logging arguments
-    """
     extra = kwargs.get('extra', {})
     if context:
         extra['extra_fields'] = context
@@ -123,6 +100,4 @@ def log_with_context(
 
 # Example usage:
 # setup_logging(log_dir='/var/log/myapp', level=logging.INFO)
-# logger = logging.getLogger(__name__)
 # log_with_context(logger, logging.INFO, "User logged in", 
-#                 context={'user_id': '123', 'ip': '1.2.3.4'})

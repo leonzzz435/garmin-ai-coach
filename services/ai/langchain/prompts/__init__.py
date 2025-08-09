@@ -1,6 +1,3 @@
-"""
-Prompt management for LangChain implementation.
-"""
 
 from .system_prompts import SystemPrompts
 from .user_prompts import UserPrompts

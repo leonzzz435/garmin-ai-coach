@@ -1,10 +1,5 @@
-"""
-User prompts for LangChain agents defining specialized analysis tasks.
-These prompts contain the specific task instructions and requirements.
-"""
 
 class UserPrompts:
-    """User prompts that define specific tasks and their requirements."""
     
     METRICS_ANALYSIS = """Analyze historical training metrics to identify patterns and trends in the athlete's data.
 

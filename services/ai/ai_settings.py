@@ -1,6 +1,3 @@
-"""
-Centralized AI configuration settings.
-"""
 
 from dataclasses import dataclass, field
 from typing import Optional, Dict
@@ -8,7 +5,6 @@ from enum import Enum
 from core.config import get_config, AIMode
 
 class AgentRole(Enum):
-    """Different roles for specialized agents."""
     METRICS = "metrics"
     ACTIVITY_DATA = "activity_data"           # Data extraction agent
     ACTIVITY_INTERPRETER = "activity_interpreter"  # Interpretation agent
@@ -21,7 +17,6 @@ class AgentRole(Enum):
 
 @dataclass
 class AISettings:
-    """Global AI settings configuration."""
     mode: AIMode
     agentops_enabled: bool
     agentops_api_key: Optional[str]
@@ -37,19 +32,16 @@ class AISettings:
     model_assignments: Dict[AIMode, Dict[AgentRole, str]] = field(default_factory=lambda: {})
     
     def __post_init__(self):
-        """Initialize model assignments from stage models."""
         for mode, model in self.stage_models.items():
             self.model_assignments[mode] = {
                 role: model for role in AgentRole
             }
 
     def get_model_for_role(self, role: AgentRole) -> str:
-        """Get the appropriate model name for a given role based on current mode."""
         return self.model_assignments[self.mode][role]
 
     @classmethod
     def load_settings(cls) -> 'AISettings':
-        """Load AI settings from configuration."""
         config = get_config()
         
         return cls(

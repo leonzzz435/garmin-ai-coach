@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""One-time script to send a fun 'blocked' message to a specific user."""
 
 import asyncio
 import logging
@@ -25,7 +24,6 @@ if not BOT_TOKEN:
 TARGET_USER_ID = 1386563280
 
 async def send_fun_message():
-    """Send fun 'blocked' message to specific user."""
     # Initialize bot
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     
