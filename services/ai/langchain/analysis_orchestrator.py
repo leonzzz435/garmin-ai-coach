@@ -155,6 +155,11 @@ class LangChainAnalysisOrchestrator:
                 "Metrics Agent", cb.usage_metadata, execution_time
             )
             
+            # Log web search usage if any
+            total_searches = sum(usage.web_search_requests for usage in agent_cost_summary.model_usage)
+            if total_searches > 0:
+                logger.info(f"🔍 Metrics Agent performed {total_searches} web searches")
+            
             # Extract output from AgentExecutor response
             metrics_result = self._extract_agent_output(metrics_response)
             
@@ -197,6 +202,11 @@ class LangChainAnalysisOrchestrator:
                 "Activity Data Agent", cb.usage_metadata, execution_time
             )
             
+            # Log web search usage if any
+            total_searches = sum(usage.web_search_requests for usage in agent_cost_summary.model_usage)
+            if total_searches > 0:
+                logger.info(f"🔍 Activity Data Agent performed {total_searches} web searches")
+            
             if self.progress_manager:
                 await self.progress_manager.agent_completed(
                     "Activity Data Agent",
@@ -232,6 +242,11 @@ class LangChainAnalysisOrchestrator:
             agent_cost_summary = self.cost_tracker.add_agent_cost(
                 "Activity Interpreter Agent", cb.usage_metadata, execution_time
             )
+            
+            # Log web search usage if any
+            total_searches = sum(usage.web_search_requests for usage in agent_cost_summary.model_usage)
+            if total_searches > 0:
+                logger.info(f"🔍 Activity Interpreter Agent performed {total_searches} web searches")
             
             # Extract output from AgentExecutor response
             activity_result = self._extract_agent_output(activity_response)
@@ -279,6 +294,11 @@ class LangChainAnalysisOrchestrator:
                 "Physiology Agent", cb.usage_metadata, execution_time
             )
             
+            # Log web search usage if any
+            total_searches = sum(usage.web_search_requests for usage in agent_cost_summary.model_usage)
+            if total_searches > 0:
+                logger.info(f"🔍 Physiology Agent performed {total_searches} web searches")
+            
             # Extract output from AgentExecutor response
             physiology_result = self._extract_agent_output(physiology_response)
             
@@ -324,6 +344,11 @@ class LangChainAnalysisOrchestrator:
             agent_cost_summary = self.cost_tracker.add_agent_cost(
                 "Synthesis Agent", cb.usage_metadata, execution_time
             )
+            
+            # Log web search usage if any
+            total_searches = sum(usage.web_search_requests for usage in agent_cost_summary.model_usage)
+            if total_searches > 0:
+                logger.info(f"🔍 Synthesis Agent performed {total_searches} web searches")
             
             # Extract output from AgentExecutor response
             synthesis_result = self._extract_agent_output(synthesis_response)

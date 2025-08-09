@@ -71,11 +71,11 @@ class ModelSelector:
             base_url="https://api.anthropic.com"
         ),
         "claude-opus": ModelConfiguration(
-            name="claude-opus-4-20250514",
+            name="claude-opus-4-1-20250805",
             base_url="https://api.anthropic.com"
         ),
         "claude-opus-thinking": ModelConfiguration(
-            name="claude-opus-4-20250514",
+            name="claude-opus-4-1-20250805",
             base_url="https://api.anthropic.com"
         ),
         "claude-3-haiku": ModelConfiguration(
@@ -92,6 +92,15 @@ class ModelSelector:
             name="openrouter/deepseek/deepseek-r1",
             base_url="https://openrouter.ai/api/v1"
         ),
+    }
+
+    # Models that support web search
+    WEB_SEARCH_SUPPORTED_MODELS = {
+        "claude-opus-4-1-20250805",
+        "claude-sonnet-4-20250514",
+        "claude-3-7-sonnet-20250219",
+        "claude-3-5-sonnet-latest",
+        "claude-3-5-haiku-latest"
     }
 
     @classmethod
@@ -141,6 +150,13 @@ class ModelSelector:
         if "anthropic" in model_config.base_url:
             llm_params["api_key"] = api_key
             llm = ChatAnthropic(**llm_params)
+            
+            # Add web search tool using bind_tools if supported
+            if model_config.name in cls.WEB_SEARCH_SUPPORTED_MODELS:
+                web_search_tool = {"type": "web_search_20250305", "name": "web_search", "max_uses": 3}
+                llm = llm.bind_tools([web_search_tool])
+                logger.info(f"Web search enabled for {model_config.name} with max 3 uses per request")
+            
         elif "openrouter" in model_config.base_url:
             llm_params["openai_api_key"] = api_key
             llm_params["openai_api_base"] = model_config.base_url

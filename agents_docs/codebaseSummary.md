@@ -85,7 +85,8 @@ Each agent specializes in a specific analysis domain:
 
 ### AI Model Usage
 - **Primary Model**: Anthropic Claude (via LangChain)
-- **Cost Tracking**: Built-in cost monitoring per analysis
+- **Web Search**: Built-in web search tool for supported Claude models (max 3 uses per analysis)
+- **Cost Tracking**: Built-in cost monitoring per analysis including web search requests
 - **Token Limits**: Tool usage limiting to control costs
 
 ## Recent Significant Changes
@@ -102,13 +103,21 @@ tele_garmin/
 ├── agents_docs/          # NEW: Project documentation
 ├── bot/                  # Telegram bot interface
 ├── core/security/        # Authentication and security
-├── services/            
-│   ├── ai/langchain/    # AI orchestration and agents
+├── services/
+│   ├── ai/langchain/    # AI orchestration and agents (with web search)
 │   ├── garmin/          # Data extraction
 │   └── report/          # Report utilities
 ├── scripts/             # Utility scripts
 └── config files         # Pixi, PyProject, etc.
 ```
+
+### Recent Significant Changes
+
+#### Web Search Integration (Current)
+- **New Capability**: AI agents can now perform web searches for current information
+- **Implementation**: LangChain built-in web search via `bind_tools()`
+- **Cost Control**: Limited to 3 searches per analysis, tracked in cost monitoring
+- **Model Support**: Available on Claude Opus 4.1, Claude Sonnet 4, and Claude 3.5 models
 
 ## User Feedback Integration and Development Impact
 

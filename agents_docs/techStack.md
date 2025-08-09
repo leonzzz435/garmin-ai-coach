@@ -8,7 +8,8 @@
 - **Anthropic Claude** - AI model for analysis generation
 
 ### AI & Data Processing
-- **LangChain** - Multi-agent orchestration framework
+- **LangChain** - Multi-agent orchestration framework with built-in web search support
+- **Anthropic Web Search** - Built-in web search tool for Claude models (max 3 uses per analysis)
 - **Garmin Connect Client** - Custom data extraction from Garmin
 - **Matplotlib/Plotly** - Chart and visualization generation
 - **Pandas/NumPy** - Data processing and analysis
@@ -146,6 +147,12 @@ python-multipart = "^0.0.6"
 - **Swift Version**: 5.9+
 
 ## Future Technology Considerations
+
+### Web Search Integration (New)
+- **Supported Models**: Claude Opus 4.1, Claude Sonnet 4, Claude 3.7 Sonnet, Claude 3.5 Sonnet/Haiku
+- **Implementation**: LangChain built-in web search tool via `bind_tools()`
+- **Cost Tracking**: Web search requests tracked at $10 per 1,000 searches
+- **Usage Limits**: Maximum 3 web searches per analysis for cost control
 
 ### Potential Enhancements
 - **WebSocket** - Real-time progress updates
