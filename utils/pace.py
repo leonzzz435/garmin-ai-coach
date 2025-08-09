@@ -1,6 +1,3 @@
-from typing import Tuple
-
-
 def meters_per_second_to_kmh(speed_ms: float) -> float:
     if not speed_ms or speed_ms == 0:
         return 0.0
@@ -13,10 +10,10 @@ def kmh_to_meters_per_second(speed_kmh: float) -> float:
     return round(speed_kmh / 3.6, 3)
 
 
-def meters_per_second_to_min_per_km(speed_ms: float) -> Tuple[int, int]:
+def meters_per_second_to_min_per_km(speed_ms: float) -> tuple[int, int]:
     if not speed_ms or speed_ms == 0:
         return (0, 0)
-    
+
     # Convert to minutes per kilometer
     pace_decimal = (1000 / speed_ms) / 60
     minutes = int(pace_decimal)
@@ -31,10 +28,10 @@ def min_per_km_to_meters_per_second(minutes: int, seconds: int) -> float:
     return round(1000 / total_seconds, 3)
 
 
-def meters_per_second_to_min_per_mile(speed_ms: float) -> Tuple[int, int]:
+def meters_per_second_to_min_per_mile(speed_ms: float) -> tuple[int, int]:
     if not speed_ms or speed_ms == 0:
         return (0, 0)
-    
+
     # Convert to minutes per mile (1 mile = 1609.34 meters)
     pace_decimal = (1609.34 / speed_ms) / 60
     minutes = int(pace_decimal)

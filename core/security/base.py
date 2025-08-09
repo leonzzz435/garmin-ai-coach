@@ -10,8 +10,10 @@ from cryptography.fernet import Fernet, InvalidToken
 logger = logging.getLogger(__name__)
 
 class SecurityError(Exception):
+    pass
 
 class StorageError(SecurityError):
+    pass
 
 class SecureStorageBase:
     

@@ -1,8 +1,7 @@
-
 from .base import SecureStorageBase, SecurityError, StorageError
+from .competitions import SecureCompetitionManager
 from .credentials import SecureCredentialManager
 from .reports import SecureReportManager
-from .competitions import SecureCompetitionManager
 
 __all__ = [
     'SecureStorageBase',
@@ -10,5 +9,5 @@ __all__ = [
     'StorageError',
     'SecureCredentialManager',
     'SecureReportManager',
-    'SecureCompetitionManager'
+    'SecureCompetitionManager',
 ]

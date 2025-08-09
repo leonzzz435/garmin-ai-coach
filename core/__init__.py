@@ -1,4 +1,3 @@
-
 from .config import get_config
 from .security import SecureStorageBase
 

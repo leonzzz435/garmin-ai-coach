@@ -7,6 +7,7 @@ from .base import SecureStorageBase, StorageError
 logger = logging.getLogger(__name__)
 
 class CacheError(StorageError):
+    pass
 
 class SecureMetricsCache(SecureStorageBase):
     

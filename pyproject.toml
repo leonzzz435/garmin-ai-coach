@@ -28,3 +28,33 @@ authors = [
 
 [tool.setuptools]
 packages = ["bot", "core", "services", "utils"]
+
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+skip-string-normalization = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    "I",  # isort (import sorting)
+    "UP", # pyupgrade
+    "B",  # bugbear
+    "PL", # pylint (subset)
+]
+ignore = [
+    "D",    # pydocstyle - docstrings intentionally minimized
+    "ANN",  # typing annotations enforcement
+    "E501", # line length - allow longer lines for logs/URLs/strings
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

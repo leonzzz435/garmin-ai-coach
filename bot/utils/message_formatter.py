@@ -1,21 +1,39 @@
-
 import datetime
-from typing import Dict, List, Optional
+
 from telegram.constants import ParseMode
 
 
 def escape_markdownv2(text: str) -> str:
     # Characters that need escaping in MarkdownV2
-    escape_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
-    
+    escape_chars = [
+        '_',
+        '*',
+        '[',
+        ']',
+        '(',
+        ')',
+        '~',
+        '`',
+        '>',
+        '#',
+        '+',
+        '-',
+        '=',
+        '|',
+        '{',
+        '}',
+        '.',
+        '!',
+    ]
+
     for char in escape_chars:
         text = text.replace(char, f'\\{char}')
-    
+
     return text
 
 
 class MessageFormatter:
-    
+
     @staticmethod
     def create_analysis_summary(date_str: str) -> str:
         summary = f"""📦 *AI Coach Analysis Report* — `{date_str}`
@@ -31,14 +49,14 @@ class MessageFormatter:
 📆 Coach Magnus — Long\\-term periodization strategy
 
 🟢 _Analysis complete\\. Performance optimization ready\\._"""
-        
+
         return summary
-    
+
     @staticmethod
     def create_file_caption(file_type: str, description: str) -> str:
         # Escape the description
         escaped_desc = escape_markdownv2(description)
-        
+
         captions = {
             'analysis_html': f"""📊 *Training Analysis Report*
 Complete synthesis of all performance factors
@@ -48,7 +66,6 @@ Complete synthesis of all performance factors
 • Comprehensive training assessment
 
 {escaped_desc}""",
-            
             'weekplan_html': f"""📅 *Weekly Training Plan*
 Detailed workout prescriptions by Coach Magnus
 • Systematic training progression
@@ -57,7 +74,6 @@ Detailed workout prescriptions by Coach Magnus
 • Competition preparation protocols
 
 {escaped_desc}""",
-            
             'metrics': f"""🧪 *Metrics Analysis by Dr\\. Nakamura*
 Predictive performance modeling and training optimization
 • Adaptive performance modeling algorithms
@@ -66,7 +82,6 @@ Predictive performance modeling and training optimization
 • Risk quantification for overtraining prevention
 
 {escaped_desc}""",
-            
             'activity_interpretation': f"""🏃 *Activity Analysis by Coach Petrova*
 Technical execution assessment and progression mapping
 • Workout execution quality evaluation
@@ -75,7 +90,6 @@ Technical execution assessment and progression mapping
 • Training effectiveness scoring
 
 {escaped_desc}""",
-            
             'physiology': f"""🧬 *Physiology Analysis by Dr\\. Osei*
 Recovery optimization and adaptation monitoring
 • Heart rate variability pattern analysis
@@ -84,7 +98,6 @@ Recovery optimization and adaptation monitoring
 • Overtraining and maladaptation early warning
 
 {escaped_desc}""",
-            
             'season_plan': f"""📆 *Season Planning by Coach Magnus*
 Long\\-term periodization and systematic development
 • Competition timeline and peak timing
@@ -92,11 +105,14 @@ Long\\-term periodization and systematic development
 • Environmental and seasonal adaptations
 • Systematic progression methodology
 
-{escaped_desc}"""
+{escaped_desc}""",
         }
-        
-        return captions.get(file_type, f"📋 *{escape_markdownv2(file_type.replace('_', ' ').title())}*\n\n{escaped_desc}")
-    
+
+        return captions.get(
+            file_type,
+            f"📋 *{escape_markdownv2(file_type.replace('_', ' ').title())}*\n\n{escaped_desc}",
+        )
+
     @staticmethod
     def create_completion_message() -> str:
         return """✅ *Comprehensive analysis completed\\!*
@@ -118,74 +134,68 @@ Need adjustments\\? I DONT CARE BICH\\! 💪"""
 
 
 class FileDeliveryManager:
-    
-    def __init__(self, date_str: Optional[str] = None):
+
+    def __init__(self, date_str: str | None = None):
         self.date_str = date_str or datetime.datetime.now().strftime('%Y%m%d')
-        
-    def get_file_sequence(self) -> List[Dict[str, str]]:
+
+    def get_file_sequence(self) -> list[dict[str, str]]:
         return [
             {
                 'type': 'summary',
                 'content': MessageFormatter.create_analysis_summary(self.date_str),
-                'parse_mode': ParseMode.MARKDOWN_V2
+                'parse_mode': ParseMode.MARKDOWN_V2,
             },
             {
                 'type': 'analysis_html',
                 'filename': f'analysis_{self.date_str}.html',
                 'caption': MessageFormatter.create_file_caption(
-                    'analysis_html', 
-                    'Complete training insights and recommendations'
+                    'analysis_html', 'Complete training insights and recommendations'
                 ),
-                'parse_mode': ParseMode.MARKDOWN_V2
+                'parse_mode': ParseMode.MARKDOWN_V2,
             },
             {
                 'type': 'weekplan_html',
                 'filename': f'weekplan_{self.date_str}.html',
                 'caption': MessageFormatter.create_file_caption(
-                    'weekplan_html',
-                    'Your personalized training schedule'
+                    'weekplan_html', 'Your personalized training schedule'
                 ),
-                'parse_mode': ParseMode.MARKDOWN_V2
+                'parse_mode': ParseMode.MARKDOWN_V2,
             },
             {
                 'type': 'metrics',
                 'filename': f'metrics_{self.date_str}.md',
                 'caption': MessageFormatter.create_file_caption(
-                    'metrics',
-                    'Detailed metrics breakdown'
+                    'metrics', 'Detailed metrics breakdown'
                 ),
-                'parse_mode': ParseMode.MARKDOWN_V2
+                'parse_mode': ParseMode.MARKDOWN_V2,
             },
             {
                 'type': 'activity_interpretation',
                 'filename': f'activity_interpretation_{self.date_str}.md',
                 'caption': MessageFormatter.create_file_caption(
-                    'activity_interpretation',
-                    'Workout pattern analysis'
+                    'activity_interpretation', 'Workout pattern analysis'
                 ),
-                'parse_mode': ParseMode.MARKDOWN_V2
+                'parse_mode': ParseMode.MARKDOWN_V2,
             },
             {
                 'type': 'physiology',
                 'filename': f'physiology_{self.date_str}.md',
                 'caption': MessageFormatter.create_file_caption(
-                    'physiology',
-                    'Recovery and adaptation insights'
+                    'physiology', 'Recovery and adaptation insights'
                 ),
-                'parse_mode': ParseMode.MARKDOWN_V2
+                'parse_mode': ParseMode.MARKDOWN_V2,
             },
             {
                 'type': 'season_plan',
                 'filename': f'season_plan_{self.date_str}.md',
                 'caption': MessageFormatter.create_file_caption(
-                    'season_plan',
-                    'Long-term training strategy'
+                    'season_plan', 'Long-term training strategy'
                 ),
-                'parse_mode': ParseMode.MARKDOWN_V2
+                'parse_mode': ParseMode.MARKDOWN_V2,
             },
             {
                 'type': 'completion',
                 'content': MessageFormatter.create_completion_message(),
-                'parse_mode': ParseMode.MARKDOWN_V2
-            }
+                'parse_mode': ParseMode.MARKDOWN_V2,
+            },
         ]

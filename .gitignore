@@ -34,7 +34,7 @@ env/
 
 # stuff
 stuff/
-agent_docs/
+agents_docs/
 /analysis/
 /workouts/
 
@@ -57,3 +57,19 @@ config.py
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+
+# Tooling
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Logs and runtime artifacts
+logs/
+
+# Data artifacts
+data/cache/
+data/plots/

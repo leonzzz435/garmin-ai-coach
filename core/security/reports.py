@@ -1,10 +1,10 @@
-
 import datetime
-from typing import Optional, Tuple
+
 from .base import SecureStorageBase, StorageError
 
+
 class SecureReportManager(SecureStorageBase):
-    
+
     def __init__(self, user_id: str):
         super().__init__(user_id, 'reports')
 
@@ -13,7 +13,7 @@ class SecureReportManager(SecureStorageBase):
             data = {
                 'report': report,
                 'timestamp': datetime.datetime.now().isoformat(),
-                'user_id': self.user_id
+                'user_id': self.user_id,
             }
             self._write(data)
             return True
@@ -30,12 +30,12 @@ class SecureReportManager(SecureStorageBase):
         except Exception as e:
             raise StorageError(f"Failed to clear report: {str(e)}") from e
 
-    def get_report(self) -> Optional[Tuple[str, datetime.datetime]]:
+    def get_report(self) -> tuple[str, datetime.datetime] | None:
         try:
             data = self._read()
             if not data:
                 return None
-            
+
             if data['user_id'] != self.user_id:
                 return None
 

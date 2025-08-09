@@ -1,13 +1,14 @@
+import os
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Any, List, Optional
+from typing import Any
 
-import os
 
 class TimeRange(Enum):
     # Values are determined by AI_MODE environment variable
     RECENT = 7 if os.getenv('AI_MODE') == 'development' else 21
     EXTENDED = 14 if os.getenv('AI_MODE') == 'development' else 56
+
 
 @dataclass
 class ExtractionConfig:
@@ -16,125 +17,136 @@ class ExtractionConfig:
     include_detailed_activities: bool = True
     include_metrics: bool = True
 
+
 @dataclass
 class UserProfile:
-    gender: Optional[str] = None
-    weight: Optional[float] = None
-    height: Optional[float] = None
-    birth_date: Optional[str] = None
-    activity_level: Optional[str] = None
-    vo2max_running: Optional[float] = None
-    vo2max_cycling: Optional[float] = None
-    lactate_threshold_speed: Optional[float] = None  # Speed in m/s
-    lactate_threshold_heart_rate: Optional[int] = None
-    ftp_auto_detected: Optional[bool] = None
-    available_training_days: Optional[List[str]] = None
-    preferred_long_training_days: Optional[List[str]] = None
-    sleep_time: Optional[str] = None
-    wake_time: Optional[str] = None
+    gender: str | None = None
+    weight: float | None = None
+    height: float | None = None
+    birth_date: str | None = None
+    activity_level: str | None = None
+    vo2max_running: float | None = None
+    vo2max_cycling: float | None = None
+    lactate_threshold_speed: float | None = None  # Speed in m/s
+    lactate_threshold_heart_rate: int | None = None
+    ftp_auto_detected: bool | None = None
+    available_training_days: list[str] | None = None
+    preferred_long_training_days: list[str] | None = None
+    sleep_time: str | None = None
+    wake_time: str | None = None
+
 
 @dataclass
 class DailyStats:
-    date: Optional[str] = None
-    total_steps: Optional[int] = None
-    total_distance_meters: Optional[float] = None
-    total_calories: Optional[int] = None
-    active_calories: Optional[int] = None
-    bmr_calories: Optional[int] = None
-    wellness_start_time: Optional[str] = None
-    wellness_end_time: Optional[str] = None
-    duration_in_hours: Optional[float] = None
-    min_heart_rate: Optional[int] = None
-    max_heart_rate: Optional[int] = None
-    resting_heart_rate: Optional[int] = None
-    average_stress_level: Optional[float] = None
-    max_stress_level: Optional[int] = None
-    stress_duration_seconds: Optional[int] = None
-    sleeping_seconds: Optional[int] = None
-    sleeping_hours: Optional[float] = None
-    respiration_average: Optional[float] = None
-    respiration_highest: Optional[float] = None
-    respiration_lowest: Optional[float] = None
+    date: str | None = None
+    total_steps: int | None = None
+    total_distance_meters: float | None = None
+    total_calories: int | None = None
+    active_calories: int | None = None
+    bmr_calories: int | None = None
+    wellness_start_time: str | None = None
+    wellness_end_time: str | None = None
+    duration_in_hours: float | None = None
+    min_heart_rate: int | None = None
+    max_heart_rate: int | None = None
+    resting_heart_rate: int | None = None
+    average_stress_level: float | None = None
+    max_stress_level: int | None = None
+    stress_duration_seconds: int | None = None
+    sleeping_seconds: int | None = None
+    sleeping_hours: float | None = None
+    respiration_average: float | None = None
+    respiration_highest: float | None = None
+    respiration_lowest: float | None = None
+
 
 @dataclass
 class ActivitySummary:
-    distance: Optional[float] = None
-    duration: Optional[int] = None
-    moving_duration: Optional[int] = None
-    elevation_gain: Optional[float] = None
-    elevation_loss: Optional[float] = None
-    average_speed: Optional[float] = None
-    max_speed: Optional[float] = None
-    calories: Optional[int] = None
-    average_hr: Optional[int] = None
-    max_hr: Optional[int] = None
-    activity_training_load: Optional[int] = None
-    moderate_intensity_minutes: Optional[int] = None
-    vigorous_intensity_minutes: Optional[int] = None
-    recovery_heart_rate: Optional[int] = None
+    distance: float | None = None
+    duration: int | None = None
+    moving_duration: int | None = None
+    elevation_gain: float | None = None
+    elevation_loss: float | None = None
+    average_speed: float | None = None
+    max_speed: float | None = None
+    calories: int | None = None
+    average_hr: int | None = None
+    max_hr: int | None = None
+    activity_training_load: int | None = None
+    moderate_intensity_minutes: int | None = None
+    vigorous_intensity_minutes: int | None = None
+    recovery_heart_rate: int | None = None
     # Power-related fields for cycling activities
-    avg_power: Optional[float] = None
-    max_power: Optional[float] = None
-    normalized_power: Optional[float] = None
-    training_stress_score: Optional[float] = None
-    intensity_factor: Optional[float] = None
+    avg_power: float | None = None
+    max_power: float | None = None
+    normalized_power: float | None = None
+    training_stress_score: float | None = None
+    intensity_factor: float | None = None
+
 
 @dataclass
 class WeatherData:
-    temp: Optional[float] = None
-    apparent_temp: Optional[float] = None
-    relative_humidity: Optional[float] = None
-    wind_speed: Optional[float] = None
-    weather_type: Optional[str] = None
+    temp: float | None = None
+    apparent_temp: float | None = None
+    relative_humidity: float | None = None
+    wind_speed: float | None = None
+    weather_type: str | None = None
+
 
 @dataclass
 class HeartRateZone:
-    zone_number: Optional[int] = None
-    secs_in_zone: Optional[int] = None
-    zone_low_boundary: Optional[int] = None
+    zone_number: int | None = None
+    secs_in_zone: int | None = None
+    zone_low_boundary: int | None = None
+
 
 @dataclass
 class Activity:
-    activity_id: Optional[int] = None
-    activity_type: Optional[str] = None
-    activity_name: Optional[str] = None
-    start_time: Optional[str] = None
-    summary: Optional[ActivitySummary] = None
-    weather: Optional[WeatherData] = None
-    hr_zones: Optional[List[HeartRateZone]] = None
-    laps: Optional[List[Dict[str, Any]]] = None  # Complex structure, keeping as Dict for now
+    activity_id: int | None = None
+    activity_type: str | None = None
+    activity_name: str | None = None
+    start_time: str | None = None
+    summary: ActivitySummary | None = None
+    weather: WeatherData | None = None
+    hr_zones: list[HeartRateZone] | None = None
+    laps: list[dict[str, Any]] | None = None  # Complex structure, keeping as Dict for now
+
 
 @dataclass
 class PhysiologicalMarkers:
-    resting_heart_rate: Optional[int] = None
-    vo2_max: Optional[float] = None
-    hrv: Optional[Dict[str, Any]] = None  # Complex nested structure, keeping as Dict for now
+    resting_heart_rate: int | None = None
+    vo2_max: float | None = None
+    hrv: dict[str, Any] | None = None  # Complex nested structure, keeping as Dict for now
+
 
 @dataclass
 class BodyMetrics:
-    weight: Optional[Dict[str, Any]] = None  # Complex nested structure with historical data
-    hydration: Optional[List[Dict[str, Any]]] = None  # Complex structure with daily data
+    weight: dict[str, Any] | None = None  # Complex nested structure with historical data
+    hydration: list[dict[str, Any]] | None = None  # Complex structure with daily data
+
 
 @dataclass
 class RecoveryIndicators:
-    date: Optional[str] = None
-    sleep: Optional[Dict[str, Any]] = None  # Complex nested structure
-    stress: Optional[Dict[str, Any]] = None  # Complex nested structure
+    date: str | None = None
+    sleep: dict[str, Any] | None = None  # Complex nested structure
+    stress: dict[str, Any] | None = None  # Complex nested structure
+
 
 @dataclass
 class TrainingStatus:
-    vo2_max: Optional[Dict[str, Any]] = None
-    acute_training_load: Optional[Dict[str, Any]] = None
+    vo2_max: dict[str, Any] | None = None
+    acute_training_load: dict[str, Any] | None = None
+
 
 @dataclass
 class GarminData:
-    user_profile: Optional[UserProfile] = None
-    daily_stats: Optional[DailyStats] = None
-    recent_activities: Optional[List[Activity]] = None
-    all_activities: Optional[List[Activity]] = None
-    physiological_markers: Optional[PhysiologicalMarkers] = None
-    body_metrics: Optional[BodyMetrics] = None
-    recovery_indicators: Optional[List[RecoveryIndicators]] = None
-    training_status: Optional[TrainingStatus] = None
-    vo2_max_history: Optional[Dict[str, List[Dict[str, Any]]]] = None
-    training_load_history: Optional[List[Dict[str, Any]]] = None
+    user_profile: UserProfile | None = None
+    daily_stats: DailyStats | None = None
+    recent_activities: list[Activity] | None = None
+    all_activities: list[Activity] | None = None
+    physiological_markers: PhysiologicalMarkers | None = None
+    body_metrics: BodyMetrics | None = None
+    recovery_indicators: list[RecoveryIndicators] | None = None
+    training_status: TrainingStatus | None = None
+    vo2_max_history: dict[str, list[dict[str, Any]]] | None = None
+    training_load_history: list[dict[str, Any]] | None = None

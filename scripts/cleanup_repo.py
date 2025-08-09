@@ -26,7 +26,7 @@ import ast
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
+
 
 def read_text_with_fallback(path: Path) -> tuple[str, str]:
     """
@@ -117,8 +117,8 @@ def should_exclude(path: Path) -> bool:
     return False
 
 
-def iter_python_files(root: Path) -> List[Path]:
-    files: List[Path] = []
+def iter_python_files(root: Path) -> list[Path]:
+    files: list[Path] = []
     for p in root.rglob("*.py"):
         if should_exclude(p):
             continue
@@ -142,8 +142,8 @@ def _is_str_expr(node: ast.AST) -> bool:
     return False
 
 
-def find_docstring_spans(tree: ast.AST) -> List[Tuple[int, int]]:
-    spans: List[Tuple[int, int]] = []
+def find_docstring_spans(tree: ast.AST) -> list[tuple[int, int]]:
+    spans: list[tuple[int, int]] = []
 
     # Module level
     if isinstance(tree, ast.Module) and tree.body:
@@ -168,7 +168,7 @@ def find_docstring_spans(tree: ast.AST) -> List[Tuple[int, int]]:
     return spans
 
 
-def remove_docstrings(source: str, keep: bool) -> Tuple[str, int]:
+def remove_docstrings(source: str, keep: bool) -> tuple[str, int]:
     if keep:
         return source, 0
 
@@ -198,9 +198,9 @@ def remove_docstrings(source: str, keep: bool) -> Tuple[str, int]:
     return "".join(lines), removed
 
 
-def remove_commented_out_code(source: str) -> Tuple[str, int]:
+def remove_commented_out_code(source: str) -> tuple[str, int]:
     count = 0
-    out_lines: List[str] = []
+    out_lines: list[str] = []
     for ln in source.splitlines(keepends=True):
         if COMMENTED_CODE_RE.match(ln):
             count += 1
@@ -209,7 +209,7 @@ def remove_commented_out_code(source: str) -> Tuple[str, int]:
     return "".join(out_lines), count
 
 
-def ensure_logging_boilerplate(lines: List[str]) -> Tuple[List[str], bool, bool]:
+def ensure_logging_boilerplate(lines: list[str]) -> tuple[list[str], bool, bool]:
     """
     Ensure 'import logging' and 'logger = logging.getLogger(__name__)' exist.
     Returns (new_lines, added_import, added_logger_var)
@@ -252,7 +252,7 @@ def ensure_logging_boilerplate(lines: List[str]) -> Tuple[List[str], bool, bool]
     return lines, added_import, added_logger
 
 
-def replace_prints_with_logging(source: str) -> Tuple[str, int, bool, bool]:
+def replace_prints_with_logging(source: str) -> tuple[str, int, bool, bool]:
     if "print(" not in source:
         return source, 0, False, False
 
@@ -269,7 +269,7 @@ def replace_prints_with_logging(source: str) -> Tuple[str, int, bool, bool]:
     return "".join(lines), num, added_import, added_logger
 
 
-def process_file(path: Path) -> Dict[str, int | bool | str]:
+def process_file(path: Path) -> dict[str, int | bool | str]:
     rp = rel_path(path)
     text, encoding_used = read_text_with_fallback(path)
 
@@ -299,7 +299,7 @@ def process_file(path: Path) -> Dict[str, int | bool | str]:
     }
 
 
-def main(argv: List[str]) -> int:
+def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Clean up repo per Option A policy")
     parser.add_argument(
         "--apply",
@@ -325,7 +325,7 @@ def main(argv: List[str]) -> int:
         "loggers_added": 0,
     }
 
-    per_file: List[Dict[str, int | bool | str]] = []
+    per_file: list[dict[str, int | bool | str]] = []
 
     for f in py_files:
         res = process_file(f)

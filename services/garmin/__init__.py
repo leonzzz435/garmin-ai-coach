@@ -1,20 +1,19 @@
-
 from .client import GarminConnectClient
 from .data_extractor import DataExtractor, TriathlonCoachDataExtractor
 from .models import (
-    TimeRange,
-    ExtractionConfig,
-    UserProfile,
-    DailyStats,
     Activity,
     ActivitySummary,
-    WeatherData,
+    BodyMetrics,
+    DailyStats,
+    ExtractionConfig,
+    GarminData,
     HeartRateZone,
     PhysiologicalMarkers,
-    BodyMetrics,
     RecoveryIndicators,
+    TimeRange,
     TrainingStatus,
-    GarminData
+    UserProfile,
+    WeatherData,
 )
 
 __all__ = [
@@ -33,5 +32,5 @@ __all__ = [
     'BodyMetrics',
     'RecoveryIndicators',
     'TrainingStatus',
-    'GarminData'
+    'GarminData',
 ]

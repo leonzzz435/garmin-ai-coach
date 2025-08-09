@@ -9,6 +9,7 @@ from .base import SecureStorageBase, StorageError
 logger = logging.getLogger(__name__)
 
 class ExecutionError(StorageError):
+    pass
 
 class DailyCounter(SecureStorageBase):
     

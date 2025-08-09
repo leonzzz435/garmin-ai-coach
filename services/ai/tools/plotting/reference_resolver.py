@@ -1,40 +1,40 @@
-
 import logging
 import re
-from typing import Dict, Any, Optional
+from typing import Any
 
 from .plot_storage import PlotStorage
 
 logger = logging.getLogger(__name__)
 
+
 class PlotReferenceResolver:
-    
+
     def __init__(self, plot_storage: PlotStorage):
         self.plot_storage = plot_storage
-        
+
     def resolve_plot_references(self, text: str) -> str:
         # Pattern to match [PLOT:plot_id] references
         plot_pattern = r'\[PLOT:([^\]]+)\]'
-        
+
         def replace_plot_reference(match):
             plot_id = match.group(1)
             return self._embed_plot(plot_id)
-        
+
         # Replace all plot references
         resolved_text = re.sub(plot_pattern, replace_plot_reference, text)
-        
+
         # Log statistics
         original_refs = len(re.findall(plot_pattern, text))
         remaining_refs = len(re.findall(plot_pattern, resolved_text))
         resolved_count = original_refs - remaining_refs
-        
+
         logger.info(f"Resolved {resolved_count}/{original_refs} plot references")
-        
+
         return resolved_text
-    
+
     def _embed_plot(self, plot_id: str) -> str:
         plot_html = self.plot_storage.get_plot_html(plot_id)
-        
+
         if plot_html:
             # Wrap plot in responsive container
             return self._wrap_plot_html(plot_id, plot_html)
@@ -56,10 +56,10 @@ class PlotReferenceResolver:
                     <p>Plot ID: {plot_id}</p>
                 </div>
                 """
-            
+
             logger.warning(f"Plot {plot_id} not found, using fallback")
             return fallback
-    
+
     def _wrap_plot_html(self, plot_id: str, plot_html: str) -> str:
         return f"""
         <div class="plot-container" id="plot-{plot_id}" style="margin: 20px 0; width: 100%; overflow: hidden;">
@@ -68,48 +68,49 @@ class PlotReferenceResolver:
             </div>
         </div>
         """
-    
+
     def extract_plot_references(self, text: str) -> list[str]:
         plot_pattern = r'\[PLOT:([^\]]+)\]'
         return re.findall(plot_pattern, text)
-    
-    def validate_plot_references(self, text: str) -> Dict[str, Any]:
+
+    def validate_plot_references(self, text: str) -> dict[str, Any]:
         referenced_plots = self.extract_plot_references(text)
         available_plots = set(self.plot_storage.get_all_plots().keys())
-        
+
         found_plots = []
         missing_plots = []
-        
+
         for plot_id in referenced_plots:
             if plot_id in available_plots:
                 found_plots.append(plot_id)
             else:
                 missing_plots.append(plot_id)
-        
+
         return {
             'total_references': len(referenced_plots),
             'unique_references': len(set(referenced_plots)),
             'found_plots': found_plots,
             'missing_plots': missing_plots,
-            'validation_passed': len(missing_plots) == 0
+            'validation_passed': len(missing_plots) == 0,
         }
-    
+
     def get_plot_summary(self) -> str:
         plots = self.plot_storage.list_available_plots()
-        
+
         if not plots:
             return "No plots available"
-        
+
         summary_lines = [f"Available plots ({len(plots)}):"]
         for plot in plots:
             summary_lines.append(
                 f"  - {plot['plot_id']}: {plot['description']} (by {plot['agent_name']})"
             )
-        
+
         return "\n".join(summary_lines)
 
+
 class HTMLPlotEmbedder:
-    
+
     @staticmethod
     def add_plot_styles() -> str:
         return """
@@ -160,11 +161,11 @@ class HTMLPlotEmbedder:
         }
         </style>
         """
-    
+
     @staticmethod
     def wrap_html_document(content: str) -> str:
         styles = HTMLPlotEmbedder.add_plot_styles()
-        
+
         return f"""
         <!DOCTYPE html>
         <html lang="en">

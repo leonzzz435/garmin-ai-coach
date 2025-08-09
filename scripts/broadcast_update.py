@@ -2,34 +2,34 @@
 
 import asyncio
 import logging
-import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 from telegram.ext import ApplicationBuilder
 
 # Configure logging
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file
 load_dotenv()
-BOT_TOKEN = "7824020130:AAHRPI_Ti1USD_QDzDybvYJHF0ByhztXmVE"#os.getenv('TELE_BOT_KEY')
+BOT_TOKEN = "7824020130:AAHRPI_Ti1USD_QDzDybvYJHF0ByhztXmVE"  # os.getenv('TELE_BOT_KEY')
 if not BOT_TOKEN:
     raise ValueError("TELE_BOT_KEY not found in .env file")
+
 
 async def broadcast_update():
     # Initialize bot
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-    
+
     # Get all user IDs from encrypted files
     storage_dir = Path.home() / '.garmin_bot' / 'credentials'
     if not storage_dir.exists():
         logger.error("Storage directory does not exist")
         return
-        
+
     user_ids = []
     for file in storage_dir.glob('*.enc'):
         try:
@@ -38,9 +38,9 @@ async def broadcast_update():
         except ValueError:
             logger.error(f"Invalid user ID from filename: {file.name}")
             continue
-    
+
     logger.info(f"Found {len(user_ids)} users")
-    
+
     message = (
         "🚨 *EMERGENCY BROADCAST\\!* 🚨\n\n"
         "**AI Architecture Migration \\- LIVE\\!**\n\n"
@@ -86,24 +86,21 @@ async def broadcast_update():
     # Send message to each user
     success_count = 0
     fail_count = 0
-    
+
     for user_id in user_ids:
         try:
-            await app.bot.send_message(
-                chat_id=user_id,
-                text=message,
-                parse_mode='MarkdownV2'
-            )
+            await app.bot.send_message(chat_id=user_id, text=message, parse_mode='MarkdownV2')
             success_count += 1
             logger.info(f"Successfully sent update message to user {user_id}")
         except Exception as e:
             fail_count += 1
             logger.error(f"Failed to send update message to user {user_id}: {str(e)}")
-            
+
     logger.info(f"Broadcast complete. Success: {success_count}, Failed: {fail_count}")
-    
+
     # Close the application
     await app.shutdown()
+
 
 if __name__ == '__main__':
     asyncio.run(broadcast_update())

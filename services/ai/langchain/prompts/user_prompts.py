@@ -1,6 +1,5 @@
-
 class UserPrompts:
-    
+
     METRICS_ANALYSIS = """Analyze historical training metrics to identify patterns and trends in the athlete's data.
 
 ## IMPORTANT: Output Context
