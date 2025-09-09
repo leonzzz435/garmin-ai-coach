@@ -10,6 +10,10 @@ from langgraph.prebuilt import tools_condition
 from ..state.training_analysis_state import TrainingAnalysisState, create_initial_state
 from ..nodes.metrics_node import metrics_node
 from ..nodes.physiology_node import physiology_node
+from ..nodes.activity_data_node import activity_data_node
+from ..nodes.activity_interpreter_node import activity_interpreter_node
+from ..nodes.synthesis_node import synthesis_node
+from ..nodes.formatter_node import formatter_node
 from ..config.langsmith_config import LangSmithConfig
 
 logger = logging.getLogger(__name__)
@@ -22,41 +26,32 @@ def create_analysis_workflow():
     
     workflow.add_node("metrics", metrics_node)
     workflow.add_node("physiology", physiology_node)
-    workflow.add_node("collect_results", collect_results_node)
+    workflow.add_node("activity_data", activity_data_node)
+    workflow.add_node("activity_interpreter", activity_interpreter_node)
+    workflow.add_node("synthesis", synthesis_node)
+    workflow.add_node("formatter", formatter_node)
     
     workflow.add_edge(START, "metrics")
     workflow.add_edge(START, "physiology")
+    workflow.add_edge(START, "activity_data")
     
-    workflow.add_edge("metrics", "collect_results")
-    workflow.add_edge("physiology", "collect_results")
+    workflow.add_edge("activity_data", "activity_interpreter")
     
-    workflow.add_edge("collect_results", END)
+    workflow.add_edge("metrics", "synthesis")
+    workflow.add_edge("physiology", "synthesis")
+    workflow.add_edge("activity_interpreter", "synthesis")
+    
+    workflow.add_edge("synthesis", "formatter")
+    
+    workflow.add_edge("formatter", END)
     
     checkpointer = MemorySaver()
     app = workflow.compile(checkpointer=checkpointer)
     
-    logger.info("Created LangGraph analysis workflow with parallel execution")
+    logger.info("Created complete LangGraph analysis workflow with 6 agents")
     return app
 
 
-async def collect_results_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
-    logger.info("Collecting analysis results")
-    
-    if not state.get('metrics_result'):
-        logger.warning("Metrics analysis result missing")
-    
-    if not state.get('physiology_result'):
-        logger.warning("Physiology analysis result missing")
-    
-    total_costs = sum(cost.get('tokens', 0) for cost in state.get('costs', []))
-    total_plots = len(state.get('available_plots', []))
-    
-    logger.info(f"Analysis complete - {total_costs} tokens, {total_plots} plots generated")
-    
-    return {
-        'analysis_complete': True,
-        'completion_timestamp': datetime.now().isoformat()
-    }
 
 
 async def run_training_analysis(
@@ -94,10 +89,18 @@ def create_simple_sequential_workflow():
     
     workflow.add_node("metrics", metrics_node)
     workflow.add_node("physiology", physiology_node)
+    workflow.add_node("activity_data", activity_data_node)
+    workflow.add_node("activity_interpreter", activity_interpreter_node)
+    workflow.add_node("synthesis", synthesis_node)
+    workflow.add_node("formatter", formatter_node)
     
     workflow.add_edge(START, "metrics")
-    workflow.add_edge("metrics", "physiology") 
-    workflow.add_edge("physiology", END)
+    workflow.add_edge("metrics", "physiology")
+    workflow.add_edge("physiology", "activity_data")
+    workflow.add_edge("activity_data", "activity_interpreter")
+    workflow.add_edge("activity_interpreter", "synthesis")
+    workflow.add_edge("synthesis", "formatter")
+    workflow.add_edge("formatter", END)
     
     checkpointer = MemorySaver()
     return workflow.compile(checkpointer=checkpointer)
