@@ -4,8 +4,7 @@ import json
 
 from services.ai.model_config import ModelSelector
 from services.ai.ai_settings import AgentRole
-from services.ai.tools.plotting import PlotStorage
-from services.ai.tools.plotting.langchain_tools import create_plot_list_tool
+from services.ai.tools.plotting import PlotStorage, create_plotting_tools
 from services.ai.utils.retry_handler import retry_with_backoff, AI_ANALYSIS_CONFIG
 
 from ..state.training_analysis_state import TrainingAnalysisState
@@ -77,6 +76,9 @@ Style Guide:
 
 IMPORTANT: Focus on facts and evidence from the input analyses!
 
+## CRITICAL: Plot Reference Preservation
+The input analyses contain special **[PLOT:plot_id]** references that MUST be preserved exactly in your synthesis. These will become interactive visualizations in the final report. When you reference data or insights that have associated plots, include the plot reference in your synthesis text.
+
 Your task is to:
 1. Integrate key insights from the metrics, activity and physiology reports
 2. Identify clear connections between the athlete's training loads and physiological responses
@@ -84,6 +86,7 @@ Your task is to:
 4. Provide actionable insights based only on evidence from the data
 5. Create a focused synthesis that prioritizes the most important findings
 6. Avoid speculative language and stick to patterns clearly visible in the data
+7. **PRESERVE all [PLOT:plot_id] references exactly as they appear in the input analyses**
 
 FOCUS ON PRESENTATION:
 - Use a clear executive summary at the beginning
@@ -102,7 +105,7 @@ async def synthesis_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
     
     try:
         plot_storage = PlotStorage(state['execution_id'])
-        plot_list_tool = create_plot_list_tool(plot_storage)
+        _, plot_list_tool = create_plotting_tools(plot_storage, agent_name="synthesis")
         
         llm = ModelSelector.get_llm(AgentRole.SYNTHESIS)
         llm_with_tools = llm.bind_tools([plot_list_tool])

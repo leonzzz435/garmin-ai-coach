@@ -1,11 +1,11 @@
 from .plotting import (
     PlotReferenceResolver,
     PlotStorage,
-    SecurePythonExecutor,
+    ProductionSecureExecutor,
 )
 
 __all__ = [
     'PlotStorage',
     'PlotReferenceResolver',
-    'SecurePythonExecutor',
+    'ProductionSecureExecutor',
 ]

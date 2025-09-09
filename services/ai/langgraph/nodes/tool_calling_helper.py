@@ -6,6 +6,23 @@ from langchain_core.messages import AIMessage, ToolMessage
 logger = logging.getLogger(__name__)
 
 
+def extract_text_content(response) -> str:
+    content = response.content if hasattr(response, 'content') else str(response)
+    
+    if isinstance(content, list):
+        for item in content:
+            if isinstance(item, dict) and item.get('type') == 'text' and 'text' in item:
+                return item['text']
+        
+        for item in content:
+            if isinstance(item, dict) and 'text' in item:
+                return item['text']
+        
+        return str(content)
+    
+    return str(content)
+
+
 async def handle_tool_calling_in_node(
     llm_with_tools,
     messages: List[Dict[str, str]],
@@ -72,6 +89,13 @@ async def handle_tool_calling_in_node(
         
         else:
             final_response = response.content if hasattr(response, 'content') else str(response)
+            
+            if isinstance(final_response, list):
+                for item in final_response:
+                    if isinstance(item, dict) and item.get('type') == 'text':
+                        final_response = item.get('text', str(response))
+                        break
+            
             logger.info(f"Final response received after {iteration} iterations")
             return final_response
     

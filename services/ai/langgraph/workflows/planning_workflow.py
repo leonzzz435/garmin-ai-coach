@@ -93,6 +93,7 @@ def create_integrated_analysis_and_planning_workflow():
     from ..nodes.activity_interpreter_node import activity_interpreter_node
     from ..nodes.synthesis_node import synthesis_node
     from ..nodes.formatter_node import formatter_node
+    from ..nodes.plot_resolution_node import plot_resolution_node
     
     workflow.add_node("metrics", metrics_node)
     workflow.add_node("physiology", physiology_node)
@@ -100,6 +101,7 @@ def create_integrated_analysis_and_planning_workflow():
     workflow.add_node("activity_interpreter", activity_interpreter_node)
     workflow.add_node("synthesis", synthesis_node)
     workflow.add_node("formatter", formatter_node)
+    workflow.add_node("plot_resolution", plot_resolution_node)
     
     workflow.add_node("season_planner", season_planner_node)
     workflow.add_node("data_integration", data_integration_node)
@@ -115,8 +117,8 @@ def create_integrated_analysis_and_planning_workflow():
     workflow.add_edge(["metrics", "physiology", "activity_interpreter"], "synthesis")
     
     workflow.add_edge("synthesis", "formatter")
-    
-    workflow.add_edge("formatter", "season_planner")
+    workflow.add_edge("formatter", "plot_resolution")
+    workflow.add_edge("plot_resolution", "season_planner")
     
     workflow.add_edge("season_planner", "data_integration")
     workflow.add_edge("data_integration", "weekly_planner")

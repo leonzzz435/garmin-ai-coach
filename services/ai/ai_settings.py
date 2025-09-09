@@ -27,7 +27,7 @@ class AISettings:
         default_factory=lambda: {
             AIMode.STANDARD: "claude-opus-thinking",  # Production: Top-tier reasoning with Claude Opus 4.1
             AIMode.COST_EFFECTIVE: "claude-3-haiku",  # Budget: Fast and cost-effective
-            AIMode.DEVELOPMENT: "claude-4",  # Development: Fast iteration
+            AIMode.DEVELOPMENT: "claude-4-thinking",  # Development: Fast iteration
         }
     )
 

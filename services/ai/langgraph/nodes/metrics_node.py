@@ -4,8 +4,7 @@ import json
 
 from services.ai.model_config import ModelSelector
 from services.ai.ai_settings import AgentRole
-from services.ai.tools.plotting import PlotStorage
-from services.ai.tools.plotting.langchain_tools import create_plotting_tool
+from services.ai.tools.plotting import PlotStorage, create_plotting_tools
 from services.ai.utils.retry_handler import retry_with_backoff, AI_ANALYSIS_CONFIG
 
 from ..state.training_analysis_state import TrainingAnalysisState
@@ -47,7 +46,15 @@ Use python_plotting_tool only when absolutely necessary:
 - **python_code**: Complete Python script with imports, data creation, and plotting
 - **description**: Brief description of the UNIQUE insight this plot provides
 
-Your plots will be referenced as [PLOT:plot_id] in the final report.
+## 🔗 CRITICAL: Plot Reference Usage
+
+**MANDATORY**: When you create a plot, you MUST include the plot reference `[PLOT:plot_id]` in your analysis text where the visualization supports your findings. The python_plotting_tool will return the plot_id - use it immediately in your analysis.
+
+**Example workflow:**
+1. Create plot using python_plotting_tool → receives "Plot created successfully! Reference as [PLOT:metrics_1234567890_001]"
+2. Include in your analysis: "The training load progression shows concerning patterns [PLOT:metrics_1234567890_001] that indicate potential overreaching."
+
+**Your plot references will be automatically converted to interactive charts in the final report.**
 
 ## Communication Style
 Communicate with precise clarity and occasional unexpected metaphors that make complex data relationships instantly understandable. Athletes describe your analysis as "somehow translating the language of numbers into exactly what your body is trying to tell you."
@@ -104,7 +111,7 @@ async def metrics_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
     
     try:
         plot_storage = PlotStorage(state['execution_id'])
-        plotting_tool = create_plotting_tool(plot_storage, agent_name="metrics")
+        plotting_tool, list_plots_tool = create_plotting_tools(plot_storage, agent_name="metrics")
         
         llm = ModelSelector.get_llm(AgentRole.METRICS)
         llm_with_tools = llm.bind_tools([plotting_tool])
@@ -132,7 +139,7 @@ async def metrics_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
                 llm_with_tools=llm_with_tools,
                 messages=messages,
                 tools=[plotting_tool],
-                max_iterations=3
+                max_iterations=15
             )
         
         metrics_result = await retry_with_backoff(

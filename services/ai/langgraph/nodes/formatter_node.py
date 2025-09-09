@@ -6,6 +6,7 @@ from services.ai.ai_settings import AgentRole
 from services.ai.utils.retry_handler import retry_with_backoff, AI_ANALYSIS_CONFIG
 
 from ..state.training_analysis_state import TrainingAnalysisState
+from .tool_calling_helper import extract_text_content
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,7 @@ async def formatter_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
         
         async def call_html_formatting():
             response = await llm.ainvoke(messages)
-            return response.content if hasattr(response, 'content') else str(response)
+            return extract_text_content(response)
         
         analysis_html = await retry_with_backoff(
             call_html_formatting,

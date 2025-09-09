@@ -26,6 +26,7 @@ class TrainingAnalysisState(MessagesState):
     
     analysis_html: Optional[str]
     planning_html: Optional[str]
+    plot_resolution_stats: Optional[Dict[str, Any]]
     
     plots: Annotated[List[Dict], lambda x, y: x + y]
     plot_storage_data: Annotated[Dict[str, Dict], lambda x, y: {**x, **y}]

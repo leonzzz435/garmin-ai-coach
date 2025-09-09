@@ -3,7 +3,7 @@ import pytest
 import asyncio
 from unittest.mock import Mock, patch
 
-from services.ai.tools.plotting.langchain_tools import create_plotting_tool, create_plot_list_tool
+from services.ai.tools.plotting.langgraph_plotting_tool import create_plotting_tools
 from services.ai.tools.plotting.plot_storage import PlotStorage
 
 
@@ -12,8 +12,7 @@ class TestPlottingToolIntegration:
     def test_langchain_tool_creation(self):
         plot_storage = PlotStorage("test_execution")
         
-        plotting_tool = create_plotting_tool(plot_storage, agent_name="test")
-        plot_list_tool = create_plot_list_tool(plot_storage)
+        plotting_tool, plot_list_tool = create_plotting_tools(plot_storage, agent_name="test")
         
         assert plotting_tool.name == "python_plotting_tool"
         assert plot_list_tool.name == "list_available_plots"
@@ -25,7 +24,7 @@ class TestPlottingToolIntegration:
     async def test_tool_invocation(self):
         """Test that tools can be invoked directly."""
         plot_storage = PlotStorage("test_execution")
-        plotting_tool = create_plotting_tool(plot_storage, agent_name="test")
+        plotting_tool, _ = create_plotting_tools(plot_storage, agent_name="test")
         
         test_code = """
 import plotly.graph_objects as go
@@ -48,7 +47,7 @@ fig.update_layout(title='Test Plot')
         from services.ai.ai_settings import AgentRole
         
         plot_storage = PlotStorage("test_execution")
-        plotting_tool = create_plotting_tool(plot_storage, agent_name="test")
+        plotting_tool, _ = create_plotting_tools(plot_storage, agent_name="test")
         
         llm = ModelSelector.get_llm(AgentRole.METRICS)
         llm_with_tools = llm.bind_tools([plotting_tool])
@@ -89,10 +88,8 @@ fig.update_layout(title='Test Plot')
         from langgraph.graph import StateGraph
         
         plot_storage = PlotStorage("test_execution")
-        tools = [
-            create_plotting_tool(plot_storage, "test"),
-            create_plot_list_tool(plot_storage)
-        ]
+        plotting_tool, plot_list_tool = create_plotting_tools(plot_storage, "test")
+        tools = [plotting_tool, plot_list_tool]
         
         tool_node = ToolNode(tools)
         assert tool_node is not None

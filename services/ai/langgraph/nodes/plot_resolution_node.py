@@ -50,7 +50,7 @@ async def plot_resolution_node(state: TrainingAnalysisState) -> TrainingAnalysis
         if validation_result['total_references'] == 0:
             logger.info("No plot references found in HTML content")
             return {
-                'resolved_html': analysis_html,
+                'analysis_html': analysis_html,
                 'plot_resolution_stats': {
                     'total_references': 0,
                     'resolved_count': 0,
@@ -58,7 +58,19 @@ async def plot_resolution_node(state: TrainingAnalysisState) -> TrainingAnalysis
                 }
             }
         
+        # Debug: Log before resolution
+        logger.info(f"About to resolve {validation_result['total_references']} plot references")
+        logger.info(f"Available plots in storage: {list(plot_storage.plots.keys())}")
+        
+        for plot_id in validation_result['found_plots']:
+            plot_html = plot_storage.get_plot_html(plot_id)
+            if plot_html:
+                logger.info(f"Plot {plot_id} has HTML content: {len(plot_html)} characters")
+            else:
+                logger.warning(f"Plot {plot_id} has no HTML content!")
+        
         resolved_html = resolver.resolve_plot_references(analysis_html)
+        logger.info(f"Resolution result: {len(resolved_html)} characters")
         
         final_validation = resolver.validate_plot_references(resolved_html)
         resolved_count = validation_result['total_references'] - final_validation['total_references']
@@ -79,7 +91,7 @@ async def plot_resolution_node(state: TrainingAnalysisState) -> TrainingAnalysis
         logger.info(f"Plot resolution completed: {resolved_count}/{validation_result['total_references']} plots resolved")
         
         return {
-            'resolved_html': resolved_html,
+            'analysis_html': resolved_html,
             'plot_resolution_stats': resolution_stats,
             'costs': [cost_data],
         }
@@ -88,5 +100,5 @@ async def plot_resolution_node(state: TrainingAnalysisState) -> TrainingAnalysis
         logger.error(f"Plot resolution node failed: {e}")
         return {
             'errors': [f"Plot resolution failed: {str(e)}"],
-            'resolved_html': state.get('analysis_html', ''),  # Fallback to original HTML
+            'analysis_html': state.get('analysis_html', ''),  # Fallback to original HTML
         }

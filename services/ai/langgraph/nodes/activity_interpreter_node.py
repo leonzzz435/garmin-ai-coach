@@ -4,8 +4,7 @@ import json
 
 from services.ai.model_config import ModelSelector
 from services.ai.ai_settings import AgentRole
-from services.ai.tools.plotting import PlotStorage
-from services.ai.tools.plotting.langchain_tools import create_plotting_tool
+from services.ai.tools.plotting import PlotStorage, create_plotting_tools
 from services.ai.utils.retry_handler import retry_with_backoff, AI_ANALYSIS_CONFIG
 
 from ..state.training_analysis_state import TrainingAnalysisState
@@ -45,7 +44,15 @@ Interpret structured activity data to optimize workout progression patterns.
 
 Use python_plotting_tool only when absolutely necessary for insights beyond standard Garmin reports.
 
-Reference your plots as [PLOT:plot_id] in your analysis.
+## 🔗 CRITICAL: Plot Reference Usage
+
+**MANDATORY**: When you create a plot, you MUST include the plot reference `[PLOT:plot_id]` in your analysis text where the visualization supports your findings. The python_plotting_tool will return the plot_id - use it immediately in your analysis.
+
+**Example workflow:**
+1. Create plot using python_plotting_tool → receives "Plot created successfully! Reference as [PLOT:activity_interpreter_1234567890_001]"
+2. Include in your analysis: "The pacing analysis reveals critical execution patterns [PLOT:activity_interpreter_1234567890_001] that indicate suboptimal energy distribution."
+
+**Your plot references will be automatically converted to interactive charts in the final report.**
 
 ## Communication Style
 Communicate with passionate precision and laser-like clarity. Your analysis cuts through confusion with laser-like clarity. Athletes say your session reviews feel like "having someone who can see exactly what you were experiencing during the workout, even though they weren't there."
@@ -111,7 +118,7 @@ async def activity_interpreter_node(state: TrainingAnalysisState) -> TrainingAna
     
     try:
         plot_storage = PlotStorage(state['execution_id'])
-        plotting_tool = create_plotting_tool(plot_storage, agent_name="activity")
+        plotting_tool, list_plots_tool = create_plotting_tools(plot_storage, agent_name="activity")
         
         llm = ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER)
         llm_with_tools = llm.bind_tools([plotting_tool])
@@ -135,7 +142,7 @@ async def activity_interpreter_node(state: TrainingAnalysisState) -> TrainingAna
                 llm_with_tools=llm_with_tools,
                 messages=messages,
                 tools=[plotting_tool],
-                max_iterations=3
+                max_iterations=15
             )
         
         activity_result = await retry_with_backoff(
