@@ -5,7 +5,6 @@ from typing import Literal
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.prebuilt import tools_condition
 
 from ..state.training_analysis_state import TrainingAnalysisState, create_initial_state
 from ..nodes.metrics_node import metrics_node
@@ -14,6 +13,7 @@ from ..nodes.activity_data_node import activity_data_node
 from ..nodes.activity_interpreter_node import activity_interpreter_node
 from ..nodes.synthesis_node import synthesis_node
 from ..nodes.formatter_node import formatter_node
+from ..nodes.plot_resolution_node import plot_resolution_node
 from ..config.langsmith_config import LangSmithConfig
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,8 @@ def create_analysis_workflow():
     workflow.add_node("activity_interpreter", activity_interpreter_node)
     workflow.add_node("synthesis", synthesis_node)
     workflow.add_node("formatter", formatter_node)
+    workflow.add_node("plot_resolution", plot_resolution_node)
+    
     
     workflow.add_edge(START, "metrics")
     workflow.add_edge(START, "physiology")
@@ -40,15 +42,14 @@ def create_analysis_workflow():
     workflow.add_edge("metrics", "synthesis")
     workflow.add_edge("physiology", "synthesis")
     workflow.add_edge("activity_interpreter", "synthesis")
-    
     workflow.add_edge("synthesis", "formatter")
-    
-    workflow.add_edge("formatter", END)
+    workflow.add_edge("formatter", "plot_resolution")
+    workflow.add_edge("plot_resolution", END)
     
     checkpointer = MemorySaver()
     app = workflow.compile(checkpointer=checkpointer)
     
-    logger.info("Created complete LangGraph analysis workflow with 6 agents")
+    logger.info("Created complete LangGraph analysis workflow with 6 agents + plot resolution")
     return app
 
 
@@ -93,6 +94,7 @@ def create_simple_sequential_workflow():
     workflow.add_node("activity_interpreter", activity_interpreter_node)
     workflow.add_node("synthesis", synthesis_node)
     workflow.add_node("formatter", formatter_node)
+    workflow.add_node("plot_resolution", plot_resolution_node)
     
     workflow.add_edge(START, "metrics")
     workflow.add_edge("metrics", "physiology")
@@ -100,7 +102,8 @@ def create_simple_sequential_workflow():
     workflow.add_edge("activity_data", "activity_interpreter")
     workflow.add_edge("activity_interpreter", "synthesis")
     workflow.add_edge("synthesis", "formatter")
-    workflow.add_edge("formatter", END)
+    workflow.add_edge("formatter", "plot_resolution")
+    workflow.add_edge("plot_resolution", END)
     
     checkpointer = MemorySaver()
     return workflow.compile(checkpointer=checkpointer)

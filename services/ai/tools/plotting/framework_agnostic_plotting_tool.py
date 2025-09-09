@@ -1,8 +1,8 @@
-import logging
-from typing import TYPE_CHECKING, Any
 
-from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field
+import logging
+import asyncio
+from typing import TYPE_CHECKING, Any, Optional, Protocol, runtime_checkable
+from pydantic import BaseModel, Field, ValidationError
 
 if TYPE_CHECKING:
     from .secure_executor import SecurePythonExecutor
@@ -14,18 +14,39 @@ logger = logging.getLogger(__name__)
 
 
 class PlottingInput(BaseModel):
-    python_code: str | None = Field(
+    python_code: Optional[str] = Field(
         default=None,
         description="Complete Python code including imports, data creation/processing, and plotting that creates a 'fig' variable",
     )
-    description: str | None = Field(
-        default=None, description="Brief description of what the plot shows"
+    description: Optional[str] = Field(
+        default=None, 
+        description="Brief description of what the plot shows"
     )
-    agent_name: str = Field(default="unknown", description="Name of the agent creating the plot")
+    agent_name: str = Field(
+        default="unknown", 
+        description="Name of the agent creating the plot"
+    )
 
 
-class PythonPlottingTool(BaseTool):
+class PlotResult(BaseModel):
+    success: bool = Field(..., description="Whether the plotting operation succeeded")
+    plot_id: Optional[str] = Field(None, description="ID of the created plot if successful")
+    message: str = Field(..., description="Success message or error details")
+    error_type: Optional[str] = Field(None, description="Type of error if failed")
 
+
+@runtime_checkable
+class Tool(Protocol):
+    name: str
+    description: str
+    input_model: type[BaseModel]
+    
+    def call(self, args: BaseModel) -> BaseModel: ...
+    async def acall(self, args: BaseModel) -> BaseModel: ...
+
+
+class FrameworkAgnosticPlottingTool:
+    
     name: str = "python_plotting_tool"
     description: str = """
     Execute complete Python code to create interactive Plotly visualizations.
@@ -57,48 +78,62 @@ class PythonPlottingTool(BaseTool):
     
     If you receive an error message, review the guidance and try again with corrected code.
     """
-
-    args_schema: type[BaseModel] = PlottingInput
-    plot_storage: PlotStorage = None
-    agent_name: str = "unknown"
-    executor: SecurePythonExecutor = None
-    progress_manager: Any | None = None
-
-    def __init__(self, plot_storage: PlotStorage, progress_manager: Any | None = None, **kwargs):
-        executor = SecurePythonExecutor()
-        super().__init__(
-            plot_storage=plot_storage,
-            executor=executor,
-            progress_manager=progress_manager,
-            **kwargs,
-        )
-
+    
+    input_model: type[BaseModel] = PlottingInput
+    
+    def __init__(
+        self, 
+        plot_storage: PlotStorage, 
+        progress_manager: Any = None,
+        executor: Optional['SecurePythonExecutor'] = None
+    ):
+        self.plot_storage = plot_storage
+        self.progress_manager = progress_manager
+        self.executor = executor or SecurePythonExecutor()
+        self.agent_name = "unknown"  # Can be set by nodes or external callers
+        
     def _count_agent_plots(self, agent_name: str) -> int:
         plots = self.plot_storage.list_available_plots()
         return len([plot for plot in plots if plot.get('agent_name') == agent_name])
-
-    def _run(
-        self,
-        python_code: str | None = None,
-        description: str | None = None,
-        agent_name: str = "unknown",
-    ) -> str:
+    
+    def call(self, args: BaseModel) -> PlotResult:
         try:
-            actual_agent_name = getattr(self, 'agent_name', agent_name) or agent_name
+            if isinstance(args, dict):
+                plot_input = PlottingInput.model_validate(args)
+            elif isinstance(args, PlottingInput):
+                plot_input = args
+            else:
+                plot_input = PlottingInput.model_validate(args.model_dump())
+                
+        except ValidationError as e:
+            return PlotResult(
+                success=False,
+                message=f"Invalid input: {e}",
+                error_type="validation_error"
+            )
+        
+        try:
+            actual_agent_name = getattr(self, 'agent_name', plot_input.agent_name) or plot_input.agent_name
 
             agent_plot_count = self._count_agent_plots(actual_agent_name)
             if agent_plot_count >= 2:
-                return f"""Plot limit reached: Agent '{actual_agent_name}' has already created {agent_plot_count} plots (maximum: 2).
+                return PlotResult(
+                    success=False,
+                    message=f"""Plot limit reached: Agent '{actual_agent_name}' has already created {agent_plot_count} plots (maximum: 2).
 
 ⚠️ IMPORTANT: Create plots only for insights that provide unique value beyond what's available in the Garmin app.
 
 Consider whether this visualization is truly necessary or if you can:
 1. Reference existing plots using [PLOT:plot_id] syntax
 2. Incorporate insights into your text analysis instead
-3. Combine multiple insights into a single, comprehensive visualization."""
+3. Combine multiple insights into a single, comprehensive visualization.""",
+                    error_type="plot_limit_exceeded"
+                )
 
-            if not python_code or not python_code.strip():
-                return """Error: Missing required parameter 'python_code'.
+            if not plot_input.python_code or not plot_input.python_code.strip():
+                return PlotResult(
+                    success=False,
+                    message="""Error: Missing required parameter 'python_code'.
 
 Please provide complete Python code including imports, data handling, and plotting that creates a 'fig' variable.
 
@@ -118,26 +153,32 @@ fig.add_trace(go.Scatter(
 fig.update_layout(title='Training Load Over Time')
 ```
 
-Please try again with complete Python code."""
+Please try again with complete Python code.""",
+                    error_type="missing_python_code"
+                )
 
-            if not description or not description.strip():
-                return """Error: Missing required parameter 'description'.
+            if not plot_input.description or not plot_input.description.strip():
+                return PlotResult(
+                    success=False,
+                    message="""Error: Missing required parameter 'description'.
 
 Please provide a brief description of what the plot shows.
 
 Example: 'Training load analysis over time showing weekly progression'
 
-Please try again with both python_code and description parameters."""
+Please try again with both python_code and description parameters.""",
+                    error_type="missing_description"
+                )
 
             logger.info(f"Agent {actual_agent_name} executing plotting code")
 
-            # Execute the plotting code
-            success, result, error = self.executor.execute_plotting_code(python_code)
+            success, result, error = self.executor.execute_plotting_code(plot_input.python_code)
 
             if not success:
-                # Return detailed error message that guides the agent to fix the issue
                 logger.error(f"Agent {actual_agent_name} plotting failed: {error}")
-                return f"""Error executing plotting code: {error}
+                return PlotResult(
+                    success=False,
+                    message=f"""Error executing plotting code: {error}
 
 Please fix the following issues and try again:
 1. Check for syntax errors in your Python code
@@ -148,17 +189,19 @@ Please fix the following issues and try again:
 
 Your code must create a variable named 'fig' containing the Plotly figure object.
 
-Please review your code and try again with the corrections."""
+Please review your code and try again with the corrections.""",
+                    error_type="execution_error"
+                )
 
-            # Convert result to HTML
             html_content = self.executor.plot_to_html(result)
 
             if not html_content:
-                # HTML conversion failure guidance
                 logger.error(
                     f"Agent {actual_agent_name} plot HTML conversion failed - no HTML content generated"
                 )
-                return """Error: Failed to convert plot to HTML.
+                return PlotResult(
+                    success=False,
+                    message="""Error: Failed to convert plot to HTML.
 
 This usually means the 'fig' variable was not created properly. Please ensure:
 1. Your code creates a variable named 'fig'
@@ -172,30 +215,26 @@ fig = go.Figure()
 # ... add traces and layout ...
 ```
 
-Please try again with a properly created 'fig' variable."""
+Please try again with a properly created 'fig' variable.""",
+                    error_type="html_conversion_error"
+                )
 
-            # Store the plot
             plot_id = self.plot_storage.store_plot(
                 html_content=html_content,
-                description=description,
+                description=plot_input.description,
                 agent_name=actual_agent_name,
                 data_summary="Custom plotting code",
             )
 
-            # Notify progress manager if available
             if hasattr(self, 'progress_manager') and self.progress_manager:
                 try:
-                    import asyncio
-
-                    # Create a task to send the progress update without blocking
                     asyncio.create_task(
                         self.progress_manager.plot_generated(
-                            actual_agent_name, plot_id, description
+                            actual_agent_name, plot_id, plot_input.description
                         )
                     )
                 except Exception as e:
                     import traceback
-
                     full_traceback = traceback.format_exc()
                     logger.error(
                         f"Progress manager notification failed: {e}\n\nFull traceback:\n{full_traceback}"
@@ -203,30 +242,42 @@ Please try again with a properly created 'fig' variable."""
 
             success_msg = f"Plot created successfully! Reference as [PLOT:{plot_id}]"
             logger.info(f"Agent {actual_agent_name} created plot {plot_id}")
-            return success_msg
+            
+            return PlotResult(
+                success=True,
+                plot_id=plot_id,
+                message=success_msg
+            )
 
         except Exception as e:
-            # Handle all other exceptions gracefully with full traceback
             import traceback
-
             full_traceback = traceback.format_exc()
             error_msg = f"Plotting tool error: {str(e)}. Please check your input and try again."
             logger.error(
                 f"Agent {actual_agent_name} plotting failed: {e}\n\nFull traceback:\n{full_traceback}"
             )
-            return error_msg
+            return PlotResult(
+                success=False,
+                message=error_msg,
+                error_type="unexpected_error"
+            )
 
-    async def _arun(
-        self,
-        python_code: str | None = None,
-        description: str | None = None,
-        agent_name: str = "unknown",
-    ) -> str:
-        return self._run(python_code, description, agent_name)
+    async def acall(self, args: BaseModel) -> PlotResult:
+        return self.call(args)
+
+    def to_openai_tool(self) -> dict:
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.input_model.model_json_schema(),
+            },
+        }
 
 
-class PlotListTool(BaseTool):
-
+class FrameworkAgnosticPlotListTool:
+    
     name: str = "list_available_plots"
     description: str = """
     List all plots available for referencing in your analysis.
@@ -236,26 +287,39 @@ class PlotListTool(BaseTool):
     
     Useful for synthesis agents to see what visualizations are available.
     """
+    input_model: type[BaseModel] = BaseModel  # No input needed
+    
+    def __init__(self, plot_storage: PlotStorage):
+        self.plot_storage = plot_storage
 
-    plot_storage: PlotStorage = None
-
-    def __init__(self, plot_storage: PlotStorage, **kwargs):
-        super().__init__(plot_storage=plot_storage, **kwargs)
-
-    def _run(self, tool_input: str = "") -> str:
+    def call(self, args: BaseModel = None) -> BaseModel:
         plots = self.plot_storage.list_available_plots()
 
         if not plots:
-            return "No plots available yet."
+            message = "No plots available yet."
+        else:
+            plot_list = ["Available plots for referencing:"]
+            for plot in plots:
+                plot_list.append(
+                    f"- [PLOT:{plot['plot_id']}]: {plot['description']} "
+                    f"(by {plot['agent_name']}, data: {plot['data_summary']})"
+                )
+            message = "\n".join(plot_list)
 
-        plot_list = ["Available plots for referencing:"]
-        for plot in plots:
-            plot_list.append(
-                f"- [PLOT:{plot['plot_id']}]: {plot['description']} "
-                f"(by {plot['agent_name']}, data: {plot['data_summary']})"
-            )
+        class PlotListResult(BaseModel):
+            message: str
+            
+        return PlotListResult(message=message)
 
-        return "\n".join(plot_list)
+    async def acall(self, args: BaseModel = None) -> BaseModel:
+        return self.call(args)
 
-    async def _arun(self, tool_input: str = "") -> str:
-        return self._run(tool_input)
+    def to_openai_tool(self) -> dict:
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": {"type": "object", "properties": {}},  # No parameters
+            },
+        }

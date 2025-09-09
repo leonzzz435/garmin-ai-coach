@@ -138,7 +138,7 @@ tele_garmin/
 
 #### Directory Reorganization (2025-08)
 - **Data Storage Centralization**: Moved intermediate AI analysis storage from `stuff/` directory to `data/` directory
-  - Updated [`IntermediateResultStorage`](services/ai/utils/intermediate_storage.py) to use `data/` as base path
+  - ~~Updated [`IntermediateResultStorage`](services/ai/utils/intermediate_storage.py) to use `data/` as base path~~ (Removed during LangGraph migration - replaced by state management)
   - Organized data artifacts under `data/analysis/` and `data/weekly_plans/`
   - Updated [`.gitignore`](.gitignore) to reflect new structure and remove old `stuff/` references
 - **Directory Purpose Clarification**: Maintained clear separation between `examples/` and `scripts/`

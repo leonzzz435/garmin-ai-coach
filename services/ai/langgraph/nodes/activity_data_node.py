@@ -87,7 +87,7 @@ async def activity_data_node(state: TrainingAnalysisState) -> TrainingAnalysisSt
         llm = ModelSelector.get_llm(AgentRole.ACTIVITY_DATA)
         
         user_prompt = ACTIVITY_DATA_USER_PROMPT.format(
-            data=json.dumps(state['garmin_data'].get('activities', []), indent=2)
+            data=json.dumps(state['garmin_data'].get('recent_activities', []), indent=2)
         )
         
         messages = [

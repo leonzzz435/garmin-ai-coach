@@ -4,10 +4,12 @@ import json
 
 from services.ai.model_config import ModelSelector
 from services.ai.ai_settings import AgentRole
-from services.ai.tools.plotting import PlotStorage, PlotListTool
+from services.ai.tools.plotting import PlotStorage
+from services.ai.tools.plotting.langchain_tools import create_plot_list_tool
 from services.ai.utils.retry_handler import retry_with_backoff, AI_ANALYSIS_CONFIG
 
 from ..state.training_analysis_state import TrainingAnalysisState
+from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
@@ -100,9 +102,10 @@ async def synthesis_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
     
     try:
         plot_storage = PlotStorage(state['execution_id'])
-        plot_list_tool = PlotListTool(plot_storage=plot_storage)
+        plot_list_tool = create_plot_list_tool(plot_storage)
         
         llm = ModelSelector.get_llm(AgentRole.SYNTHESIS)
+        llm_with_tools = llm.bind_tools([plot_list_tool])
         
         user_prompt = SYNTHESIS_USER_PROMPT.format(
             athlete_name=state['athlete_name'],
@@ -122,13 +125,17 @@ async def synthesis_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
         agent_start_time = datetime.now()
         
         async def call_synthesis_analysis():
-            response = await llm.ainvoke(messages)
-            return response.content if hasattr(response, 'content') else str(response)
+            return await handle_tool_calling_in_node(
+                llm_with_tools=llm_with_tools,
+                messages=messages,
+                tools=[plot_list_tool],
+                max_iterations=3
+            )
         
         synthesis_result = await retry_with_backoff(
             call_synthesis_analysis,
             AI_ANALYSIS_CONFIG,
-            "Synthesis Analysis"
+            "Synthesis Analysis with Tools"
         )
         
         execution_time = (datetime.now() - agent_start_time).total_seconds()

@@ -1,8 +1,9 @@
 from typing import Annotated, List, Dict, Any, Optional
 from typing_extensions import TypedDict
+from langgraph.graph import MessagesState
 
 
-class TrainingAnalysisState(TypedDict):
+class TrainingAnalysisState(MessagesState):
     user_id: str
     athlete_name: str
     garmin_data: Dict[str, Any]
@@ -27,11 +28,12 @@ class TrainingAnalysisState(TypedDict):
     planning_html: Optional[str]
     
     plots: Annotated[List[Dict], lambda x, y: x + y]
+    plot_storage_data: Annotated[Dict[str, Dict], lambda x, y: {**x, **y}]
     costs: Annotated[List[Dict], lambda x, y: x + y]
     errors: Annotated[List[str], lambda x, y: x + y]
     tool_usage: Annotated[Dict[str, int], lambda x, y: {**x, **y}]
     
-    available_plots: List[str]
+    available_plots: Annotated[List[str], lambda x, y: x + y]
     execution_id: str
 
 
@@ -72,6 +74,7 @@ def create_initial_state(
         planning_html=None,
         
         plots=[],
+        plot_storage_data={},
         costs=[],
         errors=[],
         tool_usage={},
