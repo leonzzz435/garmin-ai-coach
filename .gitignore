@@ -1,0 +1,83 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+*.json
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.env
+.env.dev
+
+# Pixi
+.pixi/
+# Note: pixi.lock should be committed for reproducible builds
+
+# Intermediate AI results
+data/analysis/
+data/weekly_plans/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project specific
+.garmin_bot/
+config.py
+*.log
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+
+# Tooling
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Logs and runtime artifacts
+logs/
+
+# Data artifacts
+data/cache/
+data/plots/
+
+# Jupyter notebooks (prevent sensitive data commits)
+*.ipynb
+notebooks/
+.ipynb_checkpoints/
+
+# Any development notebooks that might contain credentials
+**/notebooks/
+**/test_notebooks/
+**/experimental/

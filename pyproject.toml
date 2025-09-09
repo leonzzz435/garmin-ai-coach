@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=. --cov-report=term-missing"
+markers = [
+    "unit: mark test as a unit test",
+    "integration: mark test as an integration test",
+    "bot: mark test as a bot-related test",
+    "garmin: mark test as a Garmin service test",
+    "security: mark test as a security-related test",
+]
+
+[project]
+name = "tele_garmin"
+version = "0.1.0"
+description = "Telegram bot for Garmin data analysis with AI-powered insights"
+requires-python = ">=3.10"
+authors = [
+    {name = "Developer"}
+]
+# Dependencies now managed by Pixi in pixi.toml
+
+[tool.setuptools]
+packages = ["bot", "core", "services"]
+
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+skip-string-normalization = true
+
+[tool.ruff]
+line-length = 120  # Increased from 100 to be more practical
+target-version = "py310"
+exclude = [
+  ".git",
+  ".venv",
+  "venv",
+  ".pixi",
+  "notebooks",
+  "data",
+  "logs",
+  "build",
+  "dist",
+  "__pycache__",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    "I",  # isort (import sorting)
+    "UP", # pyupgrade
+    "B",  # bugbear
+    "PL", # pylint (subset)
+]
+ignore = [
+    "D",      # pydocstyle - docstrings intentionally minimized
+    "ANN",    # typing annotations enforcement
+    "B008",   # function call in argument defaults
+    "UP038",  # isinstance tuple -> union (postpone upgrade)
+    "E501",   # line-too-long - 120 chars is reasonable
+    "E402",   # module-import-not-at-top - needed for sys.path manipulation in scripts
+    "PLR0911", # too-many-return-statements - sometimes clearer than alternatives
+    "PLR0912", # too-many-branches - complex logic sometimes needed
+    "PLR0913", # too-many-arguments - sometimes necessary for complex functions
+    "PLR0915", # too-many-statements - complex functions exist
+    "PLR2004", # magic-value-used-in-comparison - constants overkill for simple cases
+    "PLC0415", # import-outside-toplevel - needed for optional dependencies
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
