@@ -91,11 +91,17 @@ Each agent specializes in a specific analysis domain:
 
 ## Recent Significant Changes
 
-### iPhone App Architecture Planning (Current)
-- **New Direction**: Adding iOS frontend while keeping Python backend
-- **Hybrid Approach**: FastAPI wrapper around existing services
+### LangGraph Migration Planning (Current Focus)
+- **Migration Strategy**: Moving from LangChain orchestrators to LangGraph StateGraph workflows
+- **Code Reduction**: Target 67% reduction in orchestration complexity (800+ lines → 300 lines)
+- **Infrastructure Modernization**: Replace custom components with LangGraph/LangSmith built-ins
+- **Documentation**: Comprehensive migration plan and updated architecture specifications
+
+### iPhone App Architecture Planning (Background)
+- **Future Direction**: Adding iOS frontend while keeping Python backend
+- **Hybrid Approach**: FastAPI wrapper around existing services (post-LangGraph migration)
 - **MVP Scope**: Authentication + analysis viewing
-- **Documentation**: Complete technical specification created
+- **Status**: On hold pending LangGraph migration completion
 
 ### Project Structure Evolution
 ```
@@ -169,16 +175,27 @@ tele_garmin/
 
 ## Current Development Focus
 
-### Immediate Priorities
-1. **Backend API Development** - FastAPI wrapper creation
+### Immediate Priorities (LangGraph Migration)
+1. **Migration Planning** ✅ - Comprehensive strategy and documentation completed
+2. **Foundation Setup** 🔄 - Branch creation and LangGraph/LangSmith integration
+3. **Proof of Concept** ⏳ - Convert single agent to demonstrate approach
+4. **Core Migration** ⏳ - Transform all orchestrators to StateGraph workflows
+
+### Background Priorities (iPhone App - Post-Migration)
+1. **Backend API Development** - FastAPI wrapper around LangGraph workflows
 2. **Authentication Flow** - JWT-based authentication system
-3. **Analysis Integration** - API endpoints for triggering analysis
+3. **Analysis Integration** - API endpoints for triggering LangGraph workflows
 4. **iOS Planning** - SwiftUI project structure design
 
-### Technical Debt Considerations
+### Technical Debt Addressed by Migration
+- **Complex Orchestration** - 800+ lines of coordination code → 300 lines with LangGraph
+- **Custom Infrastructure** - Replace 625 lines of custom tracking/storage with built-ins
+- **Manual State Management** - Implicit context → explicit typed state with reducers
+- **Limited Observability** - Custom tracking → professional LangSmith monitoring
+
+### Remaining Technical Debt
 - **Garmin API Dependencies** - Unofficial API usage creates stability risk
-- **Monolithic Analysis Flow** - Could benefit from better modularity
-- **File-based Storage** - Local storage may not scale for multi-user API
+- **File-based Storage** - Will be replaced by LangGraph checkpointers during migration
 
 ### Quality Assurance
 - **Comprehensive Testing** - Unit tests for security components

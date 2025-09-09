@@ -8,7 +8,9 @@
 - **Anthropic Claude** - AI model for analysis generation
 
 ### AI & Data Processing
-- **LangChain** - Multi-agent orchestration framework with built-in web search support
+- **LangGraph** - State-based workflow orchestration framework (migrating from LangChain)
+- **LangSmith** - AI observability and cost tracking platform
+- **LangChain** - Legacy multi-agent orchestration (being phased out)
 - **Anthropic Web Search** - Built-in web search tool for Claude models (max 3 uses per analysis)
 - **Garmin Connect Client** - Custom data extraction from Garmin
 - **Matplotlib/Plotly** - Chart and visualization generation
@@ -78,14 +80,21 @@
 
 ## Data Flow Architecture
 
-### Current Architecture
+### Current LangChain Architecture (Legacy)
 ```
-Telegram Bot -> Python Services -> Garmin Connect -> AI Analysis -> HTML Reports
+Telegram Bot -> Sequential Orchestrators -> Garmin Connect -> AI Agents -> HTML Reports
+                (800+ lines of coordination code)
 ```
 
-### New Hybrid Architecture
+### New LangGraph Architecture (Target)
 ```
-iOS App -> FastAPI -> Python Services -> Garmin Connect -> AI Analysis -> JSON/HTML -> iOS App
+Telegram Bot -> StateGraph Workflow -> Garmin Connect -> AI Nodes -> HTML Reports
+                (300 lines, parallel execution, built-in observability)
+```
+
+### Future Hybrid Architecture (Post-Migration)
+```
+iOS App -> FastAPI -> LangGraph StateGraph -> Garmin Connect -> AI Nodes -> JSON/HTML -> iOS App
 ```
 
 ## Development Tools
@@ -165,7 +174,69 @@ python-multipart = "^0.0.6"
 - **Cost Tracking**: Web search requests tracked at $10 per 1,000 searches
 - **Usage Limits**: Maximum 3 web searches per analysis for cost control
 
-### Potential Enhancements
+## LangGraph Migration (Current Focus)
+
+### Migration Strategy
+- **From**: LangChain sequential orchestrators (800+ lines)
+- **To**: LangGraph StateGraph workflows (300 lines, 67% reduction)
+- **Timeline**: 5-week phased migration approach
+- **Benefits**: Built-in observability, parallel execution, simplified code
+
+### New LangGraph Stack
+- **LangGraph ^0.2.0** - State-based workflow orchestration
+- **LangSmith** - Professional AI observability and cost tracking
+- **StateGraph API** - Explicit state management with typed schemas
+- **Checkpointers** - Built-in persistence replacing custom storage
+- **Streaming API** - Real-time progress updates
+
+### Architecture Changes
+
+#### State Management
+```python
+# Typed state schema replacing implicit context
+class TrainingAnalysisState(TypedDict):
+    user_id: str
+    athlete_name: str
+    garmin_data: Dict[str, Any]
+    
+    # Agent results with reducers for parallel execution
+    metrics_result: Optional[str]
+    physiology_result: Optional[str]
+    plots: Annotated[List[Dict], lambda x, y: x + y]
+```
+
+#### Workflow Definition
+```python
+# Explicit graph replacing sequential orchestration
+workflow = StateGraph(TrainingAnalysisState)
+workflow.add_node("metrics", metrics_node)
+workflow.add_node("physiology", physiology_node)
+workflow.add_edge("metrics", "synthesis")
+workflow.add_edge("physiology", "synthesis")
+```
+
+#### Parallel Execution
+- **Metrics + Physiology**: Independent analysis in parallel
+- **Activity Data → Interpreter**: Sequential dependency maintained
+- **State Reducers**: Automatic result aggregation
+
+### Infrastructure Replacement
+
+| Component | Current (LangChain) | New (LangGraph) | Code Reduction |
+|-----------|-------------------|----------------|----------------|
+| Cost Tracking | Custom CostTracker | LangSmith built-in | 150 lines → 10 lines |
+| Progress Updates | Custom callbacks | Streaming API | 100 lines → Built-in |
+| Persistence | File-based storage | Checkpointers | 200 lines → Built-in |
+| Error Handling | Custom retry logic | Node-level handling | 75 lines → 20 lines |
+| State Management | Manual coordination | Typed state + reducers | 275 lines → 50 lines |
+
+### Observability Improvements
+- **LangSmith Dashboards**: Professional monitoring replacing custom tracking
+- **Graph Visualization**: Workflow debugging in LangGraph Studio
+- **Streaming Updates**: Real-time progress without custom implementations
+- **Cost Analytics**: Automatic token and request cost tracking per workflow
+
+### Future Enhancements (Post-Migration)
 - **WebSocket** - Real-time progress updates
 - **Apple Watch SDK** - Watch app extension
 - **Core Data** - Local data persistence
