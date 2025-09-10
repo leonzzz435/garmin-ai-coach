@@ -161,7 +161,7 @@ class LangSmithCostExtractor:
             logger.error(f"Failed to extract workflow costs for trace {trace_id}: {e}")
             return self._zero_workflow_summary(trace_id)
 
-    def extract_run_costs(self, run_id: str, timeout_seconds: int = 30) -> dict[str, Any]:
+    def extract_run_costs(self, run_id: str) -> dict[str, Any]:
         try:
             root_run = self.safe_read_run(run_id, load_children=True)
             if not root_run:

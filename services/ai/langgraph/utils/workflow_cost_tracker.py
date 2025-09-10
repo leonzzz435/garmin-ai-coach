@@ -192,7 +192,7 @@ class ProgressIntegratedCostTracker(WorkflowCostTracker):
         self, workflow_app, initial_state: dict[str, Any], thread_id: str, user_id: str = None
     ) -> tuple[dict[str, Any], WorkflowExecution]:
 
-        async def progress_callback(event: str, cost_summary: WorkflowCostSummary):
+        async def progress_callback(_event: str, cost_summary: WorkflowCostSummary):
             if self.progress_manager and hasattr(self.progress_manager, 'analysis_stats'):
                 self.progress_manager.analysis_stats['total_cost_usd'] = cost_summary.total_cost_usd
                 self.progress_manager.analysis_stats['total_tokens'] = cost_summary.total_tokens

@@ -38,6 +38,7 @@ isort = ">=5.12.0"
 flake8 = ">=6.0.0"
 mypy = ">=1.5.0"
 ruff = ">=0.5.0"
+vulture = ">=2.14.0"
 
 [tasks]
 # Development tasks
@@ -49,6 +50,11 @@ lint-ruff = "ruff check ."
 ruff-fix = "ruff check --fix ."
 format = "black . && isort ."
 type-check = "mypy ."
+
+# Dead code detection
+dead-code = "vulture --config vulture.toml"
+dead-code-all = "vulture --config vulture.toml --min-confidence 60"
+dead-code-verbose = "vulture --config vulture.toml --verbose"
 
 # Bot management
 start-dev = { cmd = "python main.py", env = { ENV_FILE = ".env.dev", ENVIRONMENT = "development" } }
