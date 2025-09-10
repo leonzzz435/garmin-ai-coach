@@ -1,0 +1,45 @@
+# Tele Garmin CLI Configuration Template
+# Copy this file and customize for your analysis
+
+# Athlete Information
+athlete:
+  name: "John Doe"
+  email: "john.doe@example.com"  # Garmin Connect email
+
+# Analysis Context
+context:
+  analysis: |
+    Coming back from a minor injury. Focusing on base building and 
+    avoiding high-intensity work for the next 2 weeks.
+    
+  planning: |
+    Preparing for Olympic distance triathlon in 12 weeks.
+    Priority is building aerobic base and improving run endurance.
+
+# Data Extraction Settings (days to look back)
+extraction:
+  activities_days: 7      # How many days of activities to extract
+  metrics_days: 14         # How many days of metrics to extract
+  ai_mode: "development"   # "development" (faster, cheaper) or "production" (comprehensive)
+
+# Upcoming Competitions
+competitions:
+  - name: "Local Olympic Triathlon"
+    date: "2026-04-15"         # YYYY-MM-DD format
+    race_type: "Olympic"
+    priority: "A"              # A (highest), B, C priorities
+    target_time: "02:30:00"    # HH:MM:SS format
+    
+  - name: "Sprint Series Race 1"
+    date: "2026-03-20"
+    race_type: "Sprint" 
+    priority: "B"
+    target_time: "01:15:00"
+
+# Output Settings
+output:
+  directory: "./data"
+
+# Optional: Garmin Credentials (leave empty to use interactive login)
+credentials:
+  password: ""  # Leave empty for secure interactive input

@@ -65,16 +65,22 @@ class WorkflowCostTracker:
             
             if thread_id:
                 config["configurable"] = {"thread_id": thread_id}
+
+            prev_lengths = {'analysis_html': None, 'planning_html': None}
             
             async for chunk in workflow_app.astream(initial_state, config=config, stream_mode="values"):
                 logger.debug(f"Workflow step: {list(chunk.keys()) if chunk else 'None'}")
                 if chunk:
                     final_state = chunk  # Take the latest complete state snapshot
                     
-                    if 'analysis_html' in chunk and chunk['analysis_html']:
-                        logger.info(f"analysis_html received: {len(str(chunk['analysis_html']))} chars")
-                    if 'planning_html' in chunk and chunk['planning_html']:
-                        logger.info(f"planning_html received: {len(str(chunk['planning_html']))} chars")
+                    for _key in ('analysis_html', 'planning_html'):
+                        if _key in chunk and chunk[_key]:
+                            curr_len = len(str(chunk[_key]))
+                            if prev_lengths[_key] != curr_len:
+                                logger.info(f"{_key} updated: {curr_len} chars")
+                                prev_lengths[_key] = curr_len
+                            else:
+                                logger.debug(f"{_key} unchanged: {curr_len} chars")
             
             logger.info(f"Workflow execution complete with deterministic trace_id: {execution.trace_id}")
             

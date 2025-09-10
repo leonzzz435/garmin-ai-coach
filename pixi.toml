@@ -56,6 +56,10 @@ start-prod = { cmd = "python main.py", env = { ENV_FILE = ".env", ENVIRONMENT = 
 # Utility scripts
 list-users = "python scripts/list_users.py"
 
+# CLI coach interface
+coach-cli = "python cli/tele_garmin_cli.py"
+coach-init = "python cli/tele_garmin_cli.py --init-config"
+
 [environments]
 default = { solve-group = "default" }
 
