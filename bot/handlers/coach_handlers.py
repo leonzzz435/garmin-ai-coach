@@ -122,8 +122,6 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
         activity_cache.clear()
         physiology_cache.clear()
 
-        await progress_manager.extracting_data_detailed()
-
         extractor = TriathlonCoachDataExtractor(email, password)
         data = extractor.extract_data(
             ExtractionConfig(
@@ -182,7 +180,6 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
             progress_manager=progress_manager
         )
 
-        await progress_manager.planning_phase()
         
         cost_summary = result.get('cost_summary', {})
         execution_metadata = result.get('execution_metadata', {})
@@ -191,6 +188,9 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
             progress_manager.analysis_stats['total_cost_usd'] = cost_summary['total_cost_usd']
             progress_manager.analysis_stats['total_tokens'] = cost_summary['total_tokens']
             progress_manager.analysis_stats['agents_completed'] = cost_summary.get('agent_count', 10)
+            
+            if 'plots' in result and result['plots']:
+                progress_manager.analysis_stats['plots_created'] = len(result['plots'])
             
             logger.info(f"Final cost tracking for user {user_id}: "
                        f"${cost_summary['total_cost_usd']:.4f} "
@@ -212,7 +212,6 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
         execution_tracker = ExecutionTracker(user_id)
         execution_tracker.reset_workout_counter()
 
-        await progress_manager.preparing_reports()
 
         date_str = datetime.now().strftime('%Y%m%d')
         file_delivery = FileDeliveryManager(date_str)
