@@ -24,19 +24,24 @@ jobs:
       - name: Install dependencies
         run: pixi install -q
 
-      - name: Install project in development mode
-        env:
-          TELE_BOT_KEY: "123456:test"
-          ANTHROPIC_API_KEY: "sk-ant-TEST"
-          OPENAI_API_KEY: "sk-TEST"
-        run: pixi run pip install -e .
+      - name: Clear Python cache
+        run: find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
       - name: Lint (ruff)
         run: pixi run lint-ruff
 
       - name: Run tests
+        working-directory: ${{ github.workspace }}
         env:
+          PYTHONPATH: ${{ github.workspace }}
           TELE_BOT_KEY: "123456:test"
           ANTHROPIC_API_KEY: "sk-ant-TEST"
           OPENAI_API_KEY: "sk-TEST"
-        run: pixi run pytest tests/ -v
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "PYTHONPATH: $PYTHONPATH"
+          echo "Python path:"
+          pixi run python -c "import sys; print('\n'.join(sys.path))"
+          echo "Checking core module:"
+          pixi run python -c "import core; print(core.__file__)"
+          pixi run pytest tests/ -v --tb=short
