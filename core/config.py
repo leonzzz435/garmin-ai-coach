@@ -1,15 +1,16 @@
 
 import os
 from dataclasses import dataclass
-from typing import Optional
+
 from dotenv import load_dotenv
 
 # Load environment variables from specified env file or default to .env
 env_file = os.getenv('ENV_FILE', '.env')
 load_dotenv(env_file)
 
-from enum import Enum
 import logging
+from enum import Enum
+
 logger = logging.getLogger(__name__)
 
 class AIMode(Enum):
@@ -21,11 +22,11 @@ class AIMode(Enum):
 class Config:
     bot_token: str
     anthropic_api_key: str
-    openai_api_key: Optional[str] = None
-    deepseek_api_key: Optional[str] = None
-    openrouter_api_key: Optional[str] = None
-    llm_model: Optional[str] = None  # Main model for reasoning
-    function_calling_llm: Optional[str] = None  # Model for tool operations
+    openai_api_key: str | None = None
+    deepseek_api_key: str | None = None
+    openrouter_api_key: str | None = None
+    llm_model: str | None = None  # Main model for reasoning
+    function_calling_llm: str | None = None  # Model for tool operations
     
     # AI configuration
     ai_mode: AIMode = AIMode.STANDARD
@@ -85,11 +86,7 @@ class Config:
             function_calling_llm=function_calling_llm
         )
 
-# Global config instance
-_config: Optional[Config] = None
-
 def get_config() -> Config:
-    global _config
-    if _config is None:
-        _config = Config.from_env()
-    return _config
+    if not hasattr(get_config, '_config'):
+        get_config._config = Config.from_env()
+    return get_config._config
