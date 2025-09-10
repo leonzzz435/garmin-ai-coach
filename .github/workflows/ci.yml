@@ -24,58 +24,15 @@ jobs:
       - name: Install dependencies
         run: pixi install -q
 
-      - name: Clear Python cache
-        run: find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-
-      - name: Install project as package
-        env:
-          TELE_BOT_KEY: "123456:test"
-          ANTHROPIC_API_KEY: "sk-ant-TEST"
-          OPENAI_API_KEY: "sk-TEST"
-        run: pixi run pip install -e .
+      - name: Install dependencies
+        run: pixi install -q
 
       - name: Lint (ruff)
         run: pixi run lint-ruff
-
-      - name: Debug config file directly
-        env:
-          TELE_BOT_KEY: "123456:test"
-          ANTHROPIC_API_KEY: "sk-ant-TEST"
-          OPENAI_API_KEY: "sk-TEST"
-        run: |
-          echo "Testing direct config.py import:"
-          pixi run python -c "
-          import sys
-          import os
-          sys.path.insert(0, os.getcwd())
-          try:
-              from core.config import get_config, AIMode
-              print('✅ Direct core.config import works!')
-              config = get_config()
-              print('Config loaded successfully')
-          except Exception as e:
-              print('❌ Direct core.config import failed:', str(e))
-              import traceback
-              traceback.print_exc()
-          "
-          
-          echo "Testing if core/__init__.py is the problem:"
-          pixi run python -c "
-          import sys
-          import os
-          sys.path.insert(0, os.getcwd())
-          try:
-              import core
-              print('✅ Core package import works!')
-          except Exception as e:
-              print('❌ Core package import failed:', str(e))
-              import traceback
-              traceback.print_exc()
-          "
 
       - name: Run tests
         env:
           TELE_BOT_KEY: "123456:test"
           ANTHROPIC_API_KEY: "sk-ant-TEST"
           OPENAI_API_KEY: "sk-TEST"
-        run: pixi run pytest tests/ -v --tb=short
+        run: pixi run test
