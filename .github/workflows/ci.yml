@@ -27,21 +27,22 @@ jobs:
       - name: Clear Python cache
         run: find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
+      - name: Install project as package
+        env:
+          TELE_BOT_KEY: "123456:test"
+          ANTHROPIC_API_KEY: "sk-ant-TEST"
+          OPENAI_API_KEY: "sk-TEST"
+        run: pixi run pip install -e .
+
       - name: Lint (ruff)
         run: pixi run lint-ruff
 
       - name: Run tests
-        working-directory: ${{ github.workspace }}
         env:
-          PYTHONPATH: ${{ github.workspace }}
           TELE_BOT_KEY: "123456:test"
           ANTHROPIC_API_KEY: "sk-ant-TEST"
           OPENAI_API_KEY: "sk-TEST"
         run: |
-          echo "Current directory: $(pwd)"
-          echo "PYTHONPATH: $PYTHONPATH"
-          echo "Python path:"
-          pixi run python -c "import sys; print('\n'.join(sys.path))"
-          echo "Checking core module:"
-          pixi run python -c "import core; print(core.__file__)"
+          echo "Verifying package installation:"
+          pixi run python -c "import core.config; print('✅ core.config imported successfully')"
           pixi run pytest tests/ -v --tb=short
