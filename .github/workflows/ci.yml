@@ -29,7 +29,10 @@ jobs:
 
       - name: Run tests
         env:
+          PYTHONPATH: "${{ github.workspace }}:$PYTHONPATH"
           TELE_BOT_KEY: "123456:test"
           ANTHROPIC_API_KEY: "sk-ant-TEST"
           OPENAI_API_KEY: "sk-TEST"
-        run: pixi run python -c "import sys; sys.path.insert(0, '.'); import pytest; pytest.main()"
+        run: |
+          cd "${{ github.workspace }}"
+          pixi run python -m pytest tests/ -v
