@@ -32,6 +32,7 @@ jobs:
 
       - name: Run tests
         env:
+          PYTHONPATH: "${{ github.workspace }}"
           TELE_BOT_KEY: "123456:test"
           ANTHROPIC_API_KEY: "sk-ant-TEST"
           OPENAI_API_KEY: "sk-TEST"
