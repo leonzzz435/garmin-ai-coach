@@ -37,32 +37,38 @@ jobs:
       - name: Lint (ruff)
         run: pixi run lint-ruff
 
-      - name: Debug imports
+      - name: Debug config file directly
         env:
           TELE_BOT_KEY: "123456:test"
           ANTHROPIC_API_KEY: "sk-ant-TEST"
           OPENAI_API_KEY: "sk-TEST"
         run: |
-          echo "Testing direct config import:"
+          echo "Testing direct config.py import:"
           pixi run python -c "
           import sys
-          sys.path.insert(0, 'core')
+          import os
+          sys.path.insert(0, os.getcwd())
           try:
-              import config
-              print('✅ Direct config import works')
-              print('Config file path:', config.__file__)
+              from core.config import get_config, AIMode
+              print('✅ Direct core.config import works!')
+              config = get_config()
+              print('Config loaded successfully')
           except Exception as e:
-              print('❌ Direct config import failed:', str(e))
+              print('❌ Direct core.config import failed:', str(e))
               import traceback
               traceback.print_exc()
           "
-          echo "Testing absolute import:"
+          
+          echo "Testing if core/__init__.py is the problem:"
           pixi run python -c "
+          import sys
+          import os
+          sys.path.insert(0, os.getcwd())
           try:
-              from core import config
-              print('✅ Absolute import works')
+              import core
+              print('✅ Core package import works!')
           except Exception as e:
-              print('❌ Absolute import failed:', str(e))
+              print('❌ Core package import failed:', str(e))
               import traceback
               traceback.print_exc()
           "
