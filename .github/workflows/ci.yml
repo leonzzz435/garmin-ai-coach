@@ -37,12 +37,39 @@ jobs:
       - name: Lint (ruff)
         run: pixi run lint-ruff
 
-      - name: Run tests
+      - name: Debug imports
         env:
           TELE_BOT_KEY: "123456:test"
           ANTHROPIC_API_KEY: "sk-ant-TEST"
           OPENAI_API_KEY: "sk-TEST"
         run: |
-          echo "Verifying package installation:"
-          pixi run python -c "import core.config; print('✅ core.config imported successfully')"
-          pixi run pytest tests/ -v --tb=short
+          echo "Testing direct config import:"
+          pixi run python -c "
+          import sys
+          sys.path.insert(0, 'core')
+          try:
+              import config
+              print('✅ Direct config import works')
+              print('Config file path:', config.__file__)
+          except Exception as e:
+              print('❌ Direct config import failed:', str(e))
+              import traceback
+              traceback.print_exc()
+          "
+          echo "Testing absolute import:"
+          pixi run python -c "
+          try:
+              from core import config
+              print('✅ Absolute import works')
+          except Exception as e:
+              print('❌ Absolute import failed:', str(e))
+              import traceback
+              traceback.print_exc()
+          "
+
+      - name: Run tests
+        env:
+          TELE_BOT_KEY: "123456:test"
+          ANTHROPIC_API_KEY: "sk-ant-TEST"
+          OPENAI_API_KEY: "sk-TEST"
+        run: pixi run pytest tests/ -v --tb=short
