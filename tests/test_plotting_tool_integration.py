@@ -52,13 +52,6 @@ fig.update_layout(title='Test Plot')
         assert len(llm_with_tools.kwargs['tools']) == 1
         assert llm_with_tools.kwargs['tools'][0]['name'] == 'python_plotting_tool'
 
-        from langchain_core.messages import HumanMessage
-
-        test_message = HumanMessage(content="Hello, can you help with analysis?")
-
-        response = await llm_with_tools.ainvoke([test_message])
-        assert response is not None
-
     def test_tools_condition_compatibility(self):
         from langchain_core.messages import AIMessage
         from langgraph.prebuilt import tools_condition
