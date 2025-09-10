@@ -19,15 +19,13 @@ class AgentRole(Enum):
 @dataclass
 class AISettings:
     mode: AIMode
-    agentops_enabled: bool
-    agentops_api_key: str | None
 
     # Model assignments - one model per stage for all agents
     stage_models: dict[AIMode, str] = field(
         default_factory=lambda: {
             AIMode.STANDARD: "claude-opus-thinking",  # Production: Top-tier reasoning with Claude Opus 4.1
             AIMode.COST_EFFECTIVE: "claude-3-haiku",  # Budget: Fast and cost-effective
-            AIMode.DEVELOPMENT: "claude-3-haiku",  # Development: Fast iteration
+            AIMode.DEVELOPMENT: "claude-4",  # Development: Fast iteration
         }
     )
 
@@ -47,8 +45,6 @@ class AISettings:
 
         return cls(
             mode=config.ai_mode,
-            agentops_enabled=config.agentops_enabled,
-            agentops_api_key=config.agentops_api_key,
         )
 
 

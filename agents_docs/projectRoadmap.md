@@ -1,82 +1,74 @@
-# iPhone App Development Project Roadmap
+# Project Roadmap
 
-## 🎯 Project Overview
+This roadmap captures the minimal, high-impact cleanup plan tailored to this repository to make it reliable, easy to contribute to, and safe to ship incrementally.
 
-Transform the sophisticated Telegram-based AI triathlon coaching system into a native iPhone app. The MVP will focus on the core value proposition: seamless Garmin authentication and beautiful presentation of AI-generated training analysis reports.
+## High-Level Goals
+- Consistent environment via Pixi with one-command linting and testing.
+- Always-green CI on pull requests and main.
+- Enforced code quality (ruff, black) and type-safety baseline (optional mypy).
+- Clear contributor docs for setup, run, lint, and test.
+- Sensible repo hygiene (editor config, ignore rules, pre-commit).
 
-## 🎯 High-Level Goals
+Key configs: [pixi.toml](../pixi.toml), [pyproject.toml](../pyproject.toml), [pytest.ini](../pytest.ini), [README.md](../README.md)
 
-### Primary Goals
-- [ ] Create a hybrid architecture: iOS app + Python backend API
-- [ ] Implement secure Garmin authentication flow
-- [ ] Build native iOS interface for analysis reports
-- [ ] Maintain existing AI analysis capabilities
-- [ ] Deploy production-ready backend API
+## Minimal, High-Impact Cleanup Priorities (extracted for this repo)
 
-### MVP Features
-- [ ] User authentication with Garmin credentials
-- [ ] One-tap analysis trigger
-- [ ] Real-time progress updates during analysis
-- [ ] Native HTML report viewing with charts
-- [ ] Basic settings and account management
+1) Guardrails and CI
+- Protect main with required reviews.
+- Baseline green CI that runs lint and tests via Pixi.
+- Add fast feedback (fail early on lint).
 
-### Success Criteria
-- [ ] App successfully authenticates with Garmin Connect
-- [ ] Analysis reports generate and display correctly
-- [ ] App passes App Store review guidelines
-- [ ] Backend API handles concurrent users
-- [ ] User experience is intuitive and responsive
+2) Repo hygiene
+- Add .editorconfig for cross-IDE consistency.
+- Review and keep .gitignore aligned (already solid for this project).
 
-## 📱 Feature Breakdown
+3) Formatting, linting, types
+- Python: ruff (lint and import sort), black (format), isort via ruff rules.
+- Optional: mypy type checking when ready (Pixi task exists).
 
-### Phase 1: Backend API Development
-- [ ] Create FastAPI wrapper around existing Python services
-- [ ] Implement authentication endpoints
-- [ ] Build analysis orchestration endpoints
-- [ ] Add progress tracking and status endpoints
-- [ ] Deploy backend to cloud platform
+4) Secrets scanning (fast pass)
+- Add gitleaks as a CI job (can be non-blocking initially; make blocking once baseline is clean).
+- Provide .env.example for local usage (no real secrets committed).
 
-### Phase 2: iOS App Core
-- [ ] Setup iOS project with SwiftUI
-- [ ] Implement authentication flow
-- [ ] Build analysis trigger interface
-- [ ] Create progress monitoring views
-- [ ] Develop report viewing interface
+5) Tests and coverage
+- Run pytest in CI.
+- Keep coverage reporting; enforce thresholds later once stable.
 
-### Phase 3: Polish & Testing
-- [ ] UI/UX refinements
-- [ ] Integration testing
-- [ ] Beta testing with TestFlight
-- [ ] App Store submission
-- [ ] Production monitoring
+6) Dependencies and environment
+- Use Pixi as the single source for dependencies and tasks.
+- Consolidate commands to Pixi tasks (already present for test/lint/format).
 
-## 🚀 Future Enhancements (Post-MVP)
-- [ ] Push notifications for analysis completion
-- [ ] Offline support for cached reports
-- [ ] Apple Watch integration
-- [ ] Social sharing features
-- [ ] Advanced native chart visualizations
-- [ ] Siri integration
+7) Docs that unblock contributors
+- README: how to install/run with Pixi, how to lint/test (already present).
+- Add CONTRIBUTING.md later (branching, commit style, PR checks).
 
-## 📊 Success Metrics
-- Time from login to analysis completion < 5 minutes
-- Analysis accuracy matches existing Telegram bot
-- App Store rating > 4.0 stars
-- User retention > 70% after 1 week
-- Backend uptime > 99.5%
+## Completion Criteria
+- CI runs on PR and main to execute lint and tests via Pixi.
+- Lint and tests pass consistently on a clean checkout.
+- Style is enforced locally (pre-commit) and in CI (ruff/black).
+- Secret scanning job exists in CI (initially optional), with a plan to enforce.
+- Documentation clearly explains setup, linting, testing, and running.
 
-## 🔄 Progress Tracking
+## Progress Tracker
 
-### Completed Tasks
-- [x] Project architecture design
-- [x] Technical specification creation
-- [x] Development roadmap planning
+- [x] Add GitHub Actions CI using Pixi for lint and tests
+  - Workflow: [ci.yml](../.github/workflows/ci.yml)
+- [ ] Introduce pre-commit with ruff (—fix), black, and basic whitespace fixes
+- [ ] Provide .env.example (document required variables) and ensure .env is ignored
+- [ ] Add CONTRIBUTING.md (branching, conventional commits, local checks)
+- [ ] Consider CODEOWNERS (clear review responsibility)
 
-### Current Focus
-- [ ] Backend API development setup
+## Completed Tasks
+- CI pipeline created to:
+  - Install Pixi.
+  - Sync environment.
+  - Run ruff lint: `pixi run lint-ruff`.
+  - Run tests: `pixi run test`.
+  - File: [ci.yml](../.github/workflows/ci.yml)
 
-### Next Milestones
-1. Backend API MVP completion
-2. iOS app authentication flow
-3. Analysis integration
-4. Beta testing launch
+## Notes and References
+- Primary developer commands live in [pixi.toml](../pixi.toml):
+  - `lint-ruff`, `ruff-fix`, `format`, `test`, `type-check`.
+- Lint/format configuration centralized in [pyproject.toml](../pyproject.toml).
+- Test configuration in [pytest.ini](../pytest.ini).
+- Contributor-facing usage documented in [README.md](../README.md).

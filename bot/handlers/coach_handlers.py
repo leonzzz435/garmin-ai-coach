@@ -1,9 +1,9 @@
-import datetime
 import json
 import logging
 import tempfile
 from dataclasses import asdict
 
+import anthropic
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import (
@@ -21,7 +21,8 @@ from bot.utils.message_formatter import FileDeliveryManager
 from core.security import SecureCredentialManager, SecureReportManager
 from core.security.cache import SecureActivityCache, SecureMetricsCache, SecurePhysiologyCache
 from core.security.execution import ExecutionTracker
-from services.ai.langchain.master_orchestrator import LangChainFullAnalysisFlow
+from services.ai.langgraph.workflows.planning_workflow import run_complete_analysis_and_planning
+from services.ai.utils.retry_handler import get_error_details, is_anthropic_overload_error
 from services.garmin import ExtractionConfig, TimeRange, TriathlonCoachDataExtractor
 
 logger = logging.getLogger(__name__)
@@ -122,8 +123,6 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
         activity_cache.clear()
         physiology_cache.clear()
 
-        await progress_manager.extracting_data_detailed()
-
         extractor = TriathlonCoachDataExtractor(email, password)
         data = extractor.extract_data(
             ExtractionConfig(
@@ -138,38 +137,91 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
         analysis_context = user_data[user_id].get("analysis_context", "")
         planning_context = user_data[user_id].get("planning_context", "")
 
-        result = await LangChainFullAnalysisFlow.run_full_analysis(
-            user_id,
-            athlete_name,
-            data,
-            analysis_context,
-            planning_context,
+        from core.security.competitions import SecureCompetitionManager
+
+        competition_manager = SecureCompetitionManager(user_id)
+        upcoming_competitions = competition_manager.get_upcoming_competitions()
+
+        competitions_data = []
+        for comp in upcoming_competitions:
+            competitions_data.append(
+                {
+                    'name': comp.name,
+                    'date': comp.date.isoformat(),
+                    'race_type': comp.race_type,
+                    'priority': comp.priority.value,
+                    'target_time': comp.target_time,
+                    'location': comp.location,
+                    'notes': comp.notes,
+                }
+            )
+
+        from datetime import datetime, timedelta
+
+        current_date = {
+            'date': datetime.now().strftime('%Y-%m-%d'),
+            'day_of_week': datetime.now().strftime('%A'),
+            'week_number': str(datetime.now().isocalendar()[1]),
+        }
+
+        week_dates = []
+        for i in range(14):
+            date_obj = datetime.now() + timedelta(days=i)
+            week_dates.append(
+                {
+                    'date': date_obj.strftime('%Y-%m-%d'),
+                    'day_of_week': date_obj.strftime('%A'),
+                    'week_number': str(date_obj.isocalendar()[1]),
+                }
+            )
+
+        result = await run_complete_analysis_and_planning(
+            user_id=str(user_id),
+            athlete_name=athlete_name,
+            garmin_data=asdict(data),
+            analysis_context=analysis_context,
+            planning_context=planning_context,
+            competitions=competitions_data,
+            current_date=current_date,
+            week_dates=week_dates,
             progress_manager=progress_manager,
         )
 
-        await progress_manager.planning_phase()
+        cost_summary = result.get('cost_summary', {})
+
+        if cost_summary.get('total_cost_usd', 0) > 0:
+            progress_manager.analysis_stats['total_cost_usd'] = cost_summary['total_cost_usd']
+            progress_manager.analysis_stats['total_tokens'] = cost_summary['total_tokens']
+            progress_manager.analysis_stats['agents_completed'] = cost_summary.get(
+                'agent_count', 10
+            )
+
+            if 'plots' in result and result['plots']:
+                progress_manager.analysis_stats['plots_created'] = len(result['plots'])
+
+            logger.info(
+                f"Final cost tracking for user {user_id}: "
+                f"${cost_summary['total_cost_usd']:.4f} "
+                f"({cost_summary['total_tokens']} tokens)"
+            )
 
         metrics_cache = SecureMetricsCache(user_id)
         activity_cache = SecureActivityCache(user_id)
         physiology_cache = SecurePhysiologyCache(user_id)
 
-        analysis_intermediates = result['analysis_intermediates']
-        metrics_cache.store(analysis_intermediates['metrics_result'])
-        activity_cache.store(analysis_intermediates['activity_result'])
-        physiology_cache.store(analysis_intermediates['physiology_result'])
+        metrics_cache.store(result.get('metrics_result', ''))
+        activity_cache.store(result.get('activity_result', ''))
+        physiology_cache.store(result.get('physiology_result', ''))
 
         data_manager.store_report(
-            json.dumps({'report': str(result['analysis_html']), 'raw_data': asdict(data)})
+            json.dumps({'report': str(result.get('analysis_html', '')), 'raw_data': asdict(data)})
         )
 
-        # Reset workout counter since data generation was successful
         logger.info(f"Resetting workout counter for user {user_id} after successful coach analysis")
         execution_tracker = ExecutionTracker(user_id)
         execution_tracker.reset_workout_counter()
 
-        await progress_manager.preparing_reports()
-
-        date_str = datetime.datetime.now().strftime('%Y%m%d')
+        date_str = datetime.now().strftime('%Y%m%d')
         file_delivery = FileDeliveryManager(date_str)
         file_sequence = file_delivery.get_file_sequence()
 
@@ -214,9 +266,9 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
                         )
 
             elif file_info['type'] == 'metrics':
-                if 'metrics_result' in analysis_intermediates:
+                if 'metrics_result' in result:
                     with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=True) as tmp:
-                        tmp.write(analysis_intermediates['metrics_result'])
+                        tmp.write(str(result['metrics_result']))
                         tmp.flush()
 
                         with open(tmp.name, 'rb') as doc:
@@ -232,9 +284,9 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
                             )
 
             elif file_info['type'] == 'activity_interpretation':
-                if 'activity_result' in analysis_intermediates:
+                if 'activity_result' in result:
                     with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=True) as tmp:
-                        tmp.write(analysis_intermediates['activity_result'])
+                        tmp.write(str(result['activity_result']))
                         tmp.flush()
 
                         with open(tmp.name, 'rb') as doc:
@@ -250,9 +302,9 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
                             )
 
             elif file_info['type'] == 'physiology':
-                if 'physiology_result' in analysis_intermediates:
+                if 'physiology_result' in result:
                     with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=True) as tmp:
-                        tmp.write(analysis_intermediates['physiology_result'])
+                        tmp.write(str(result['physiology_result']))
                         tmp.flush()
 
                         with open(tmp.name, 'rb') as doc:
@@ -268,10 +320,9 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
                             )
 
             elif file_info['type'] == 'season_plan':
-                planning_intermediates = result['planning_intermediates']
-                if planning_intermediates and 'season_plan' in planning_intermediates:
+                if 'season_plan' in result and result['season_plan'] is not None:
                     with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=True) as tmp:
-                        tmp.write(planning_intermediates['season_plan'])
+                        tmp.write(str(result['season_plan']))
                         tmp.flush()
 
                         with open(tmp.name, 'rb') as doc:
@@ -285,13 +336,17 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
                                 connect_timeout=300,
                                 pool_timeout=300,
                             )
+                else:
+                    logger.warning(
+                        "Skipping season_plan file delivery - season_plan is None or missing"
+                    )
 
             elif file_info['type'] == 'completion':
                 await message.reply_text(file_info['content'], parse_mode=file_info['parse_mode'])
 
     except Exception as e:
         logger.error(f"Error processing full analysis: {str(e)}", exc_info=True)
-        
+
         # Provide user-friendly error messages based on error type
         try:
             if isinstance(e, anthropic.APIStatusError):
@@ -315,7 +370,7 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
                     f"Details: {escape_markdown(error_details)}\n\n"
                     "Please try again\\. If the problem persists, contact support\\."
                 )
-            
+
             await progress_manager.finish(error_message)
         except Exception:
             # Fallback to basic error message if detailed handling fails

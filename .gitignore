@@ -33,8 +33,7 @@ env/
 # Note: pixi.lock should be committed for reproducible builds
 
 # Intermediate AI results
-data/analysis/
-data/weekly_plans/
+data/
 
 # IDE
 .idea/
@@ -44,7 +43,6 @@ data/weekly_plans/
 
 # Project specific
 .garmin_bot/
-config.py
 *.log
 
 # OS
