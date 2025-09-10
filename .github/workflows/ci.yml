@@ -24,16 +24,12 @@ jobs:
       - name: Install dependencies
         run: pixi install -q
 
-      - name: Install package (editable)
-        run: pixi run python -m pip install -e .
-
       - name: Lint (ruff)
         run: pixi run lint-ruff
 
       - name: Run tests
         env:
-          PYTHONPATH: "${{ github.workspace }}"
           TELE_BOT_KEY: "123456:test"
           ANTHROPIC_API_KEY: "sk-ant-TEST"
           OPENAI_API_KEY: "sk-TEST"
-        run: pixi run test
+        run: pixi run python -c "import sys; sys.path.insert(0, '.'); import pytest; pytest.main()"
