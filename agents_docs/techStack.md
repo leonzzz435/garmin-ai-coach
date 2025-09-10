@@ -200,7 +200,7 @@ class TrainingAnalysisState(TypedDict):
     user_id: str
     athlete_name: str
     garmin_data: Dict[str, Any]
-    
+
     # Agent results with reducers for parallel execution
     metrics_result: Optional[str]
     physiology_result: Optional[str]

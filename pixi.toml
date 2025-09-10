@@ -9,6 +9,7 @@ platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
 [dependencies]
 python = ">=3.10,<3.13"
 pip = "*"
+pre-commit = ">=4.3.0,<5"
 
 [pypi-dependencies]
 # All dependencies managed by pip to avoid conda conflicts

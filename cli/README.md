@@ -33,7 +33,7 @@ extraction:
 competitions:
   - name: "Target Race"
     date: "2026-04-15"
-    race_type: "Olympic" 
+    race_type: "Olympic"
     priority: "A"
     target_time: "02:30:00"
 
@@ -44,7 +44,7 @@ output:
 ## Output
 
 - `analysis.html` - AI training analysis
-- `planning.html` - Weekly training plan  
+- `planning.html` - Weekly training plan
 - `summary.json` - Metadata and costs
 
 ## AI Mode Options

@@ -122,12 +122,12 @@ class HTMLPlotEmbedder:
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
-        
+
         .plot-content {
             width: 100%;
             height: auto;
         }
-        
+
         .plot-fallback {
             padding: 20px;
             border: 2px dashed #ccc;
@@ -136,7 +136,7 @@ class HTMLPlotEmbedder:
             background-color: #f9f9f9;
             border-radius: 8px;
         }
-        
+
         .plot-error {
             padding: 20px;
             border: 2px solid #ff6b6b;
@@ -146,14 +146,14 @@ class HTMLPlotEmbedder:
             border-radius: 8px;
             color: #d63031;
         }
-        
+
         /* Responsive plot sizing */
         @media (max-width: 768px) {
             .plot-container {
                 margin: 15px 0;
             }
         }
-        
+
         /* Ensure Plotly plots are responsive */
         .js-plotly-plot {
             width: 100% !important;

@@ -9,9 +9,9 @@ athlete:
 # Analysis Context
 context:
   analysis: |
-    Coming back from a minor injury. Focusing on base building and 
+    Coming back from a minor injury. Focusing on base building and
     avoiding high-intensity work for the next 2 weeks.
-    
+
   planning: |
     Preparing for Olympic distance triathlon in 12 weeks.
     Priority is building aerobic base and improving run endurance.
@@ -29,10 +29,10 @@ competitions:
     race_type: "Olympic"
     priority: "A"              # A (highest), B, C priorities
     target_time: "02:30:00"    # HH:MM:SS format
-    
+
   - name: "Sprint Series Race 1"
     date: "2026-03-20"
-    race_type: "Sprint" 
+    race_type: "Sprint"
     priority: "B"
     target_time: "01:15:00"
 
