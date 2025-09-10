@@ -1,9 +1,9 @@
 import logging
 from datetime import datetime
 
-from services.ai.model_config import ModelSelector
 from services.ai.ai_settings import AgentRole
-from services.ai.utils.retry_handler import retry_with_backoff, AI_ANALYSIS_CONFIG
+from services.ai.model_config import ModelSelector
+from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
 from .tool_calling_helper import extract_text_content
@@ -98,48 +98,44 @@ Return ONLY the complete HTML document without any markdown code blocks or expla
 
 async def formatter_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
     logger.info("Starting HTML formatter node")
-    
+
     try:
         llm = ModelSelector.get_llm(AgentRole.FORMATTER)
-        
+
         user_prompt = FORMATTER_USER_PROMPT.format(
             synthesis_result=state.get('synthesis_result', '')
         )
-        
+
         messages = [
             {"role": "system", "content": FORMATTER_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt}
+            {"role": "user", "content": user_prompt},
         ]
-        
+
         agent_start_time = datetime.now()
-        
+
         async def call_html_formatting():
             response = await llm.ainvoke(messages)
             return extract_text_content(response)
-        
+
         analysis_html = await retry_with_backoff(
-            call_html_formatting,
-            AI_ANALYSIS_CONFIG,
-            "HTML Formatting"
+            call_html_formatting, AI_ANALYSIS_CONFIG, "HTML Formatting"
         )
-        
+
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-        
+
         cost_data = {
             'agent': 'formatter',
             'execution_time': execution_time,
             'timestamp': datetime.now().isoformat(),
         }
-        
+
         logger.info(f"HTML formatting completed in {execution_time:.2f}s")
-        
+
         return {
             'analysis_html': analysis_html,
             'costs': [cost_data],
         }
-        
+
     except Exception as e:
         logger.error(f"Formatter node failed: {e}")
-        return {
-            'errors': [f"HTML formatting failed: {str(e)}"]
-        }
+        return {'errors': [f"HTML formatting failed: {str(e)}"]}

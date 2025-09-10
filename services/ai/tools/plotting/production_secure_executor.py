@@ -1,10 +1,9 @@
-import json
-import textwrap
-import tempfile
+import logging
+import os
 import subprocess
 import sys
-import os
-import logging
+import tempfile
+import textwrap
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +25,7 @@ _html = pio.to_html(fig, include_plotlyjs="cdn", full_html=False)
 print(_html)
 """
 
+
 def run_plot_code_get_html(code: str, timeout_s: int = 6):
 
     user_code = textwrap.dedent(code).strip()
@@ -39,44 +39,49 @@ def run_plot_code_get_html(code: str, timeout_s: int = 6):
         try:
             proc = subprocess.run(
                 [sys.executable, runner],
+                check=False,
                 input=b"",
                 capture_output=True,
                 timeout=timeout_s,
                 cwd=tmp,
                 env={"PYTHONWARNINGS": "ignore"},  # keep it quiet
             )
-            
+
             if proc.returncode != 0:
-                error_output = proc.stderr.decode("utf-8", "ignore") or proc.stdout.decode("utf-8", "ignore")
-                logger.error(f"Subprocess execution failed with return code {proc.returncode}: {error_output}")
+                error_output = proc.stderr.decode("utf-8", "ignore") or proc.stdout.decode(
+                    "utf-8", "ignore"
+                )
+                logger.error(
+                    f"Subprocess execution failed with return code {proc.returncode}: {error_output}"
+                )
                 return {"ok": False, "error": error_output}
-                
+
             html_output = proc.stdout.decode("utf-8")
             if not html_output.strip():
                 return {"ok": False, "error": "No HTML output generated"}
-                
+
             return {"ok": True, "html": html_output}
-            
+
         except subprocess.TimeoutExpired:
             logger.error(f"Code execution timed out after {timeout_s} seconds")
             return {"ok": False, "error": f"Code execution timed out after {timeout_s} seconds"}
-            
+
         except Exception as e:
             logger.error(f"Subprocess execution failed: {e}")
             return {"ok": False, "error": f"Execution failed: {str(e)}"}
 
 
 class ProductionSecureExecutor:
-    
+
     def __init__(self, timeout_s: int = 6):
         self.timeout_s = timeout_s
         logger.info(f"Initialized ProductionSecureExecutor with {timeout_s}s timeout")
 
     def execute_plotting_code(self, code: str) -> tuple[bool, str, str]:
         logger.info("Executing plotting code in secure subprocess")
-        
+
         result = run_plot_code_get_html(code, self.timeout_s)
-        
+
         if result["ok"]:
             logger.info("Plotting code executed successfully")
             return True, result["html"], ""

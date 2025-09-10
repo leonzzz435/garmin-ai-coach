@@ -1,11 +1,11 @@
+import json
 import logging
 from datetime import datetime
-import json
 
-from services.ai.model_config import ModelSelector
 from services.ai.ai_settings import AgentRole
+from services.ai.model_config import ModelSelector
 from services.ai.tools.plotting import PlotStorage, create_plotting_tools
-from services.ai.utils.retry_handler import retry_with_backoff, AI_ANALYSIS_CONFIG
+from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
 from .tool_calling_helper import handle_tool_calling_in_node
@@ -102,14 +102,14 @@ Format the response as a structured markdown document with clear sections and bu
 
 async def synthesis_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
     logger.info("Starting synthesis node")
-    
+
     try:
         plot_storage = PlotStorage(state['execution_id'])
         _, plot_list_tool = create_plotting_tools(plot_storage, agent_name="synthesis")
-        
+
         llm = ModelSelector.get_llm(AgentRole.SYNTHESIS)
         llm_with_tools = llm.bind_tools([plot_list_tool])
-        
+
         user_prompt = SYNTHESIS_USER_PROMPT.format(
             athlete_name=state['athlete_name'],
             metrics_result=state.get('metrics_result', ''),
@@ -117,51 +117,47 @@ async def synthesis_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
             physiology_result=state.get('physiology_result', ''),
             competitions=json.dumps(state['competitions'], indent=2),
             current_date=json.dumps(state['current_date'], indent=2),
-            style_guide=state['style_guide']
+            style_guide=state['style_guide'],
         )
-        
+
         messages = [
             {"role": "system", "content": SYNTHESIS_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt}
+            {"role": "user", "content": user_prompt},
         ]
-        
+
         agent_start_time = datetime.now()
-        
+
         async def call_synthesis_analysis():
             return await handle_tool_calling_in_node(
                 llm_with_tools=llm_with_tools,
                 messages=messages,
                 tools=[plot_list_tool],
-                max_iterations=3
+                max_iterations=3,
             )
-        
+
         synthesis_result = await retry_with_backoff(
-            call_synthesis_analysis,
-            AI_ANALYSIS_CONFIG,
-            "Synthesis Analysis with Tools"
+            call_synthesis_analysis, AI_ANALYSIS_CONFIG, "Synthesis Analysis with Tools"
         )
-        
+
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-        
+
         # Get available plots for references
         available_plots = plot_storage.list_available_plots()
-        
+
         cost_data = {
             'agent': 'synthesis',
             'execution_time': execution_time,
             'timestamp': datetime.now().isoformat(),
         }
-        
+
         logger.info(f"Synthesis analysis completed in {execution_time:.2f}s")
-        
+
         return {
             'synthesis_result': synthesis_result,
             'costs': [cost_data],
             'available_plots': available_plots,
         }
-        
+
     except Exception as e:
         logger.error(f"Synthesis node failed: {e}")
-        return {
-            'errors': [f"Synthesis analysis failed: {str(e)}"]
-        }
+        return {'errors': [f"Synthesis analysis failed: {str(e)}"]}

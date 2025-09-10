@@ -1,9 +1,12 @@
-import pytest
 from unittest.mock import Mock
-from datetime import datetime
 
+import pytest
+
+from services.ai.langgraph.utils.langsmith_cost_extractor import (
+    NodeCostSummary,
+    WorkflowCostSummary,
+)
 from services.ai.langgraph.utils.workflow_cost_tracker import WorkflowCostTracker
-from services.ai.langgraph.utils.langsmith_cost_extractor import WorkflowCostSummary, NodeCostSummary
 
 
 @pytest.fixture
@@ -13,19 +16,23 @@ def mock_progress_manager():
         'total_cost_usd': 0.0,
         'total_tokens': 0,
         'agents_completed': 0,
-        'total_agents': 10
+        'total_agents': 10,
     }
     return manager
 
 
 class TestWorkflowCostSummary:
-    
+
     def test_workflow_cost_summary_creation(self):
         node_costs = [
-            NodeCostSummary("metrics_node", "run1", "claude-3-5-sonnet-20241022", 0.002, 150, 100, 50),
-            NodeCostSummary("physiology_node", "run2", "claude-3-5-sonnet-20241022", 0.003, 200, 140, 60)
+            NodeCostSummary(
+                "metrics_node", "run1", "claude-3-5-sonnet-20241022", 0.002, 150, 100, 50
+            ),
+            NodeCostSummary(
+                "physiology_node", "run2", "claude-3-5-sonnet-20241022", 0.003, 200, 140, 60
+            ),
         ]
-        
+
         summary = WorkflowCostSummary(
             trace_id="trace_123",
             root_run_id="root_123",
@@ -35,14 +42,14 @@ class TestWorkflowCostSummary:
             total_output_tokens=110,
             total_web_searches=0,
             node_costs=node_costs,
-            execution_time_seconds=45.0
+            execution_time_seconds=45.0,
         )
-        
+
         assert summary.trace_id == "trace_123"
         assert summary.total_cost_usd == 0.005
         assert summary.total_tokens == 350
         assert len(summary.node_costs) == 2
-        
+
         metrics_node = next(n for n in summary.node_costs if n.name == "metrics_node")
         assert metrics_node.cost_usd == 0.002
         assert metrics_node.tokens == 150
@@ -56,9 +63,9 @@ class TestWorkflowCostSummary:
             tokens=100,
             input_tokens=70,
             output_tokens=30,
-            web_search_requests=1
+            web_search_requests=1,
         )
-        
+
         assert node.name == "test_node"
         assert node.cost_usd == 0.001
         assert node.tokens == 100
@@ -68,10 +75,10 @@ class TestWorkflowCostSummary:
 
 
 class TestWorkflowCostTracker:
-    
+
     def test_get_legacy_cost_summary(self):
         tracker = WorkflowCostTracker()
-        
+
         mock_execution = Mock()
         mock_execution.cost_summary = WorkflowCostSummary(
             trace_id="trace_123",
@@ -82,20 +89,24 @@ class TestWorkflowCostTracker:
             total_output_tokens=110,
             total_web_searches=0,
             node_costs=[
-                NodeCostSummary("metrics_node", "run1", "claude-3-5-sonnet-20241022", 0.002, 150, 100, 50),
-                NodeCostSummary("physiology_node", "run2", "claude-3-5-sonnet-20241022", 0.003, 200, 140, 60)
+                NodeCostSummary(
+                    "metrics_node", "run1", "claude-3-5-sonnet-20241022", 0.002, 150, 100, 50
+                ),
+                NodeCostSummary(
+                    "physiology_node", "run2", "claude-3-5-sonnet-20241022", 0.003, 200, 140, 60
+                ),
             ],
-            execution_time_seconds=45.0
+            execution_time_seconds=45.0,
         )
-        
+
         legacy_summary = tracker.get_legacy_cost_summary(mock_execution)
-        
+
         assert legacy_summary['total_cost_usd'] == 0.005
         assert legacy_summary['total_tokens'] == 350
         assert legacy_summary['agent_count'] == 2
         assert len(legacy_summary['agents']) == 2
         assert 'claude-3-5-sonnet-20241022' in legacy_summary['model_breakdown']
-        
+
         model_data = legacy_summary['model_breakdown']['claude-3-5-sonnet-20241022']
         assert model_data['cost_usd'] == 0.005  # 0.002 + 0.003
         assert model_data['tokens'] == 350  # 150 + 200
@@ -104,12 +115,12 @@ class TestWorkflowCostTracker:
 
     def test_get_legacy_cost_summary_empty(self):
         tracker = WorkflowCostTracker()
-        
+
         mock_execution = Mock()
         mock_execution.cost_summary = None
-        
+
         legacy_summary = tracker.get_legacy_cost_summary(mock_execution)
-        
+
         assert legacy_summary['total_cost_usd'] == 0.0
         assert legacy_summary['total_tokens'] == 0
         assert legacy_summary['agents'] == []
@@ -117,19 +128,20 @@ class TestWorkflowCostTracker:
 
 
 class TestLangSmithCostExtractorFallback:
-    
+
     def test_extract_workflow_costs_no_client(self):
-        from services.ai.langgraph.utils.langsmith_cost_extractor import LangSmithCostExtractor
-        
         import os
+
+        from services.ai.langgraph.utils.langsmith_cost_extractor import LangSmithCostExtractor
+
         original_key = os.environ.get('LANGSMITH_API_KEY')
         if 'LANGSMITH_API_KEY' in os.environ:
             del os.environ['LANGSMITH_API_KEY']
-            
+
         try:
             extractor = LangSmithCostExtractor()
             result = extractor.extract_workflow_costs_by_trace("test_trace")
-            
+
             assert result.total_cost_usd == 0.0
             assert result.total_tokens == 0
             assert len(result.node_costs) == 0

@@ -55,7 +55,6 @@ class ModelSelector:
         ),
     }
 
-
     @classmethod
     def get_llm(cls, role: AgentRole):
         config = get_config()
@@ -92,14 +91,10 @@ class ModelSelector:
             )
         elif model_name == "claude-4":
             llm_params["max_tokens"] = 64000
-            logger.info(
-                f"Using extended output tokens for {role.value} (max_tokens: 64000)"
-            )
+            logger.info(f"Using extended output tokens for {role.value} (max_tokens: 64000)")
         elif model_name == "claude-opus":
             llm_params["max_tokens"] = 32000
-            logger.info(
-                f"Using extended output tokens for {role.value} (max_tokens: 32000)"
-            )
+            logger.info(f"Using extended output tokens for {role.value} (max_tokens: 32000)")
 
         # Create the appropriate LangChain LLM based on provider
         if "anthropic" in model_config.base_url:

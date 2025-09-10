@@ -1,10 +1,9 @@
 import logging
 from datetime import datetime
-import json
 
-from services.ai.model_config import ModelSelector
 from services.ai.ai_settings import AgentRole
-from services.ai.utils.retry_handler import retry_with_backoff, AI_ANALYSIS_CONFIG
+from services.ai.model_config import ModelSelector
+from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
 from .tool_calling_helper import extract_text_content
@@ -75,49 +74,44 @@ Return ONLY the complete HTML document without any markdown code blocks or expla
 
 async def plan_formatter_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
     logger.info("Starting plan formatter node")
-    
+
     try:
         llm = ModelSelector.get_llm(AgentRole.FORMATTER)
-        
+
         user_prompt = PLAN_FORMATTER_USER_PROMPT.format(
-            season_plan=state.get('season_plan', ''),
-            weekly_plan=state.get('weekly_plan', '')
+            season_plan=state.get('season_plan', ''), weekly_plan=state.get('weekly_plan', '')
         )
-        
+
         messages = [
             {"role": "system", "content": PLAN_FORMATTER_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt}
+            {"role": "user", "content": user_prompt},
         ]
-        
+
         agent_start_time = datetime.now()
-        
+
         async def call_plan_formatting():
             response = await llm.ainvoke(messages)
             return extract_text_content(response)
-        
+
         planning_html = await retry_with_backoff(
-            call_plan_formatting,
-            AI_ANALYSIS_CONFIG,
-            "Plan Formatter"
+            call_plan_formatting, AI_ANALYSIS_CONFIG, "Plan Formatter"
         )
-        
+
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-        
+
         cost_data = {
             'agent': 'plan_formatter',
             'execution_time': execution_time,
             'timestamp': datetime.now().isoformat(),
         }
-        
+
         logger.info(f"Plan formatting completed in {execution_time:.2f}s")
-        
+
         return {
             'planning_html': planning_html,
             'costs': [cost_data],
         }
-        
+
     except Exception as e:
         logger.error(f"Plan formatter node failed: {e}")
-        return {
-            'errors': [f"Plan formatting failed: {str(e)}"]
-        }
+        return {'errors': [f"Plan formatting failed: {str(e)}"]}

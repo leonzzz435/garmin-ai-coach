@@ -1,23 +1,22 @@
-import pytest
 import os
 from unittest.mock import patch
 
-from services.ai.langgraph.state.training_analysis_state import (
-    TrainingAnalysisState, 
-    create_initial_state
-)
+import pytest
+
 from services.ai.langgraph.config.langsmith_config import LangSmithConfig
+from services.ai.langgraph.state.training_analysis_state import (
+    TrainingAnalysisState,
+    create_initial_state,
+)
 
 
 class TestLangGraphFoundation:
 
     def test_state_creation(self):
         state = create_initial_state(
-            user_id="test_user",
-            athlete_name="Test Athlete",
-            garmin_data={"test": "data"}
+            user_id="test_user", athlete_name="Test Athlete", garmin_data={"test": "data"}
         )
-        
+
         assert state["user_id"] == "test_user"
         assert state["athlete_name"] == "Test Athlete"
         assert state["garmin_data"] == {"test": "data"}
@@ -27,6 +26,7 @@ class TestLangGraphFoundation:
 
     def test_langgraph_import(self):
         from langgraph.graph import StateGraph
+
         workflow = StateGraph(TrainingAnalysisState)
         assert workflow is not None
 
@@ -39,6 +39,7 @@ class TestLangGraphFoundation:
     def test_module_imports(self):
         from services.ai.langgraph import TrainingAnalysisState
         from services.ai.langgraph.config import LangSmithConfig
+
         assert TrainingAnalysisState is not None
         assert LangSmithConfig is not None
 

@@ -34,7 +34,26 @@ class DetailedProgressManager(ProgressManager):
             return f"{minutes}m {seconds}s"
 
     def _escape_markdown(self, text: str) -> str:
-        special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+        special_chars = [
+            '_',
+            '*',
+            '[',
+            ']',
+            '(',
+            ')',
+            '~',
+            '`',
+            '>',
+            '#',
+            '+',
+            '-',
+            '=',
+            '|',
+            '{',
+            '}',
+            '.',
+            '!',
+        ]
         for char in special_chars:
             text = text.replace(char, f'\\{char}')
         return text
@@ -42,22 +61,25 @@ class DetailedProgressManager(ProgressManager):
     def _format_cost(self, cost: float) -> str:
         return f"${cost:.4f}".replace('.', '\\.')
 
-
     async def start_detailed_analysis(self) -> None:
         self.start_time = datetime.now()
         initial_message = "🚀 *Starting AI coach analysis\\.\\.\\.*"
         await self.start(initial_message)
 
-    async def update_cost_tracking(self, cost_usd: float, tokens: int, agents_completed: int = None) -> None:
+    async def update_cost_tracking(
+        self, cost_usd: float, tokens: int, agents_completed: int = None
+    ) -> None:
         """Only method still used by ProgressIntegratedCostTracker for LangSmith integration"""
         self.analysis_stats['total_cost_usd'] = cost_usd
         self.analysis_stats['total_tokens'] = tokens
         if agents_completed is not None:
-            self.analysis_stats['agents_completed'] = min(agents_completed, self.analysis_stats['total_agents'])
+            self.analysis_stats['agents_completed'] = min(
+                agents_completed, self.analysis_stats['total_agents']
+            )
 
     async def analysis_complete_detailed(self) -> None:
         total_duration = self._format_duration(self.start_time)
-        
+
         final_message = f"""✅ *Analysis Complete\\!*
 
 Total Duration: {total_duration}

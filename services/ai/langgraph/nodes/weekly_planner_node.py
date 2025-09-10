@@ -1,10 +1,10 @@
+import json
 import logging
 from datetime import datetime
-import json
 
-from services.ai.model_config import ModelSelector
 from services.ai.ai_settings import AgentRole
-from services.ai.utils.retry_handler import retry_with_backoff, AI_ANALYSIS_CONFIG
+from services.ai.model_config import ModelSelector
+from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
 from .tool_calling_helper import extract_text_content
@@ -115,10 +115,10 @@ Use the following essential style guidelines:
 
 async def weekly_planner_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
     logger.info("Starting weekly planner node")
-    
+
     try:
         llm = ModelSelector.get_llm(AgentRole.WORKOUT)
-        
+
         user_prompt = WEEKLY_PLANNER_USER_PROMPT.format(
             season_plan=state.get('season_plan', ''),
             athlete_name=state['athlete_name'],
@@ -128,43 +128,39 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> TrainingAnalysisS
             planning_context=state['planning_context'],
             metrics_analysis=state.get('metrics_result', ''),
             activity_analysis=state.get('activity_result', ''),
-            physiology_analysis=state.get('physiology_result', '')
+            physiology_analysis=state.get('physiology_result', ''),
         )
-        
+
         messages = [
             {"role": "system", "content": WEEKLY_PLANNER_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt}
+            {"role": "user", "content": user_prompt},
         ]
-        
+
         agent_start_time = datetime.now()
-        
+
         async def call_weekly_planning():
             response = await llm.ainvoke(messages)
             return extract_text_content(response)
-        
+
         weekly_plan = await retry_with_backoff(
-            call_weekly_planning,
-            AI_ANALYSIS_CONFIG,
-            "Weekly Planning"
+            call_weekly_planning, AI_ANALYSIS_CONFIG, "Weekly Planning"
         )
-        
+
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-        
+
         cost_data = {
             'agent': 'weekly_planner',
             'execution_time': execution_time,
             'timestamp': datetime.now().isoformat(),
         }
-        
+
         logger.info(f"Weekly planning completed in {execution_time:.2f}s")
-        
+
         return {
             'weekly_plan': weekly_plan,
             'costs': [cost_data],
         }
-        
+
     except Exception as e:
         logger.error(f"Weekly planner node failed: {e}")
-        return {
-            'errors': [f"Weekly planning failed: {str(e)}"]
-        }
+        return {'errors': [f"Weekly planning failed: {str(e)}"]}

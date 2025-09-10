@@ -1,10 +1,10 @@
+import json
 import logging
 from datetime import datetime
-import json
 
-from services.ai.model_config import ModelSelector
 from services.ai.ai_settings import AgentRole
-from services.ai.utils.retry_handler import retry_with_backoff, AI_ANALYSIS_CONFIG
+from services.ai.model_config import ModelSelector
+from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
 from .tool_calling_helper import extract_text_content
@@ -64,50 +64,46 @@ Format the response as a structured markdown document with clear headings and bu
 
 async def season_planner_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
     logger.info("Starting season planner node")
-    
+
     try:
         llm = ModelSelector.get_llm(AgentRole.SEASON_PLANNER)
-        
+
         user_prompt = SEASON_PLANNER_USER_PROMPT.format(
             athlete_name=state['athlete_name'],
             current_date=json.dumps(state['current_date'], indent=2),
-            competitions=json.dumps(state['competitions'], indent=2)
+            competitions=json.dumps(state['competitions'], indent=2),
         )
-        
+
         messages = [
             {"role": "system", "content": SEASON_PLANNER_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt}
+            {"role": "user", "content": user_prompt},
         ]
-        
+
         agent_start_time = datetime.now()
-        
+
         async def call_season_planning():
             response = await llm.ainvoke(messages)
             return extract_text_content(response)
-        
+
         season_plan = await retry_with_backoff(
-            call_season_planning,
-            AI_ANALYSIS_CONFIG,
-            "Season Planning"
+            call_season_planning, AI_ANALYSIS_CONFIG, "Season Planning"
         )
-        
+
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-        
+
         cost_data = {
             'agent': 'season_planner',
             'execution_time': execution_time,
             'timestamp': datetime.now().isoformat(),
         }
-        
+
         logger.info(f"Season planning completed in {execution_time:.2f}s")
-        
+
         return {
             'season_plan': season_plan,
             'costs': [cost_data],
         }
-        
+
     except Exception as e:
         logger.error(f"Season planner node failed: {e}")
-        return {
-            'errors': [f"Season planning failed: {str(e)}"]
-        }
+        return {'errors': [f"Season planning failed: {str(e)}"]}

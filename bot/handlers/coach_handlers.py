@@ -1,9 +1,9 @@
-import datetime
 import json
 import logging
 import tempfile
 from dataclasses import asdict
 
+import anthropic
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import (
@@ -22,6 +22,7 @@ from core.security import SecureCredentialManager, SecureReportManager
 from core.security.cache import SecureActivityCache, SecureMetricsCache, SecurePhysiologyCache
 from core.security.execution import ExecutionTracker
 from services.ai.langgraph.workflows.planning_workflow import run_complete_analysis_and_planning
+from services.ai.utils.retry_handler import get_error_details, is_anthropic_overload_error
 from services.garmin import ExtractionConfig, TimeRange, TriathlonCoachDataExtractor
 
 logger = logging.getLogger(__name__)
@@ -135,38 +136,44 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
         athlete_name = user_name or "Athlete"
         analysis_context = user_data[user_id].get("analysis_context", "")
         planning_context = user_data[user_id].get("planning_context", "")
-        
+
         from core.security.competitions import SecureCompetitionManager
+
         competition_manager = SecureCompetitionManager(user_id)
         upcoming_competitions = competition_manager.get_upcoming_competitions()
-        
+
         competitions_data = []
         for comp in upcoming_competitions:
-            competitions_data.append({
-                'name': comp.name,
-                'date': comp.date.isoformat(),
-                'race_type': comp.race_type,
-                'priority': comp.priority.value,
-                'target_time': comp.target_time,
-                'location': comp.location,
-                'notes': comp.notes
-            })
+            competitions_data.append(
+                {
+                    'name': comp.name,
+                    'date': comp.date.isoformat(),
+                    'race_type': comp.race_type,
+                    'priority': comp.priority.value,
+                    'target_time': comp.target_time,
+                    'location': comp.location,
+                    'notes': comp.notes,
+                }
+            )
 
         from datetime import datetime, timedelta
+
         current_date = {
             'date': datetime.now().strftime('%Y-%m-%d'),
             'day_of_week': datetime.now().strftime('%A'),
-            'week_number': str(datetime.now().isocalendar()[1])
+            'week_number': str(datetime.now().isocalendar()[1]),
         }
-        
+
         week_dates = []
         for i in range(14):
             date_obj = datetime.now() + timedelta(days=i)
-            week_dates.append({
-                'date': date_obj.strftime('%Y-%m-%d'),
-                'day_of_week': date_obj.strftime('%A'),
-                'week_number': str(date_obj.isocalendar()[1])
-            })
+            week_dates.append(
+                {
+                    'date': date_obj.strftime('%Y-%m-%d'),
+                    'day_of_week': date_obj.strftime('%A'),
+                    'week_number': str(date_obj.isocalendar()[1]),
+                }
+            )
 
         result = await run_complete_analysis_and_planning(
             user_id=str(user_id),
@@ -177,24 +184,26 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
             competitions=competitions_data,
             current_date=current_date,
             week_dates=week_dates,
-            progress_manager=progress_manager
+            progress_manager=progress_manager,
         )
 
-        
         cost_summary = result.get('cost_summary', {})
-        execution_metadata = result.get('execution_metadata', {})
-        
+
         if cost_summary.get('total_cost_usd', 0) > 0:
             progress_manager.analysis_stats['total_cost_usd'] = cost_summary['total_cost_usd']
             progress_manager.analysis_stats['total_tokens'] = cost_summary['total_tokens']
-            progress_manager.analysis_stats['agents_completed'] = cost_summary.get('agent_count', 10)
-            
+            progress_manager.analysis_stats['agents_completed'] = cost_summary.get(
+                'agent_count', 10
+            )
+
             if 'plots' in result and result['plots']:
                 progress_manager.analysis_stats['plots_created'] = len(result['plots'])
-            
-            logger.info(f"Final cost tracking for user {user_id}: "
-                       f"${cost_summary['total_cost_usd']:.4f} "
-                       f"({cost_summary['total_tokens']} tokens)")
+
+            logger.info(
+                f"Final cost tracking for user {user_id}: "
+                f"${cost_summary['total_cost_usd']:.4f} "
+                f"({cost_summary['total_tokens']} tokens)"
+            )
 
         metrics_cache = SecureMetricsCache(user_id)
         activity_cache = SecureActivityCache(user_id)
@@ -211,7 +220,6 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
         logger.info(f"Resetting workout counter for user {user_id} after successful coach analysis")
         execution_tracker = ExecutionTracker(user_id)
         execution_tracker.reset_workout_counter()
-
 
         date_str = datetime.now().strftime('%Y%m%d')
         file_delivery = FileDeliveryManager(date_str)
@@ -329,14 +337,16 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
                                 pool_timeout=300,
                             )
                 else:
-                    logger.warning(f"Skipping season_plan file delivery - season_plan is None or missing")
+                    logger.warning(
+                        "Skipping season_plan file delivery - season_plan is None or missing"
+                    )
 
             elif file_info['type'] == 'completion':
                 await message.reply_text(file_info['content'], parse_mode=file_info['parse_mode'])
 
     except Exception as e:
         logger.error(f"Error processing full analysis: {str(e)}", exc_info=True)
-        
+
         # Provide user-friendly error messages based on error type
         try:
             if isinstance(e, anthropic.APIStatusError):
@@ -360,7 +370,7 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
                     f"Details: {escape_markdown(error_details)}\n\n"
                     "Please try again\\. If the problem persists, contact support\\."
                 )
-            
+
             await progress_manager.finish(error_message)
         except Exception:
             # Fallback to basic error message if detailed handling fails

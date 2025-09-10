@@ -19,8 +19,6 @@ class AgentRole(Enum):
 @dataclass
 class AISettings:
     mode: AIMode
-    agentops_enabled: bool
-    agentops_api_key: str | None
 
     # Model assignments - one model per stage for all agents
     stage_models: dict[AIMode, str] = field(
@@ -47,8 +45,6 @@ class AISettings:
 
         return cls(
             mode=config.ai_mode,
-            agentops_enabled=config.agentops_enabled,
-            agentops_api_key=config.agentops_api_key,
         )
 
 
