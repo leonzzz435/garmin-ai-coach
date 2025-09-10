@@ -61,7 +61,7 @@ class DetailedProgressManager(ProgressManager):
         final_message = f"""✅ *Analysis Complete\\!*
 
 Total Duration: {total_duration}
-Agents: {self.analysis_stats['agents_completed']}/{self.analysis_stats['total_agents']}
+Agents: {self.analysis_stats['agents_completed']}
 Plots Created: {self.analysis_stats['plots_created']}
 💰 Total Cost: {self._format_cost(self.analysis_stats['total_cost_usd'])} \\({self.analysis_stats['total_tokens']:,} tokens\\)
 
