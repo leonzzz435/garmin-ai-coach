@@ -24,15 +24,19 @@ jobs:
       - name: Install dependencies
         run: pixi install -q
 
+      - name: Install project in development mode
+        env:
+          TELE_BOT_KEY: "123456:test"
+          ANTHROPIC_API_KEY: "sk-ant-TEST"
+          OPENAI_API_KEY: "sk-TEST"
+        run: pixi run pip install -e .
+
       - name: Lint (ruff)
         run: pixi run lint-ruff
 
       - name: Run tests
         env:
-          PYTHONPATH: "${{ github.workspace }}:$PYTHONPATH"
           TELE_BOT_KEY: "123456:test"
           ANTHROPIC_API_KEY: "sk-ant-TEST"
           OPENAI_API_KEY: "sk-TEST"
-        run: |
-          cd "${{ github.workspace }}"
-          pixi run python -m pytest tests/ -v
+        run: pixi run pytest tests/ -v
