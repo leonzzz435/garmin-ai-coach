@@ -171,7 +171,7 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
             })
 
         result = await run_complete_analysis_and_planning(
-            user_id=user_id,
+            user_id=str(user_id),
             athlete_name=athlete_name,
             garmin_data=asdict(data),
             analysis_context=analysis_context,
@@ -179,9 +179,22 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
             competitions=competitions_data,
             current_date=current_date,
             week_dates=week_dates,
+            progress_manager=progress_manager
         )
 
         await progress_manager.planning_phase()
+        
+        cost_summary = result.get('cost_summary', {})
+        execution_metadata = result.get('execution_metadata', {})
+        
+        if cost_summary.get('total_cost_usd', 0) > 0:
+            progress_manager.analysis_stats['total_cost_usd'] = cost_summary['total_cost_usd']
+            progress_manager.analysis_stats['total_tokens'] = cost_summary['total_tokens']
+            progress_manager.analysis_stats['agents_completed'] = cost_summary.get('agent_count', 10)
+            
+            logger.info(f"Final cost tracking for user {user_id}: "
+                       f"${cost_summary['total_cost_usd']:.4f} "
+                       f"({cost_summary['total_tokens']} tokens)")
 
         metrics_cache = SecureMetricsCache(user_id)
         activity_cache = SecureActivityCache(user_id)

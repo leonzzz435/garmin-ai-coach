@@ -32,7 +32,7 @@ class LangSmithConfig:
     
     @staticmethod
     def get_project_name(user_id: str, analysis_type: str = "training_analysis") -> str:
-        return f"tele_garmin_{analysis_type}_{user_id[:8]}"
+        return f"tele_garmin_{analysis_type}_{str(user_id)}"
     
     @staticmethod
     def disable_langsmith():

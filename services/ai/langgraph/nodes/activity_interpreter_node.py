@@ -118,7 +118,7 @@ async def activity_interpreter_node(state: TrainingAnalysisState) -> TrainingAna
     
     try:
         plot_storage = PlotStorage(state['execution_id'])
-        plotting_tool, list_plots_tool = create_plotting_tools(plot_storage, agent_name="activity")
+        plotting_tool, _ = create_plotting_tools(plot_storage, agent_name="activity")
         
         llm = ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER)
         llm_with_tools = llm.bind_tools([plotting_tool])

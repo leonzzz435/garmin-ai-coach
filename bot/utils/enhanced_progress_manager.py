@@ -117,6 +117,24 @@ Status: ⚙️ Processing\\.\\.\\."""
         self.analysis_stats['tool_calls'] += tool_calls
         self.analysis_stats['total_cost_usd'] += cost_usd
         self.analysis_stats['total_tokens'] += tokens
+    
+    async def update_cost_tracking(self, cost_usd: float, tokens: int, agents_completed: int = None) -> None:
+        self.analysis_stats['total_cost_usd'] = cost_usd
+        self.analysis_stats['total_tokens'] = tokens
+        if agents_completed is not None:
+            self.analysis_stats['agents_completed'] = min(agents_completed, self.analysis_stats['total_agents'])
+        
+        progress_message = f"""🚀 *AI Analysis in Progress*
+
+📊 *Progress Overview*
+{self._create_progress_bar(self.analysis_stats['agents_completed'], self.analysis_stats['total_agents'])}
+Agents: {self.analysis_stats['agents_completed']}/{self.analysis_stats['total_agents']} \\| Plots: {self.analysis_stats['plots_created']} \\| Cost: {self._format_cost(self.analysis_stats['total_cost_usd'])} \\| Duration: {self._format_duration(self.start_time)}
+
+💰 *Live Cost Update*
+Current total: {self._format_cost(cost_usd)} \\({tokens:,} tokens\\)
+Status: ⚙️ Processing\\.\\.\\."""
+
+        await self.update(progress_message, delay=0.5)
 
         # Update agent history
         for agent in self.agent_history:

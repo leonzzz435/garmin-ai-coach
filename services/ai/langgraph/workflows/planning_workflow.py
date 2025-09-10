@@ -75,8 +75,9 @@ async def run_weekly_planning(
     })
     
     final_state = None
-    async for chunk in app.astream(initial_state, thread_id=execution_id):
-        logger.info(f"Planning workflow step: {chunk}")
+    config = {"configurable": {"thread_id": execution_id}}
+    async for chunk in app.astream(initial_state, config=config, stream_mode="values"):
+        logger.info(f"Planning workflow step: {list(chunk.keys()) if chunk else 'None'}")
         final_state = chunk
     
     return final_state
@@ -140,11 +141,16 @@ async def run_complete_analysis_and_planning(
     planning_context: str = "",
     competitions: list = None,
     current_date: dict = None,
-    week_dates: list = None
+    week_dates: list = None,
+    progress_manager = None
 ) -> dict:
-    app = create_integrated_analysis_and_planning_workflow()
+    from ..utils.workflow_cost_tracker import ProgressIntegratedCostTracker
     
+    app = create_integrated_analysis_and_planning_workflow()
     execution_id = f"{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_complete"
+    
+    project_name = f"tele_garmin_{str(user_id)}"
+    cost_tracker = ProgressIntegratedCostTracker(project_name, progress_manager)
     
     initial_state = create_initial_state(
         user_id=user_id,
@@ -158,9 +164,27 @@ async def run_complete_analysis_and_planning(
         execution_id=execution_id
     )
     
-    final_state = None
-    async for state in app.astream(initial_state, {"configurable": {"thread_id": execution_id}}, stream_mode="values"):
-        logger.info(f"Complete workflow step: {list(state.keys())}")
-        final_state = state
+    final_state, execution = await cost_tracker.run_workflow_with_progress(
+        app, initial_state, execution_id, user_id
+    )
+    
+    if execution.cost_summary:
+        cost_data = cost_tracker.get_legacy_cost_summary(execution)
+        final_state['cost_summary'] = cost_data
+        final_state['execution_metadata'] = {
+            'trace_id': execution.trace_id,
+            'root_run_id': execution.root_run_id,
+            'execution_time_seconds': execution.execution_time_seconds,
+            'total_cost_usd': execution.cost_summary.total_cost_usd,
+            'total_tokens': execution.cost_summary.total_tokens
+        }
+        
+        logger.info(f"Workflow complete for user {user_id}: "
+                   f"${execution.cost_summary.total_cost_usd:.4f} "
+                   f"({execution.cost_summary.total_tokens} tokens)")
+    else:
+        logger.warning(f"No cost data available for user {user_id} workflow")
+        final_state['cost_summary'] = {'total_cost_usd': 0.0, 'total_tokens': 0}
+        final_state['execution_metadata'] = {}
     
     return final_state

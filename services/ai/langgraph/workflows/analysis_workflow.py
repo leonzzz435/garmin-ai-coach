@@ -78,8 +78,9 @@ async def run_training_analysis(
     )
     
     final_state = None
-    async for chunk in app.astream(initial_state, thread_id=execution_id):
-        logger.info(f"Workflow step: {chunk}")
+    config = {"configurable": {"thread_id": execution_id}}
+    async for chunk in app.astream(initial_state, config=config, stream_mode="values"):
+        logger.info(f"Workflow step: {list(chunk.keys()) if chunk else 'None'}")
         final_state = chunk
     
     return final_state
