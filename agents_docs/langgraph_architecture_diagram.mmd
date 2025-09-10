@@ -1,0 +1,159 @@
+flowchart TD
+    %% Input Data Sources
+    GC[(Garmin Connect API)]
+    UC[User Context Input]
+    CD[Competition Data]
+    TD[Time/Date Data]
+    
+    %% Data Extraction Layer
+    TDE[TriathlonCoachDataExtractor]
+    
+    %% LangGraph State Management
+    TAS[TrainingAnalysisState<br/>- user_id, athlete_name<br/>- garmin_data, contexts<br/>- competitions, dates<br/>- results with reducers]
+    
+    %% Analysis Workflow Nodes
+    subgraph AW ["Analysis Workflow (Parallel + Sequential)"]
+        direction TB
+        
+        %% Parallel Analysis Phase
+        MN[Metrics Node<br/>Dr. Aiden Nakamura]
+        PN[Physiology Node<br/>Dr. Helena Virtanen] 
+        ADN[Activity Data Node<br/>Marcus Chen]
+        
+        %% Sequential Processing
+        AIN[Activity Interpreter<br/>Elena Rodriguez]
+        SN[Synthesis Node<br/>Maya Lindholm]
+        FN[Formatter Node<br/>James Morrison]
+        PRN[Plot Resolution Node]
+    end
+    
+    %% Planning Workflow Nodes  
+    subgraph PW ["Planning Workflow (Sequential)"]
+        direction TB
+        SPN[Season Planner Node<br/>Coach Helena]
+        DIN[Data Integration Node]
+        WPN[Weekly Planner Node<br/>Enhanced Planning]
+        PFN[Plan Formatter Node]
+    end
+    
+    %% Integrated Workflow
+    subgraph IW ["Integrated Analysis + Planning (10 Agents)"]
+        direction TB
+        IAW[Analysis Phase<br/>6 Agents Parallel/Sequential]
+        IPW[Planning Phase<br/>4 Agents Sequential]
+    end
+    
+    %% Tool Systems
+    subgraph TS ["Tool Systems"]
+        PT[Plotting Tools<br/>Matplotlib/Plotly]
+        PS[PlotStorage<br/>plot_id, metadata<br/>HTML content]
+        WS[Web Search Tool<br/>Max 3 per analysis]
+    end
+    
+    %% Cost & Progress Tracking
+    subgraph CPT ["Observability & Tracking"]
+        LS[LangSmith<br/>Cost Tracking<br/>Trace Monitoring]
+        WCT[WorkflowCostTracker<br/>Execution metadata]
+        PM[Progress Manager<br/>Real-time updates]
+    end
+    
+    %% State Management & Storage
+    subgraph SMS ["State Management"]
+        MS[MemorySaver<br/>Checkpointer]
+        SR[State Reducers<br/>plots: x + y<br/>costs: x + y<br/>errors: x + y]
+        ES[Execution State<br/>thread_id, config]
+    end
+    
+    %% Output Generation
+    subgraph OG ["Output Generation"]
+        AH[Analysis HTML]
+        PH[Planning HTML] 
+        PC[Plot Collection]
+        CS[Cost Summary]
+        EM[Execution Metadata]
+    end
+    
+    %% External Systems
+    TB[Telegram Bot<br/>Progress Updates<br/>File Delivery]
+    API[Future FastAPI<br/>Mobile Integration]
+    
+    %% Main Flow Connections
+    GC --> TDE
+    UC --> TDE
+    CD --> TDE
+    TD --> TDE
+    
+    TDE --> TAS
+    
+    %% Analysis Workflow Flow
+    TAS --> MN
+    TAS --> PN  
+    TAS --> ADN
+    
+    ADN --> AIN
+    MN --> SN
+    PN --> SN
+    AIN --> SN
+    SN --> FN
+    FN --> PRN
+    
+    %% Planning Workflow Flow  
+    PRN --> SPN
+    SPN --> DIN
+    DIN --> WPN
+    WPN --> PFN
+    
+    %% Tool Integration
+    MN -.-> PT
+    PN -.-> PT
+    AIN -.-> PT
+    SN -.-> WS
+    
+    PT --> PS
+    PS --> PRN
+    
+    %% State Management Integration
+    TAS <--> MS
+    TAS <--> SR
+    TAS <--> ES
+    
+    %% Observability Integration
+    AW -.-> LS
+    PW -.-> LS
+    AW -.-> WCT
+    PW -.-> WCT
+    AW -.-> PM
+    PW -.-> PM
+    
+    %% Output Generation
+    FN --> AH
+    PFN --> PH
+    PRN --> PC
+    WCT --> CS
+    WCT --> EM
+    
+    %% Final Delivery
+    AH --> TB
+    PH --> TB
+    PC --> TB
+    CS --> TB
+    
+    AH -.-> API
+    PH -.-> API
+    PC -.-> API
+    CS -.-> API
+    
+    %% Styling
+    classDef inputData fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef workflow fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef tools fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef state fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef output fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef external fill:#f1f8e9,stroke:#33691e,stroke-width:2px
+    
+    class GC,UC,CD,TD inputData
+    class AW,PW,IW,MN,PN,ADN,AIN,SN,FN,PRN,SPN,DIN,WPN,PFN workflow
+    class TS,PT,PS,WS tools
+    class SMS,TAS,MS,SR,ES,CPT,LS,WCT,PM state
+    class OG,AH,PH,PC,CS,EM output
+    class TB,API external
