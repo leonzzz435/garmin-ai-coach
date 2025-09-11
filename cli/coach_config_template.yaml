@@ -18,9 +18,9 @@ context:
 
 # Data Extraction Settings (days to look back)
 extraction:
-  activities_days: 7      # How many days of activities to extract
-  metrics_days: 14         # How many days of metrics to extract
-  ai_mode: "development"   # "development" (faster, cheaper) or "production" (comprehensive)
+  activities_days: 21      # How many days of activities to extract
+  metrics_days: 56         # How many days of metrics to extract
+  ai_mode: "standard"   # "development" (faster, cheaper) or "standard" (comprehensive)
 
 # Upcoming Competitions
 competitions:
