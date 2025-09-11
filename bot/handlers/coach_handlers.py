@@ -20,6 +20,7 @@ from bot.utils.enhanced_progress_manager import AICoachDetailedProgressManager
 from bot.utils.message_formatter import FileDeliveryManager
 from core.security import SecureCredentialManager, SecureReportManager
 from core.security.cache import SecureActivityCache, SecureMetricsCache, SecurePhysiologyCache
+from core.security.competitions import SecureCompetitionManager
 from core.security.execution import ExecutionTracker
 from services.ai.langgraph.workflows.planning_workflow import run_complete_analysis_and_planning
 from services.ai.utils.retry_handler import get_error_details, is_anthropic_overload_error
@@ -136,8 +137,6 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
         athlete_name = user_name or "Athlete"
         analysis_context = user_data[user_id].get("analysis_context", "")
         planning_context = user_data[user_id].get("planning_context", "")
-
-        from core.security.competitions import SecureCompetitionManager
 
         competition_manager = SecureCompetitionManager(user_id)
         upcoming_competitions = competition_manager.get_upcoming_competitions()
@@ -370,10 +369,20 @@ async def process_planning_context(update: Update, context: ContextTypes.DEFAULT
                     f"Details: {escape_markdown(error_details)}\n\n"
                     "Please try again\\. If the problem persists, contact support\\."
                 )
+        except (TypeError, AttributeError):
+            # Handle case where isinstance fails (e.g., during testing with mocks)
+            error_details = get_error_details(e)
+            error_message = (
+                "❌ Analysis failed due to an unexpected error\\.\n\n"
+                f"Details: {escape_markdown(error_details)}\n\n"
+                "Please try again\\. If the problem persists, contact support\\."
+            )
 
+        # Always attempt to call finish
+        try:
             await progress_manager.finish(error_message)
         except Exception:
-            # Fallback to basic error message if detailed handling fails
+            # Fallback to basic error message if progress manager fails
             fallback_msg = escape_markdown(f"❌ Analysis failed: {str(e)}\n\nPlease try again\\.")
             await message.reply_text(fallback_msg, parse_mode=ParseMode.MARKDOWN_V2)
 
