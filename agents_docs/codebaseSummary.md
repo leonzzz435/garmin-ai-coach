@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**tele_garmin** is an AI-powered triathlon coaching system that analyzes Garmin Connect training data using sophisticated multi-agent LangChain orchestrators. The system generates comprehensive training insights, weekly plans, and performance analysis reports.
+**garmin-ai-coach** is an AI-powered triathlon coaching system that analyzes Garmin Connect training data using sophisticated multi-agent LangChain orchestrators. The system generates comprehensive training insights, weekly plans, and performance analysis reports.
 
 ## Key Components and Their Interactions
 
@@ -105,7 +105,7 @@ Each agent specializes in a specific analysis domain:
 
 ### Project Structure Evolution
 ```
-tele_garmin/
+garmin-ai-coach/
 ├── agents_docs/          # Project documentation
 ├── bot/                  # Telegram bot interface
 ├── core/security/        # Authentication and security

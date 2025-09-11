@@ -1,5 +1,5 @@
 [project]
-name = "tele_garmin"
+name = "garmin-ai-coach"
 version = "0.1.0"
 description = "Telegram bot for Garmin data analysis with AI-powered insights"
 authors = ["Developer <dev@example.com>"]
@@ -64,8 +64,8 @@ start-prod = { cmd = "python main.py", env = { ENV_FILE = ".env", ENVIRONMENT = 
 list-users = "python scripts/list_users.py"
 
 # CLI coach interface
-coach-cli = "python cli/tele_garmin_cli.py"
-coach-init = "python cli/tele_garmin_cli.py --init-config"
+coach-cli = "python cli/garmin_ai_coach_cli.py"
+coach-init = "python cli/garmin_ai_coach_cli.py --init-config"
 
 [environments]
 default = { solve-group = "default" }

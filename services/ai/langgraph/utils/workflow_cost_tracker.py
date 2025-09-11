@@ -22,7 +22,7 @@ class WorkflowExecution:
 
 class WorkflowCostTracker:
 
-    def __init__(self, project_name: str = "tele_garmin_analysis"):
+    def __init__(self, project_name: str = "garmin_ai_coach_analysis"):
         self.project_name = project_name
         self.cost_extractor = LangSmithCostExtractor()
 
@@ -52,10 +52,10 @@ class WorkflowCostTracker:
 
             config = {
                 "run_id": root_run_id,
-                "run_name": "tele_garmin_workflow",
+                "run_name": "garmin_ai_coach_workflow",
                 "tags": [
                     f"user:{user_id}" if user_id else "user:unknown",
-                    "app:tele_garmin",
+                    "app:garmin_ai_coach",
                     f"thread:{thread_id}" if thread_id else "thread:none",
                 ],
                 "metadata": {
@@ -184,7 +184,7 @@ class WorkflowCostTracker:
 
 class ProgressIntegratedCostTracker(WorkflowCostTracker):
 
-    def __init__(self, project_name: str = "tele_garmin_analysis", progress_manager=None):
+    def __init__(self, project_name: str = "garmin_ai_coach_analysis", progress_manager=None):
         super().__init__(project_name)
         self.progress_manager = progress_manager
 

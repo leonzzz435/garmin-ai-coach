@@ -255,7 +255,7 @@ START → [Metrics, Physiology, Activity Data] → Activity Interpreter
 ## 📊 Project Structure
 
 ```
-tele_garmin/
+garmin-ai-coach/
 ├── 🤖 bot/                     # Telegram interface & handlers
 ├── 🔒 core/security/           # Encryption & usage limits
 ├── 🔧 services/
@@ -342,8 +342,8 @@ We welcome contributions! The codebase uses modern Python practices with:
 **Ready to transform your training data into actionable insights?**
 
 ```bash
-git clone https://github.com/your-username/tele_garmin.git
-cd tele_garmin  
+git clone https://github.com/your-username/garmin-ai-coach.git
+cd garmin-ai-coach
 pixi run start-dev
 ```
 

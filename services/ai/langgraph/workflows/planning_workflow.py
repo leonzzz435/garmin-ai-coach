@@ -151,7 +151,7 @@ async def run_complete_analysis_and_planning(
     app = create_integrated_analysis_and_planning_workflow()
     execution_id = f"{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_complete"
 
-    project_name = f"tele_garmin_{str(user_id)}"
+    project_name = f"garmin_ai_coach_{str(user_id)}"
     cost_tracker = ProgressIntegratedCostTracker(project_name, progress_manager)
 
     initial_state = create_initial_state(

@@ -227,8 +227,8 @@ def create_config_template(output_path: Path) -> None:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Tele Garmin CLI - AI Triathlon Coach",
-        epilog="Example: python tele_garmin_cli.py --config my_config.yaml",
+        description="Garmin AI Coach CLI - AI Triathlon Coach",
+        epilog="Example: python garmin_ai_coach_cli.py --config my_config.yaml",
     )
 
     group = parser.add_mutually_exclusive_group(required=True)

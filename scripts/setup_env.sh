@@ -1,7 +1,7 @@
 #!/bin/bash
-# Pixi environment setup script for tele_garmin
+# Pixi environment setup script for garmin-ai-coach
 
-echo "🚀 Setting up tele_garmin environment..."
+echo "🚀 Setting up garmin-ai-coach environment..."
 
 # Set environment variables for development
 export PYTHONPATH="${PIXI_PROJECT_ROOT}:${PYTHONPATH}"
