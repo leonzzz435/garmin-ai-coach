@@ -1,8 +1,7 @@
+from unittest.mock import Mock, mock_open, patch
+
 import pytest
-from unittest.mock import Mock, patch, mock_open
-import tempfile
-import os
-from pathlib import Path
+
 from core.security.base import SecureStorageBase, StorageError
 from core.security.credentials import SecureCredentialManager
 
@@ -26,7 +25,7 @@ class TestSecureStorageBaseCharacterization:
         mock_key_file.exists.return_value = False
 
         with patch('core.security.base.os.stat'), patch('core.security.base.os.chmod'):
-            base = SecureStorageBase("123", "test_type")
+            SecureStorageBase("123", "test_type")
         
         mock_storage_dir.mkdir.assert_called_once_with(parents=True, exist_ok=True)
     
@@ -49,7 +48,7 @@ class TestSecureStorageBaseCharacterization:
         
         with patch('core.security.base.os.stat') as mock_stat:
             mock_stat.return_value.st_mode = 0o755  # Wrong permissions
-            base = SecureStorageBase("123", "test_type")
+            SecureStorageBase("123", "test_type")
             
         mock_chmod.assert_called()  # Should fix permissions
     
@@ -127,7 +126,7 @@ class TestSecureCredentialManagerCharacterization:
     def test_initialization_calls_parent_with_credentials_type(self, mock_parent_init):
         mock_parent_init.return_value = None
         
-        manager = SecureCredentialManager("123")
+        SecureCredentialManager("123")
         
         mock_parent_init.assert_called_once_with("123", 'credentials')
     
@@ -263,7 +262,7 @@ class TestSecurityErrorHandlingCharacterization:
         
         with patch('core.security.base.os.stat'), patch('core.security.base.os.chmod'), \
              patch('core.security.base.os.fsync') as mock_fsync, \
-             patch('builtins.open', mock_open()) as mock_file_open:
+             patch('builtins.open', mock_open()):
             
             base = SecureStorageBase("123", "test_type")
             base.cipher_suite = mock_cipher

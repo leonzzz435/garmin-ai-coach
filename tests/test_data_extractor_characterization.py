@@ -1,9 +1,11 @@
 
-import pytest
+from datetime import date
 from unittest.mock import Mock, patch
-from datetime import date, timedelta
+
+import pytest
+
 from services.garmin.data_extractor import DataExtractor, TriathlonCoachDataExtractor
-from services.garmin.models import ExtractionConfig, Activity, ActivitySummary
+from services.garmin.models import Activity, ActivitySummary, ExtractionConfig
 
 
 class TestDataExtractorCharacterization:
@@ -71,7 +73,7 @@ class TestTriathlonCoachDataExtractorCharacterization:
         mock_instance = Mock()
         mock_client.return_value = mock_instance
         
-        extractor = TriathlonCoachDataExtractor("test@example.com", "password")
+        TriathlonCoachDataExtractor("test@example.com", "password")
         
         mock_client.assert_called_once()
         mock_instance.connect.assert_called_once_with("test@example.com", "password")

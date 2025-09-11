@@ -1,14 +1,19 @@
-import pytest
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
 import tempfile
-import json
-from datetime import datetime
-from bot.handlers.coach_handlers import (
-    start_coach, process_analysis_context, process_planning_context, 
-    cancel_coach, user_data, EXPECTING_ANALYSIS_CONTEXT, EXPECTING_PLANNING_CONTEXT
-)
-from telegram.ext import ConversationHandler
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 from telegram.constants import ParseMode
+from telegram.ext import ConversationHandler
+
+from bot.handlers.coach_handlers import (
+    EXPECTING_ANALYSIS_CONTEXT,
+    EXPECTING_PLANNING_CONTEXT,
+    cancel_coach,
+    process_analysis_context,
+    process_planning_context,
+    start_coach,
+    user_data,
+)
 
 
 class TestCoachHandlersCharacterization:
