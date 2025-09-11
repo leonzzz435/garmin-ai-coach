@@ -85,7 +85,7 @@ class SecureStorageBase:
 
             return encrypted_data
 
-        except json.JSONEncodeError as e:
+        except TypeError as e:
             error_msg = f"Failed to serialize data to JSON: {str(e)}"
             logger.error(error_msg)
             logger.debug(f"Problematic data: {data}")
