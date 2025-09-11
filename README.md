@@ -1,4 +1,4 @@
-# 🏊‍♂️🚴‍♂️🏃‍♂️ Tele Garmin — Your AI Triathlon Coach
+# 🏊‍♂️🚴‍♂️🏃‍♂️ Your AI Endurance Coach
 
 > **Transform your Garmin Connect data into personalized insights, training plans, and race prep strategies using a sophisticated multi-agent AI system.**
 
@@ -299,7 +299,7 @@ pixi run list-users            # User management
 
 ---
 
-## 💡 Why Tele Garmin?
+## 💡 Why garmin-ai-coach?
 
 **For Athletes:**
 - 🎯 Get personalized insights your Garmin doesn't provide

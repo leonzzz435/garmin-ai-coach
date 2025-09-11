@@ -1,4 +1,4 @@
-# Tele Garmin CLI
+# Garmin AI CLI
 
 AI triathlon coach - command-line interface.
 
