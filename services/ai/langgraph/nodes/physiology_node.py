@@ -108,7 +108,7 @@ async def physiology_node(state: TrainingAnalysisState) -> TrainingAnalysisState
 
     try:
         plot_storage = PlotStorage(state['execution_id'])
-        plotting_tool, list_plots_tool = create_plotting_tools(
+        plotting_tool = create_plotting_tools(
             plot_storage, agent_name="physiology"
         )
 

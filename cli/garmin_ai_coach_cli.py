@@ -180,6 +180,19 @@ async def run_analysis_from_config(config_path: Path) -> None:
             files_generated.append('planning.html')
             logger.info(f"Saved: {output_dir}/planning.html")
 
+        intermediate_results = {
+            'metrics_result.md': result.get('metrics_result'),
+            'activity_result.md': result.get('activity_result'),
+            'physiology_result.md': result.get('physiology_result'),
+            'season_plan.md': result.get('season_plan'),
+        }
+
+        for filename, content in intermediate_results.items():
+            if content:
+                (output_dir / filename).write_text(content)
+                files_generated.append(filename)
+                logger.info(f"Saved intermediate result: {output_dir}/{filename}")
+
         cost_total = 0.0
         total_tokens = 0
         if isinstance(result.get('cost_summary'), dict):

@@ -45,10 +45,18 @@ WEEKLY_PLANNER_USER_PROMPT = """Based on your season plan and the athlete's spec
 
 ## Athlete Information
 - Name: {athlete_name}
-- Current Date: {current_date}
-- Upcoming Two Weeks: {week_dates}
-- Upcoming Competitions: {competitions}
-- Custom User Instructions: {planning_context}
+- Current Date: ```json
+{current_date}
+```
+- Upcoming Two Weeks: ```json
+{week_dates}
+```
+- Upcoming Competitions: ```json
+{competitions}
+```
+- Custom User Instructions: ```
+{planning_context}
+```
 
 ## Available Analysis
 You have access to detailed analysis data to inform your training decisions:

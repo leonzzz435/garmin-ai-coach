@@ -111,7 +111,7 @@ async def metrics_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
 
     try:
         plot_storage = PlotStorage(state['execution_id'])
-        plotting_tool, list_plots_tool = create_plotting_tools(plot_storage, agent_name="metrics")
+        plotting_tool = create_plotting_tools(plot_storage, agent_name="metrics")
 
         llm = ModelSelector.get_llm(AgentRole.METRICS)
         llm_with_tools = llm.bind_tools([plotting_tool])

@@ -30,6 +30,8 @@ class ModelSelector:
         "o3": ModelConfiguration(name="o3", base_url="https://api.openai.com/v1"),
         "o3-mini": ModelConfiguration(name="o3-mini", base_url="https://api.openai.com/v1"),
         "o4-mini": ModelConfiguration(name="o4-mini", base_url="https://api.openai.com/v1"),
+        "gpt-5": ModelConfiguration(name="gpt-5", base_url="https://api.openai.com/v1"),
+        "gpt-5-mini": ModelConfiguration(name="gpt-5-mini", base_url="https://api.openai.com/v1"),
         # Anthropic Models
         "claude-4": ModelConfiguration(
             name="claude-sonnet-4-20250514", base_url="https://api.anthropic.com"
@@ -95,6 +97,20 @@ class ModelSelector:
         elif model_name == "claude-opus":
             llm_params["max_tokens"] = 32000
             logger.info(f"Using extended output tokens for {role.value} (max_tokens: 32000)")
+        elif model_name == "gpt-5":
+            llm_params["use_responses_api"] = True
+            llm_params["reasoning"] = {"effort": "high"}
+            llm_params["model_kwargs"] = {
+                "text": {"verbosity": "high"}
+            }
+            logger.info(f"Using GPT-5 with Responses API for {role.value} (verbosity: high, reasoning_effort: high)")
+        elif model_name == "gpt-5-mini":
+            llm_params["use_responses_api"] = True
+            llm_params["reasoning"] = {"effort": "high"}
+            llm_params["model_kwargs"] = {
+                "text": {"verbosity": "high"}
+            }
+            logger.info(f"Using GPT-5-mini with Responses API for {role.value} (verbosity: high, reasoning_effort: high)")
 
         # Create the appropriate LangChain LLM based on provider
         if "anthropic" in model_config.base_url:
@@ -104,11 +120,13 @@ class ModelSelector:
             logger.info(f"LLM configured without web search tools for {model_config.name}")
 
         elif "openrouter" in model_config.base_url:
-            llm_params["openai_api_key"] = api_key
-            llm_params["openai_api_base"] = model_config.base_url
+            llm_params["api_key"] = api_key
+            llm_params["base_url"] = model_config.base_url
             llm = ChatOpenAI(**llm_params)
         else:
-            llm_params["openai_api_key"] = api_key
+            # Modern OpenAI configuration with Responses API support
+            llm_params["api_key"] = api_key
+            llm_params["base_url"] = model_config.base_url
             llm = ChatOpenAI(**llm_params)
 
         logger.info(f"LLM configured for {model_config.name}")

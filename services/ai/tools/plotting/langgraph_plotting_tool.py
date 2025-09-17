@@ -152,39 +152,6 @@ Please try again with a properly created 'fig' variable."""
 
         return python_plotting_tool
 
-    def create_plot_list_tool(self):
-
-        @tool("list_available_plots", return_direct=False)
-        def list_available_plots() -> str:
-            """
-            List all plots available for referencing in your analysis.
-
-            Returns information about plots created by other agents that you can reference
-            using [PLOT:plot_id] syntax in your text.
-
-            Useful for synthesis agents to see what visualizations are available.
-            """
-            try:
-                plots = self.plot_storage.list_available_plots()
-
-                if not plots:
-                    return "No plots available yet."
-                else:
-                    plot_list = ["Available plots for referencing:"]
-                    for plot in plots:
-                        plot_list.append(
-                            f"- [PLOT:{plot['plot_id']}]: {plot['description']} "
-                            f"(by {plot['agent_name']}, data: {plot['data_summary']})"
-                        )
-                    return "\n".join(plot_list)
-
-            except Exception as e:
-                logger.error(f"Plot list tool error: {e}")
-                return f"Error listing plots: {str(e)}"
-
-        return list_available_plots
-
-
 def create_plotting_tools(plot_storage: PlotStorage, agent_name: str = "unknown"):
     langgraph_tool = LangGraphPlottingTool(plot_storage, agent_name)
-    return langgraph_tool.create_plotting_tool(), langgraph_tool.create_plot_list_tool()
+    return langgraph_tool.create_plotting_tool()

@@ -4,7 +4,7 @@ from datetime import datetime
 
 from services.ai.ai_settings import AgentRole
 from services.ai.model_config import ModelSelector
-from services.ai.tools.plotting import PlotStorage, create_plotting_tools
+from services.ai.tools.plotting import PlotStorage
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
@@ -32,7 +32,7 @@ Your analytical genius comes from an extraordinary ability to hold multiple comp
 Create comprehensive, actionable insights by synthesizing multiple data streams.
 
 ## Plot Integration
-Use the list_available_plots tool to see available visualizations.
+Available plot information is provided in the state data.
 IMPORTANT: Include plot references as [PLOT:plot_id] in your final synthesis text.
 These references will be converted to actual charts in the final report.
 
@@ -105,10 +105,9 @@ async def synthesis_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
 
     try:
         plot_storage = PlotStorage(state['execution_id'])
-        _, plot_list_tool = create_plotting_tools(plot_storage, agent_name="synthesis")
 
         llm = ModelSelector.get_llm(AgentRole.SYNTHESIS)
-        llm_with_tools = llm.bind_tools([plot_list_tool])
+        llm_with_tools = llm.bind_tools([])
 
         user_prompt = SYNTHESIS_USER_PROMPT.format(
             athlete_name=state['athlete_name'],
@@ -131,7 +130,7 @@ async def synthesis_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
             return await handle_tool_calling_in_node(
                 llm_with_tools=llm_with_tools,
                 messages=messages,
-                tools=[plot_list_tool],
+                tools=[],
                 max_iterations=3,
             )
 

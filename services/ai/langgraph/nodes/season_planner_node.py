@@ -43,8 +43,12 @@ This plan will be passed to a weekly planning agent and will not be shown direct
 
 ## Athlete Information
 - Name: {athlete_name}
-- Current Date: {current_date}
-- Upcoming Competitions: {competitions}
+- Current Date: ```json
+{current_date}
+```
+- Upcoming Competitions: ```json
+{competitions}
+```
 
 ## Your Task
 Create a high-level season plan that provides a framework for the next 12-24 weeks of training, leading up to key competitions. This should be concise yet informative, focusing on:

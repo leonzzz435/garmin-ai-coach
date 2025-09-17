@@ -63,7 +63,9 @@ Your analysis will be directly used by other agents to create comprehensive anal
 ACTIVITY_INTERPRETER_USER_PROMPT = """Your task is to interpret structured activity summaries to identify patterns and provide guidance.
 
 Activity Summary Data:
+```
 {activity_summary}
+```
 
 Upcoming Competitions:
 ```json
@@ -118,7 +120,7 @@ async def activity_interpreter_node(state: TrainingAnalysisState) -> TrainingAna
 
     try:
         plot_storage = PlotStorage(state['execution_id'])
-        plotting_tool, _ = create_plotting_tools(plot_storage, agent_name="activity")
+        plotting_tool = create_plotting_tools(plot_storage, agent_name="activity")
 
         llm = ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER)
         llm_with_tools = llm.bind_tools([plotting_tool])
