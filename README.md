@@ -4,19 +4,20 @@
 
 [![Made with Python](https://img.shields.io/badge/Made%20with-Python-blue.svg)](https://python.org)
 [![Powered by LangGraph](https://img.shields.io/badge/Powered%20by-LangGraph-purple.svg)](https://langchain-ai.github.io/langgraph/)
-[![AI Models](https://img.shields.io/badge/AI%20Models-Claude%20|%20GPT--4%20|%20DeepSeek-green.svg)](https://github.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+Provider-agnostic: OpenAI (incl. GPT-5), Anthropic, and OpenRouter are supported.
 
 ---
 
 ## ✨ What Makes This Special
 
-🤖 **10 Specialized AI Agents** working in parallel to analyze every aspect of your training  
-📊 **Beautiful Interactive Reports** with professional charts and actionable recommendations  
-💬 **Conversational Interface** through Telegram with real-time progress tracking  
-⚡ **Headless CLI Mode** for automated, config-driven analysis  
-🔒 **Security-First Design** with local encrypted credentials and zero cloud storage  
-📈 **Professional Observability** with LangSmith integration and cost tracking
+- Parallel analysis across specialized agents (load, physiology, execution)
+- Interactive reports with evidence and actionable next steps
+- Conversational interface via Telegram with real-time progress
+- Headless CLI for automated, config-driven runs
+- Privacy-first: local encrypted credentials; no cloud storage of personal data
+- Built-in observability and cost tracking (LangSmith)
 
 ---
 
@@ -44,17 +45,14 @@ flowchart LR
 
 ### 📊 Beautiful Analysis Reports
 
-![Performance Analysis Hero](docs/screenshots/ana_screen_1.png)
-*AI-generated performance synthesis with key findings and executive summary*
+![Analysis Dashboard](docs/screenshots/analysis_dashboard.png)
+*Executive summary and key performance indicators with readiness signals*
 
-![Interactive Training Load Charts](docs/screenshots/ana_screen_2.png)
-*Sophisticated training load progression analysis with ACWR monitoring*
+![Activity Analysis](docs/screenshots/analysis_activity_analysis.png)
+*Execution patterns and coaching notes derived from recent runs and rides*
 
-![Physiological Adaptation Dashboard](docs/screenshots/ana_screen_3.png)
-*Real-time physiological monitoring with HRV, stress patterns, and VO₂ max tracking*
-
-![Competition Readiness Assessment](docs/screenshots/ana_screen_4.png)
-*Competition timeline and integrated readiness scoring across all analysis domains*
+![Load Balance Plot (ACWR vs Chronic)](docs/screenshots/analysis_plot.png)
+*Bubble map of ACWR versus chronic load (marker size = acute load) with annotated high‑risk exposures*
 
 **Analysis Report Features:**
 - 🎯 **Executive Summary** with key findings and readiness scores
@@ -66,11 +64,11 @@ flowchart LR
 
 ### 📅 Detailed Training Plans
 
-![Season Planning Overview](docs/screenshots/plan_screen_1.png)
-*Comprehensive 28-week periodized training plan with phase-specific goals and timeline*
+![Season Planning Phases](docs/screenshots/plan_phases.png)
+*Periodized macrocycle with phase-specific goals, timeline, and progression guardrails*
 
-![Daily Workout Details](docs/screenshots/plan_screen_2.png)
-*Detailed day-by-day workout structure with intensity zones, adaptations, and monitoring guidance*
+![Daily Workout Details](docs/screenshots/plan_workout_day.png)
+*Structured day plan with intensity zones, adaptations, and monitoring cues*
 
 **Planning Report Features:**
 - 🏗️ **Season-Long Periodization** with phase-specific goals
@@ -80,6 +78,10 @@ flowchart LR
 - 🔄 **Adaptive Workout Options** based on readiness and fatigue
 
 ---
+
+## ⚡ Try it in 10 seconds (no setup)
+
+- Scroll to “See It In Action” above for a real visual demo included in this README. No accounts or API keys needed.
 
 ## 🚀 Quick Start
 
@@ -119,7 +121,7 @@ pixi run coach-cli --config my_training_config.yaml
 ### Prerequisites
 - **Garmin Connect Account** - Your training data source
 - **Telegram Bot Token** (for bot interface) - [Get one from @BotFather](https://t.me/botfather)
-- **Anthropic API Key** - Primary LLM provider
+- LLM API key for your chosen provider (OpenAI, Anthropic, or OpenRouter)
 
 ### Using Pixi (Recommended)
 
@@ -127,10 +129,9 @@ pixi run coach-cli --config my_training_config.yaml
 ```bash
 # .env.dev
 TELE_BOT_KEY=123456789:your_telegram_bot_token
-ANTHROPIC_API_KEY=sk-ant-api03-...
-
-# Optional providers
+# Choose at least one provider
 OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
 OPENROUTER_API_KEY=...
 LANGSMITH_API_KEY=lsv2_...  # For professional observability
 
@@ -164,23 +165,28 @@ Choose your analysis depth and cost balance:
 
 ### Supported LLM Providers
 
-**🧠 Anthropic Claude** (Primary)
-- `claude-4`, `claude-4-thinking`
-- `claude-opus`, `claude-opus-thinking`  
-- `claude-3-haiku`
+- **🤖 OpenAI**
+  - `gpt-5`, `gpt-5-mini`
+  - `gpt-4.5`, `gpt-4.1`, `gpt-4o`, `gpt-4o-mini`
+  - `o1`, `o1-mini`, `o3`, `o3-mini`, `o4-mini`
 
-**🤖 OpenAI**
-- `gpt-4o`, `gpt-4.1`, `gpt-4.5`
-- `gpt-4o-mini`, `o3`, `o3-mini`
+- **🧠 Anthropic Claude**
+  - `claude-4`, `claude-4-thinking`
+  - `claude-opus`, `claude-opus-thinking`
+  - `claude-3-haiku`
 
-**🚀 OpenRouter/DeepSeek**
-- `deepseek-chat`, `deepseek-reasoner`
+- **🚀 OpenRouter/DeepSeek**
+  - `deepseek-chat`, `deepseek-reasoner`
 
 *Configure in [`services/ai/ai_settings.py`](services/ai/ai_settings.py) by updating the `stage_models` mapping.*
 
 ---
 
 ## 📋 Sample Configuration
+
+Analysis vs Planning context:
+- Analysis context: how to interpret past data (e.g., risk tolerance, injury notes, priorities)
+- Planning context: how to plan future workouts/training plans (e.g., emphasis, constraints, races)
 
 ```yaml
 # Athlete Information
@@ -295,7 +301,7 @@ pixi run list-users            # User management
 - **🔗 Platform Integration** - Wahoo Integration
 
 ### 🏆 Success Stories
-*"The AI coaching insights helped me identify training inconsistencies I never would have caught myself. My Olympic distance time dropped by 8 minutes!"*
+*"The AI coaching insights helped me identify training inconsistencies I never would have caught myself. My Olympic distance time dropped by 14 minutes!"*
 
 ---
 

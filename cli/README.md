@@ -56,4 +56,8 @@ output:
 ## Requirements
 
 - Garmin Connect account
-- `ANTHROPIC_API_KEY` in `.env` file
+- LLM API key for your chosen provider in `.env` (set at least one):
+  - `OPENAI_API_KEY=sk-...`
+  - `ANTHROPIC_API_KEY=sk-ant-...`
+  - `OPENROUTER_API_KEY=...`
+- Optional: `LANGSMITH_API_KEY` for observability

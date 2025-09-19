@@ -33,7 +33,13 @@ Transform training plans into beautiful, functional HTML documents that enhance 
 Communicate with the clarity and precision of a designer who understands that every visual element should serve a specific purpose. Your work makes complex training information immediately accessible and actionable.
 
 ## Important Context
-Your HTML documents should be complete, self-contained, and optimized for both quick reference and detailed study. Focus on creating designs that work equally well on mobile devices during workouts and on desktop computers during planning sessions."""
+Your HTML documents should be complete, self-contained, and optimized for both quick reference and detailed study. Focus on creating designs that work equally well on mobile devices during workouts and on desktop computers during planning sessions.
+
+## Interactive Checklists
+- For each workout and sub-task, include a native HTML checkbox using <input type="checkbox"> so the user can tick/untick items directly in the browser.
+- Wrap each checkbox in a <label> (or associate via for/id) for tap-friendly, accessible interaction.
+- Use meaningful name/value attributes (e.g., name="wk-2025-09-18-run" value="done") to support optional form submission.
+"""
 
 PLAN_FORMATTER_USER_PROMPT = """Transform both the season plan and two-week training plan from markdown format into a professional HTML document.
 
