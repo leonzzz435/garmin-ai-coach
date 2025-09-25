@@ -14,8 +14,8 @@ Provider-agnostic: OpenAI (incl. GPT-5), Anthropic, and OpenRouter are supported
 
 - Parallel analysis across specialized agents (load, physiology, execution)
 - Interactive reports with evidence and actionable next steps
-- Conversational interface via Telegram with real-time progress
-- Headless CLI for automated, config-driven runs
+- CLI-first, config-driven headless runs
+- Telegram bot interface (deprecated) — see Deprecated section below
 - Privacy-first: local encrypted credentials; no cloud storage of personal data
 - Built-in observability and cost tracking (LangSmith)
 
@@ -27,12 +27,24 @@ Provider-agnostic: OpenAI (incl. GPT-5), Anthropic, and OpenRouter are supported
 
 ```mermaid
 flowchart LR
-    A[📊 Dr. Aiden<br/>Metrics Agent] --> E[🧠 Maya<br/>Synthesis Agent]
-    B[🏃‍♂️ Marcus<br/>Activity Agent] --> C[🔍 Elena<br/>Interpreter Agent]  
-    D[❤️ Dr. Helena<br/>Physiology Agent] --> E
-    C --> E
-    E --> F[📋 James<br/>Report Generator]
-    F --> G[🎨 Interactive<br/>HTML Reports]
+    subgraph Analysis Team
+        A[📊 Dr. Aiden<br/>Metrics] --> E[🧠 Maya<br/>Synthesis]
+        B[🏃‍♂️ Marcus<br/>Activity Data] --> C[🔍 Elena<br/>Interpreter]
+        D[❤️ Dr. Helena<br/>Physiology] --> E
+        C --> E
+        E --> F[📋 James<br/>Analysis Formatter]
+        F --> PR[🖼️ Plot Resolution]
+    end
+
+    subgraph Planning Team
+        S[🧭 Coach Magnus<br/>Season Planner] --> DI[🧩 Data Integration]
+        DI --> W[📅 Coach Magnus<br/>Weekly Planner]
+        W --> PXF[🎨 Pixel<br/>Plan Formatter]
+    end
+
+    F --> G1[📊 Analysis HTML]
+    PR --> S
+    PXF --> G2[📄 Planning HTML]
 ```
 
 **Each agent brings specialized expertise:**
@@ -41,7 +53,11 @@ flowchart LR
 - **Elena Rodriguez** (Activity Interpreter) - Training pattern analysis and execution insights
 - **Dr. Helena Virtanen** (Physiology) - Recovery, stress, and physiological markers
 - **Maya Lindholm** (Synthesis) - Combines insights into comprehensive analysis
-- **James Morrison** (Formatter) - Creates beautiful, actionable reports
+- **James Morrison** (Analysis Formatter) - Creates analysis HTML and handoff artifacts
+- **Coach Magnus Thorsson** (Season Planner) - Long-term periodization frameworks and peak timing
+- **Coach Magnus Thorsson** (Weekly Planner) - Practical 14‑day training plans with zones and adaptations
+- **Data Integration** (Planning) - Integrates analysis, plots, and competitions to contextualize planning
+- **Pixel** (Plan Formatter) - Produces professional planning HTML with interactive checklists
 
 ### 📊 Beautiful Analysis Reports
 
@@ -79,77 +95,85 @@ flowchart LR
 
 ---
 
-## ⚡ Try it in 10 seconds (no setup)
-
-- Scroll to “See It In Action” above for a real visual demo included in this README. No accounts or API keys needed.
-
-## 🚀 Quick Start
-
-### Option 1: Telegram Bot Interface (Conversational UX)
+## 🚀 Quick Start (CLI-first)
 
 ```bash
-# Start the bot
-pixi run start-dev
-```
-
-**Chat Commands:**
-- `/start` → Initialize your coaching experience
-- `/login` → Secure Garmin Connect authentication
-- `/coach` → Trigger comprehensive analysis + weekly planning
-- `/races` → Manage your competition calendar
-- `/help` → Quick reference guide
-
-### Option 2: CLI Interface (Headless Automation)
-
-```bash
-# Create your configuration
+# 1) Create your configuration
 pixi run coach-init my_training_config.yaml
 
-# Edit the config with your details, then run
+# 2) Edit the config with your details, then run
 pixi run coach-cli --config my_training_config.yaml
 ```
 
+### CLI command reference
+
+```bash
+# Run with an existing config
+python cli/garmin_ai_coach_cli.py --config my_training_config.yaml [--output-dir ./data]
+
+# Generate a new config template
+python cli/garmin_ai_coach_cli.py --init-config my_training_config.yaml
+```
+
+Options:
+- --config PATH — Path to YAML or JSON config
+- --init-config PATH — Create a template config at PATH
+- --output-dir PATH — Override output directory from config
+
 **Outputs:**
 - `analysis.html` - Comprehensive performance analysis
-- `planning.html` - Detailed weekly training plan  
-- `summary.json` - Metadata and cost tracking
+- `planning.html` - Detailed weekly training plan
+- `metrics_result.md`, `activity_result.md`, `physiology_result.md`, `season_plan.md` - Intermediate artifacts
+- `summary.json` - Metadata and cost tracking with keys:
+  - `total_cost_usd`, `total_tokens`, `execution_id`, `trace_id`, `root_run_id`, `files_generated`, `competitions`
 
+### Legacy: Telegram Bot (Deprecated)
+The Telegram chat interface is deprecated and will be removed in a future release. Prefer the CLI.
+If you still need to use it temporarily:
+```bash
+pixi run start-dev
+```
+Requires `TELE_BOT_KEY` in your environment. See the “Project Structure” section for legacy notes.
 ---
 
 ## 💻 Installation & Setup
 
 ### Prerequisites
-- **Garmin Connect Account** - Your training data source
-- **Telegram Bot Token** (for bot interface) - [Get one from @BotFather](https://t.me/botfather)
+- Garmin Connect account (your training data source)
 - LLM API key for your chosen provider (OpenAI, Anthropic, or OpenRouter)
-
+- Optional: `LANGSMITH_API_KEY` for observability
+- Legacy Telegram bot requires `TELE_BOT_KEY` — see “Legacy: Telegram Bot (Deprecated)” above
 ### Using Pixi (Recommended)
 
 1. **Create your environment file:**
 ```bash
-# .env.dev
-TELE_BOT_KEY=123456789:your_telegram_bot_token
+# .env (or .env.dev)
+
 # Choose at least one provider
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 OPENROUTER_API_KEY=...
-LANGSMITH_API_KEY=lsv2_...  # For professional observability
+LANGSMITH_API_KEY=lsv2_...  # Optional: professional observability
 
-# AI mode: standard | development | cost_effective  
+# AI mode default (overridden by config's extraction.ai_mode)
 AI_MODE=development
 ```
 
-2. **Install and run:**
+Important: Provider mapping and AI mode
+- If you only set OPENAI_API_KEY, set your config `extraction.ai_mode: "standard"` (this mode maps to an OpenAI model by default), or update the mapping in [`services/ai/ai_settings.py`](services/ai/ai_settings.py:24) within [`python.AISettings()`](services/ai/ai_settings.py:19) so your chosen mode points to an OpenAI model (e.g., `gpt-4o`, `gpt-5-mini`).
+- The CLI exports `AI_MODE` from your config at [`cli/garmin_ai_coach_cli.py`](cli/garmin_ai_coach_cli.py:126); model IDs are defined in [`python.ModelSelector.CONFIGURATIONS`](services/ai/model_config.py:22), and the provider key is auto-selected in [`python.ModelSelector.get_llm()`](services/ai/model_config.py:61).
+
+2. **Install and run (CLI):**
 ```bash
-pixi run start-dev     # Development mode
-# or
-pixi run start-prod    # Production mode (expects .env)
+pixi run coach-init my_training_config.yaml
+pixi run coach-cli --config my_training_config.yaml
 ```
 
-### Alternative Installation
+### Alternative Installation (CLI without Pixi)
 ```bash
 pip install -r requirements.txt
-python main.py
+python cli/garmin_ai_coach_cli.py --init-config my_training_config.yaml
+python cli/garmin_ai_coach_cli.py --config my_training_config.yaml
 ```
 
 ---
@@ -178,49 +202,113 @@ Choose your analysis depth and cost balance:
 - **🚀 OpenRouter/DeepSeek**
   - `deepseek-chat`, `deepseek-reasoner`
 
-*Configure in [`services/ai/ai_settings.py`](services/ai/ai_settings.py) by updating the `stage_models` mapping.*
+*Configure in [`services/ai/ai_settings.py`](services/ai/ai_settings.py:24) by updating the `stage_models` mapping in [`python.AISettings()`](services/ai/ai_settings.py:19).*
+
+Important — provider selection depends on your AI mode:
+- Default mapping in [`services/ai/ai_settings.py`](services/ai/ai_settings.py:24):
+  - `standard` → `gpt-5` (OpenAI)
+  - `development` → `claude-4` (Anthropic)
+  - `cost_effective` → `claude-3-haiku` (Anthropic)
+- The CLI exports `AI_MODE` from your config’s `extraction.ai_mode` at [`cli/garmin_ai_coach_cli.py`](cli/garmin_ai_coach_cli.py:126).
+- If you only set `OPENAI_API_KEY`, use `ai_mode: "standard"` (default maps to an OpenAI model) or update `stage_models` to point your chosen mode to an OpenAI model (e.g., `gpt-4o`, `gpt-5-mini`) in [`services/ai/ai_settings.py`](services/ai/ai_settings.py:24). Available model IDs are defined in [`python.ModelSelector.CONFIGURATIONS`](services/ai/model_config.py:22), and the provider is auto-selected in [`python.ModelSelector.get_llm()`](services/ai/model_config.py:61).
+- If you only set `ANTHROPIC_API_KEY`, keep `ai_mode: "development"` or `"cost_effective"` (both map to Anthropic by default) or change the mapping.
+- If you use OpenRouter (e.g., DeepSeek), map your mode to an OpenRouter model key from [`python.ModelSelector.CONFIGURATIONS`](services/ai/model_config.py:22).
 
 ---
 
-## 📋 Sample Configuration
+## 📋 Configuration
 
 Analysis vs Planning context:
 - Analysis context: how to interpret past data (e.g., risk tolerance, injury notes, priorities)
-- Planning context: how to plan future workouts/training plans (e.g., emphasis, constraints, races)
+- Planning context: how to plan future training (e.g., emphasis, constraints, races). This is freeform text interpreted by the AI.
 
+### Minimal config
 ```yaml
-# Athlete Information
 athlete:
-  name: "John Doe"
-  email: "john.doe@example.com"  # Garmin Connect email
+  name: "Your Name"
+  email: "you@example.com"
 
-# Analysis Context  
 context:
-  analysis: |
-    Coming back from a minor injury. Focusing on base building and
-    avoiding high-intensity work for the next 2 weeks.
-  planning: |
-    Preparing for Olympic distance triathlon in 12 weeks.
-    Priority is building aerobic base and improving run endurance.
+  analysis: "Recovering from injury; focus on base building"
+  planning: "Olympic triathlon in 12 weeks; build aerobic base"
 
-# Data Extraction Settings
 extraction:
-  activities_days: 7       # Recent training data
-  metrics_days: 14         # Physiological trends  
-  ai_mode: "development"   # Analysis depth
+  activities_days: 7
+  metrics_days: 14
+  ai_mode: "development"   # or "standard" or "cost_effective"
 
-# Upcoming Competitions
 competitions:
-  - name: "Local Olympic Triathlon"
+  - name: "Target Race"
     date: "2026-04-15"
     race_type: "Olympic"
-    priority: "A"              # A (highest), B, C priorities  
-    target_time: "02:30:00"
+    priority: "A"
 
 output:
   directory: "./data"
+
+credentials:
+  password: ""   # Leave empty to be prompted securely at runtime
 ```
 
+### Advanced config (derived from real usage)
+```yaml
+athlete:
+  name: "Athlete Name"
+  email: "you@example.com"
+
+context:
+  analysis: |
+    Completed my first 70.3 recently. Great result but exposed durability gaps
+    due to last-minute shoe change. Analyze this multisport activity in detail.
+
+  planning: |
+    ## Start Date
+    Plan should start on **Monday, xxxx-xx-xx**.
+
+    ## Important Needs
+    - Functional Strength, Durability & Triathlon Transfer
+      Integrate explicit daily micro-workouts (5–10 min).
+      Goals: run economy & lower-leg robustness; bike posture & core transfer; durability & recovery.
+
+    - Shoe Adaptation & Running Technique
+      Get used to carbon plate shoes (front-foot style) with targeted technique/strength.
+
+    ## Session Constraints (Shoes)
+    - Per-session shoe exclusivity: every run is tagged either `carbon` or `non-carbon`.
+
+    ## Training Preferences
+    - No indoor bike trainer available.
+    - No swimming for now.
+
+    ## Training Zones
+    | Discipline | Base Metric                  |
+    |------------|------------------------------|
+    | Running    | LTHR ≈ 173 bpm / 4:35 min/km |
+    | Cycling    | FTP ≈ 271W                   |
+    | Heart Rate | Max HR ≈ 193 bpm             |
+
+    ## Closing
+    Provide structured daily checklists to support both athletic and personal goals.
+
+extraction:
+  activities_days: 21
+  metrics_days: 56
+  ai_mode: "standard"
+
+competitions:
+  - name: "Franklin Meilenlauf"
+    date: "2025-10-12"
+    race_type: "Half Marathon"
+    priority: "A"
+    target_time: "01:40:00"
+
+output:
+  directory: "./data"
+
+credentials:
+  password: ""  # leave empty for secure interactive input
+```
+Tip: The advanced details live inside the `context.planning` text; the system is instruction-following and will respect these constraints.
 ---
 
 ## 🏗️ Architecture Deep Dive
@@ -238,7 +326,6 @@ START → [Metrics, Physiology, Activity Data] → Activity Interpreter
 ```
 
 **Key Benefits:**
-- ✅ **67% Code Reduction** - From 800+ lines to 300 lines vs legacy LangChain
 - ✅ **Built-in Observability** - Professional LangSmith monitoring  
 - ✅ **Parallel Execution** - Metrics + Physiology agents run simultaneously
 - ✅ **Automatic State Management** - Typed state with reducers
@@ -262,18 +349,17 @@ START → [Metrics, Physiology, Activity Data] → Activity Interpreter
 
 ```
 garmin-ai-coach/
-├── 🤖 bot/                     # Telegram interface & handlers
+├── 🤖 bot/                     # Telegram interface & handlers (deprecated)
 ├── 🔒 core/security/           # Encryption & usage limits
 ├── 🔧 services/
-│   ├── 🏃‍♂️ garmin/              # Data extraction & models  
+│   ├── 🏃‍♂️ garmin/              # Data extraction & models
 │   ├── 🧠 ai/langgraph/        # Modern AI workflow system
 │   └── 🎨 ai/tools/plotting/   # Secure visualization tools
 ├── 📚 agents_docs/             # Architecture & planning docs
-├── ⚡ cli/                     # Headless interface
-├── 🚀 main.py                  # Entry point
+├── ⚡ cli/                     # CLI (primary interface)
+├── 🚀 main.py                  # Legacy Telegram bot entry point (deprecated)
 └── ⚙️ pixi.toml                # Dependencies & tasks
 ```
-
 ---
 
 ## 🔧 Development Commands
@@ -350,7 +436,8 @@ We welcome contributions! The codebase uses modern Python practices with:
 ```bash
 git clone https://github.com/your-username/garmin-ai-coach.git
 cd garmin-ai-coach
-pixi run start-dev
+pixi run coach-init my_training_config.yaml
+pixi run coach-cli --config my_training_config.yaml
 ```
 
 *Your AI triathlon coach awaits! 🏊‍♂️🚴‍♂️🏃‍♂️*

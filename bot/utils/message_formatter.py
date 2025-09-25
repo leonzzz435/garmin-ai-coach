@@ -129,8 +129,7 @@ Long\\-term periodization and systematic development
 • Review your training analysis
 • Follow your weekly plan
 • Track progress with new data
-
-Need adjustments\\? I DONT CARE BICH\\! 💪"""
+"""
 
 
 class FileDeliveryManager:
