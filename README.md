@@ -42,8 +42,16 @@ flowchart LR
         W --> PXF[🎨 Pixel<br/>Plan Formatter]
     end
 
-    F --> G1[📊 Analysis HTML]
+    %% Integrated flow from analysis to planning
     PR --> S
+
+    %% Weekly planner consumes analysis results directly (kept simple)
+    A -. signals .-> W
+    C -. patterns .-> W
+    D -. physiology .-> W
+
+    %% Outputs
+    F --> G1[📊 Analysis HTML]
     PXF --> G2[📄 Planning HTML]
 ```
 
