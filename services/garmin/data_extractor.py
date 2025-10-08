@@ -628,15 +628,18 @@ class TriathlonCoachDataExtractor(DataExtractor):
                     if summary.normalized_power is None and 'normalizedPower' in first_lap:
                         summary.normalized_power = first_lap['normalizedPower']
 
+            weather_out = None if activity_type == 'meditation' else self._extract_weather_data(weather_data)
+            laps_out = [] if activity_type == 'meditation' else lap_data
+
             return Activity(
                 activity_id=activity_id,
                 activity_type=activity_type,
                 activity_name=activity_name,
                 start_time=start_time,
                 summary=summary,
-                weather=self._extract_weather_data(weather_data),
+                weather=weather_out,
                 # Removed hr_zones data as requested
-                laps=lap_data,
+                laps=laps_out,
             )
         except Exception as e:
             logger.error(f"Error processing single sport activity: {str(e)}")
@@ -657,10 +660,21 @@ class TriathlonCoachDataExtractor(DataExtractor):
             calories=summary.get('calories'),
             average_hr=summary.get('averageHR'),
             max_hr=summary.get('maxHR'),
+            min_hr=summary.get('minHR'),
             activity_training_load=summary.get('activityTrainingLoad'),
             moderate_intensity_minutes=summary.get('moderateIntensityMinutes'),
             vigorous_intensity_minutes=summary.get('vigorousIntensityMinutes'),
             recovery_heart_rate=summary.get('recoveryHeartRate'),
+            # Respiration
+            avg_respiration_rate=summary.get('avgRespirationRate') or summary.get('avgRespirationValue'),
+            min_respiration_rate=summary.get('minRespirationRate') or summary.get('lowestRespirationValue'),
+            max_respiration_rate=summary.get('maxRespirationRate') or summary.get('highestRespirationValue'),
+            # Stress
+            start_stress=summary.get('startStress'),
+            end_stress=summary.get('endStress'),
+            avg_stress=summary.get('avgStress') or summary.get('averageStressLevel'),
+            max_stress=summary.get('maxStress') or summary.get('maxStressLevel'),
+            difference_stress=summary.get('differenceStress'),
             # Power-related fields for cycling activities
             avg_power=summary.get('avgPower'),
             max_power=summary.get('maxPower'),

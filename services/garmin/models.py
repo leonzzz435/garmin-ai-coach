@@ -16,6 +16,7 @@ class ExtractionConfig:
     metrics_range: int = TimeRange.EXTENDED.value
     include_detailed_activities: bool = True
     include_metrics: bool = True
+    include_mindfulness: bool = True
 
 
 @dataclass
@@ -72,10 +73,21 @@ class ActivitySummary:
     calories: int | None = None
     average_hr: int | None = None
     max_hr: int | None = None
+    min_hr: int | None = None
     activity_training_load: int | None = None
     moderate_intensity_minutes: int | None = None
     vigorous_intensity_minutes: int | None = None
     recovery_heart_rate: int | None = None
+    # Respiration (for meditation/mindfulness-capable activities)
+    avg_respiration_rate: float | None = None
+    min_respiration_rate: float | None = None
+    max_respiration_rate: float | None = None
+    # Stress (for meditation/mindfulness-capable activities)
+    start_stress: float | None = None
+    end_stress: float | None = None
+    avg_stress: float | None = None
+    max_stress: float | None = None
+    difference_stress: float | None = None
     # Power-related fields for cycling activities
     avg_power: float | None = None
     max_power: float | None = None

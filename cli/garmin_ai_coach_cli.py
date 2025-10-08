@@ -69,28 +69,17 @@ class ConfigParser:
         }
 
     def get_competitions(self) -> list[dict[str, Any]]:
-        competitions = self.config.get('competitions', [])
-        processed_competitions = []
-
-        for comp in competitions:
-            date_str = comp.get('date', '')
-            if date_str:
-                try:
-                    date_obj = datetime.fromisoformat(date_str).date()
-                    processed_comp = {
-                        'name': comp.get('name', ''),
-                        'date': date_obj.isoformat(),
-                        'race_type': comp.get('race_type', ''),
-                        'priority': comp.get('priority', 'B'),
-                        'target_time': comp.get('target_time', ''),
-                    }
-                    processed_competitions.append(processed_comp)
-                except ValueError:
-                    logger.warning(
-                        f"Invalid date format for competition: {comp.get('name', 'Unknown')}"
-                    )
-
-        return processed_competitions
+        competitions = self.config.get("competitions", [])
+        return [
+            {
+                "name": comp.get("name", ""),
+                "date": comp.get("date", ""),
+                "race_type": comp.get("race_type", ""),
+                "priority": comp.get("priority", "B"),
+                "target_time": comp.get("target_time", ""),
+            }
+            for comp in competitions
+        ]
 
     def get_output_directory(self) -> Path:
         output = self.config.get('output', {})
