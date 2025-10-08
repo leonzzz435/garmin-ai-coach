@@ -106,10 +106,13 @@ flowchart LR
 ## 🚀 Quick Start (CLI-first)
 
 ```bash
-# 1) Create your configuration
+# 1) Install dependencies
+pixi install
+
+# 2) Create your configuration
 pixi run coach-init my_training_config.yaml
 
-# 2) Edit the config with your details, then run
+# 3) Edit the config with your details, then run
 pixi run coach-cli --config my_training_config.yaml
 ```
 
@@ -150,7 +153,39 @@ Requires `TELE_BOT_KEY` in your environment. See the “Project Structure” sec
 - Garmin Connect account (your training data source)
 - LLM API key for your chosen provider (OpenAI, Anthropic, or OpenRouter)
 - Optional: `LANGSMITH_API_KEY` for observability
-- Legacy Telegram bot requires `TELE_BOT_KEY` — see “Legacy: Telegram Bot (Deprecated)” above
+- Legacy Telegram bot requires `TELE_BOT_KEY` — see "Legacy: Telegram Bot (Deprecated)" above
+
+### Installing Pixi
+
+[Pixi](https://pixi.sh) is a fast, modern package manager for Python projects that simplifies dependency management.
+
+**Install pixi:**
+
+```bash
+# macOS/Linux
+curl -fsSL https://pixi.sh/install.sh | bash
+
+# Windows (PowerShell)
+iwr -useb https://pixi.sh/install.ps1 | iex
+```
+
+For alternative installation methods (Homebrew, Conda, manual), visit the [official installation guide](https://pixi.sh/latest/#installation).
+
+**Verify installation:**
+```bash
+pixi --version
+```
+
+**Set up the project environment:**
+```bash
+git clone https://github.com/your-username/garmin-ai-coach.git
+cd garmin-ai-coach
+
+pixi install
+```
+
+This will automatically install all dependencies specified in [`pixi.toml`](pixi.toml:1) and [`pixi.lock`](pixi.lock:1).
+
 ### Using Pixi (Recommended)
 
 1. **Create your environment file:**
@@ -444,6 +479,7 @@ We welcome contributions! The codebase uses modern Python practices with:
 ```bash
 git clone https://github.com/your-username/garmin-ai-coach.git
 cd garmin-ai-coach
+pixi install
 pixi run coach-init my_training_config.yaml
 pixi run coach-cli --config my_training_config.yaml
 ```
