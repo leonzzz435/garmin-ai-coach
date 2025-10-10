@@ -79,3 +79,4 @@ notebooks/
 **/notebooks/
 **/test_notebooks/
 **/experimental/
+my_training_config.yaml
