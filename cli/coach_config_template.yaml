@@ -36,6 +36,17 @@ competitions:
     priority: "B"
     target_time: "01:15:00"
 
+outside:
+  bikereg:
+    - id: 71252               # BikeReg event ID (integer)
+      priority: "A"           # Optional; defaults to "B" if omitted
+      target_time: "3:00:00"  # Optional; HH:MM:SS
+
+  runreg:
+  - url: "https://www.runreg.com/sunflower-relay-half-marathon-and-marathon"
+    priority: "B"
+    target_time: "3:30:00"
+
 # Output Settings
 output:
   directory: "./data"
