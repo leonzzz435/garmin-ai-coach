@@ -8,13 +8,13 @@ import logging
 import os
 import sys
 from dataclasses import asdict
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
-from services.outside.client import OutsideApiGraphQlClient
-
-from datetime import timedelta, datetime, date as _date
 
 import yaml
+
+from services.outside.client import OutsideApiGraphQlClient
 
 sys.path.append(str(Path(__file__).parent.parent))
 
@@ -99,33 +99,18 @@ class ConfigParser:
 
 
 def fetch_outside_competitions_from_config(config: dict[str, Any]) -> list[dict[str, Any]]:
-    """
-    Resolve Outside/AthleteReg (BikeReg/RunReg/TriReg/SkiReg) entries in config.
-
-    Supports both:
-      - New shape:
-        outside:
-          bikereg: [{ id: 123, priority: "A", target_time: "3:00:00" }]
-          runreg:  [{ url: "https://www.runreg.com/...", priority: "B" }]
-      - Backward-compatible top-level lists:
-        bikereg: [{...}], runreg: [{...}], trireg: [{...}], skireg: [{...}]
-    """
     outside_cfg = config.get("outside")
-    client = OutsideApiGraphQlClient()  # default app_type (BIKEREG) is fine for dispatcher mode
+    client = OutsideApiGraphQlClient()
 
-    # New shape: outside: {bikereg|runreg|trireg|skireg: [...]}
     if isinstance(outside_cfg, dict) and any(isinstance(v, list) for v in outside_cfg.values()):
         return client.get_competitions(outside_cfg)
 
-    # Backward-compat: gather per top-level key if present
     aggregate: list[dict[str, Any]] = []
 
-    # Legacy: top-level "bikereg"
     legacy_bikereg = config.get("bikereg", [])
     if isinstance(legacy_bikereg, list) and legacy_bikereg:
         aggregate.extend(client.get_competitions(legacy_bikereg))
 
-    # Legacy: top-level "runreg", "trireg", "skireg"
     legacy_all = {}
     for k in ("runreg", "trireg", "skireg"):
         entries = config.get(k, [])
@@ -156,7 +141,6 @@ async def run_analysis_from_config(config_path: Path) -> None:
 
     password = config_parser.get_password()
 
-    # Set AI mode environment variable
     ai_mode = extraction_settings.get('ai_mode', 'development')
     os.environ['AI_MODE'] = ai_mode
     logger.info(f"AI Mode: {ai_mode}")
@@ -194,7 +178,7 @@ async def run_analysis_from_config(config_path: Path) -> None:
             garmin_data=asdict(garmin_data),
             analysis_context=analysis_context,
             planning_context=planning_context,
-            competitions=competitions,  # includes BikeReg-derived items now
+            competitions=competitions,
             current_date=current_date,
             week_dates=week_dates,
         )

@@ -1,27 +1,24 @@
 import json
 from datetime import datetime as dt
-from typing import Any, Dict, List
+from typing import Any
 
 import httpx
 import pytest
 
 from services.outside.client import OutsideApiGraphQlClient
 from services.outside.models import (
+    CalendarNode,
+    CalendarResult,
     Event,
     EventCategory,
     EventType,
-    SanctioningBody,
-    CalendarResult,
-    CalendarNode,
     PageInfo,
+    SanctioningBody,
 )
 
 
 @pytest.mark.unit
 class TestOutsideApiGraphQlClient:
-    # ---------------------------
-    # Helpers (class-local)
-    # ---------------------------
     @staticmethod
     def _make_event(
         event_id: int = 71252,
@@ -70,7 +67,7 @@ class TestOutsideApiGraphQlClient:
 
     @staticmethod
     def _make_httpx_response(
-        status: int, url: str, payload: Dict[str, Any] | None = None, content: bytes | None = None
+        status: int, url: str, payload: dict[str, Any] | None = None, content: bytes | None = None
     ):
         request = httpx.Request("POST", url)
         if payload is not None:
@@ -78,33 +75,26 @@ class TestOutsideApiGraphQlClient:
         headers = {"Content-Type": "application/json"} if payload is not None else {}
         return httpx.Response(status, request=request, content=content or b"", headers=headers)
 
-    # ---------------------------
-    # Existing tests (kept) + merges
-    # ---------------------------
     def test_init_default_and_validation(self):
-        # Default should normalize to BIKEREG
         c = OutsideApiGraphQlClient()
         assert c.app_type == "BIKEREG"
 
-        # Case-insensitive valid app types normalize to upper
         c2 = OutsideApiGraphQlClient(app_type="runreg")
         assert c2.app_type == "RUNREG"
 
-        # Invalid should raise
         with pytest.raises(ValueError):
             OutsideApiGraphQlClient(app_type="OUTSIDE_API")
 
     def test__gql_200_with_graphql_errors_raises_runtimeerror(self, monkeypatch):
         client = OutsideApiGraphQlClient()
 
-        def fake_post(url: str, json: Dict[str, Any]):
+        def fake_post(url: str, json: dict[str, Any]):
             request = httpx.Request("POST", url)
             payload = {"errors": [{"message": "Something went wrong"}]}
             return httpx.Response(
                 200, request=request, content=jsonlib.dumps(payload).encode("utf-8")
             )
 
-        # Use stdlib json in closure
         jsonlib = json
         monkeypatch.setattr(client._client, "post", fake_post)
 
@@ -115,7 +105,7 @@ class TestOutsideApiGraphQlClient:
     def test__gql_400_with_errors_raises_httpstatusexterror(self, monkeypatch):
         client = OutsideApiGraphQlClient()
 
-        def fake_post(url: str, json: Dict[str, Any]):
+        def fake_post(url: str, json: dict[str, Any]):
             request = httpx.Request("POST", url)
             payload = {"errors": [{"message": "Bad variable for appType"}]}
             return httpx.Response(
@@ -127,14 +117,12 @@ class TestOutsideApiGraphQlClient:
 
         with pytest.raises(httpx.HTTPStatusError) as exc:
             client._gql("query Q { x }", {})
-        # Our custom raiser includes this prefix
         assert "GraphQL HTTP error 400" in str(exc.value)
         assert "Bad variable for appType" in str(exc.value)
 
     def test_get_event_mapping_via__gql(self, monkeypatch):
         client = OutsideApiGraphQlClient()
 
-        # Build a realistic payload per the Outside GraphQL docs
         payload = {
             "eventId": 71252,
             "name": "Sunflower Gravel",
@@ -168,7 +156,7 @@ class TestOutsideApiGraphQlClient:
             ],
         }
 
-        def fake_gql(query: str, variables: Dict[str, Any]):
+        def fake_gql(query: str, variables: dict[str, Any]):
             assert "athleticEvent" in query
             return {"athleticEvent": payload}
 
@@ -180,17 +168,13 @@ class TestOutsideApiGraphQlClient:
         assert ev.name == "Sunflower Gravel"
         assert ev.city == "Lawrence"
         assert ev.state == "KS"
-        # categories should be pre-cached and accessible
         cats = ev.categories
         assert isinstance(cats, list) and len(cats) == 1
         assert isinstance(cats[0], EventCategory)
         assert cats[0].name == "100k"
 
     def test_get_competitions_list_by_id_and_url(self, monkeypatch):
-        # Build two fake events: one fetched by id with date fallback via categories,
-        # and one fetched by url with direct event date and no categories.
         def build_event_by_id():
-            # No event.date; categories earliest date should be used
             return Event(
                 event_id=1,
                 name="Bike Event By ID",
@@ -225,7 +209,6 @@ class TestOutsideApiGraphQlClient:
             )
 
         def build_event_by_url():
-            # Has event.date and no categories; event.date should be used
             return Event(
                 event_id=2,
                 name="Run Event By URL",
@@ -263,13 +246,12 @@ class TestOutsideApiGraphQlClient:
 
         entries = [
             {"id": 1, "priority": "A", "target_time": "3:00:00"},
-            {"url": "https://www.runreg.com/abc"},  # priority defaults to B
+            {"url": "https://www.runreg.com/abc"},
         ]
         comps = client.get_competitions(entries)
 
         assert len(comps) == 2
 
-        # First: ID-based; date from categories; race_type from first category
         c0 = comps[0]
         assert c0["name"] == "Bike Event By ID"
         assert c0["date"] == "2026-05-09"
@@ -278,18 +260,15 @@ class TestOutsideApiGraphQlClient:
         assert c0["target_time"] == "3:00:00"
         assert c0.get("location") == "Boulder, CO"
 
-        # Second: URL-based; date from event.date; race_type from event_types
         c1 = comps[1]
         assert c1["name"] == "Run Event By URL"
         assert c1["date"] == "2026-06-01"
         assert c1["race_type"] == "Half Marathon"
-        assert c1["priority"] == "B"  # defaulted
+        assert c1["priority"] == "B"
         assert c1.get("location") == "Boston, MA"
 
     def test_get_competitions_dispatch_dict_sections(self, monkeypatch):
-        # Monkeypatch class methods so that behavior depends on self.app_type
         def fake_get_event(self, eid: int, precache: bool = False):
-            # Name encodes which section handled the request
             return Event(
                 event_id=eid,
                 name=f"{self.app_type}-ID-{eid}",
@@ -335,7 +314,6 @@ class TestOutsideApiGraphQlClient:
                 _categories_cache=[],
             )
 
-        # Patch bound methods on the class so newly-constructed subclients use them
         monkeypatch.setattr(OutsideApiGraphQlClient, "get_event", fake_get_event, raising=True)
         monkeypatch.setattr(
             OutsideApiGraphQlClient, "get_event_by_url", fake_get_event_by_url, raising=True
@@ -345,11 +323,10 @@ class TestOutsideApiGraphQlClient:
         config_map = {
             "bikereg": [{"id": 1}],
             "runreg": [{"url": "https://www.runreg.com/foo"}],
-            "unknown": [{"id": 123}],  # should be ignored gracefully
+            "unknown": [{"id": 123}],
         }
 
         comps = root.get_competitions(config_map)
-        # Expect two competitions (bikereg + runreg)
         assert len(comps) == 2
         names = sorted([c["name"] for c in comps])
         assert names == ["BIKEREG-ID-1", "RUNREG-URL"]
@@ -358,10 +335,6 @@ class TestOutsideApiGraphQlClient:
         client = OutsideApiGraphQlClient()
         comps = client.get_competitions({"unknown": [{"id": 1}]})
         assert comps == []
-
-    # ---------------------------
-    # Added tests (merged)
-    # ---------------------------
 
     @pytest.mark.parametrize(
         "val,expect_none",
@@ -481,7 +454,7 @@ class TestOutsideApiGraphQlClient:
             "eventTypes": [],
         }
 
-        def bad_provider(_eid: int) -> List[EventCategory]:
+        def bad_provider(_eid: int) -> list[EventCategory]:
             raise RuntimeError("boom")
 
         ev = c._map_event(node, categories_provider=bad_provider, precache_categories=True)
@@ -581,13 +554,13 @@ class TestOutsideApiGraphQlClient:
     def test_get_events_batching_and_missing(self, monkeypatch):
         c = OutsideApiGraphQlClient()
 
-        def fake_gql(q: str, vars_: Dict[str, Any]):
+        def fake_gql(q: str, vars_: dict[str, Any]):
             data = {}
             for k, v in vars_.items():
                 if k.startswith("id_"):
                     idx = int(k.split("_")[1])
                     if int(v) == 2:
-                        continue  # simulate missing node
+                        continue
                     data[f"e_{idx}"] = {
                         "eventId": str(v),
                         "name": f"E{v}",
@@ -775,11 +748,11 @@ class TestOutsideApiGraphQlClient:
             "distance": "10",
             "distanceUnit": "km",
             "appType": "RUNREG",
-            "eventId": {"bad": "type"},  # triggers except/pass path (lines 282-283)
+            "eventId": {"bad": "type"},
             "raceDates": ["2026-01-01"],
         }
         cat = c._map_category(node)
-        assert cat.event_id is None  # stayed None after exception
+        assert cat.event_id is None
 
     def test__gql_transport_error_logs_and_raises(self, monkeypatch):
         c = OutsideApiGraphQlClient()
@@ -790,22 +763,20 @@ class TestOutsideApiGraphQlClient:
 
         monkeypatch.setattr(c._client, "post", boom_post)
         with pytest.raises(httpx.HTTPError):
-            c._gql("query { a }", {})  # lines 303-305
+            c._gql("query { a }", {})
 
     def test__gql_400_errors_field_not_list_fallback(self, monkeypatch):
         c = OutsideApiGraphQlClient()
-        payload = {"errors": 123}  # not iterable -> inner try fails -> fallback (lines 326-327)
+        payload = {"errors": 123}
         resp = self._make_httpx_response(400, c.endpoint, payload=payload)
         monkeypatch.setattr(c._client, "post", lambda url, json: resp)
         with pytest.raises(httpx.HTTPStatusError) as ex:
             c._gql("query { a }", {})
         assert "GraphQL HTTP error 400" in str(ex.value)
-        # fallback includes serialized payload
         assert '"errors": 123' in str(ex.value)
 
     def test__parse_dt_colon_branch_microseconds(self):
         c = OutsideApiGraphQlClient()
-        # Forces the colon-offset handling branch (lines 364-368); returns None after failed parse with %f omitted
         s = "2026-04-11T09:10:11.000+05:30"
         assert c._parse_dt(s) is None
 
@@ -817,7 +788,7 @@ class TestOutsideApiGraphQlClient:
                 return "777"
 
         node = {
-            "eventId": WeirdId(),  # int() fails; int(str(...)) works (lines 390-392)
+            "eventId": WeirdId(),
             "name": "N",
             "eventUrl": "u",
             "staticUrl": "s",
@@ -842,7 +813,7 @@ class TestOutsideApiGraphQlClient:
     def test__map_event_eventid_uncoercible_sets_minus_one(self):
         c = OutsideApiGraphQlClient()
         node = {
-            "eventId": {"x": 1},  # both int(...) and int(str(...)) fail -> -1 (lines 393-394)
+            "eventId": {"x": 1},
             "name": "N",
             "eventUrl": "u",
             "staticUrl": "s",
@@ -866,7 +837,6 @@ class TestOutsideApiGraphQlClient:
 
     def test_get_competitions_dict_empty_section_continue(self):
         c = OutsideApiGraphQlClient()
-        # Empty list should trigger 'continue' (line 472)
         out = c.get_competitions({"bikereg": [], "runreg": []})
         assert out == []
 
@@ -877,19 +847,18 @@ class TestOutsideApiGraphQlClient:
             raise RuntimeError("init-fail")
 
         monkeypatch.setattr(OutsideApiGraphQlClient, "__init__", boom_init, raising=True)
-        out = root.get_competitions({"bikereg": [{"id": 1}]})  # lines 485-486
+        out = root.get_competitions({"bikereg": [{"id": 1}]})
         assert out == []
         assert "Failed resolving competitions" in caplog.text
 
     def test_get_competitions_list_empty_returns(self):
         c = OutsideApiGraphQlClient()
-        assert c.get_competitions([]) == []  # line 491
+        assert c.get_competitions([]) == []
 
     def test_get_competitions_date_string_iso_branch(self, monkeypatch):
         c = OutsideApiGraphQlClient()
 
         def fake_get_event(_eid: int, precache: bool = True) -> Event:
-            # Date as string to hit string split branch (lines 502-503)
             e = self._make_event(event_id=_eid, categories=[])
             object.__setattr__(e, "date", "2026-07-04T12:34:56")
             return e
@@ -900,7 +869,7 @@ class TestOutsideApiGraphQlClient:
 
     def test_get_competitions_invalid_entry_skipped(self, caplog):
         c = OutsideApiGraphQlClient()
-        out = c.get_competitions([{}])  # lines 514-515
+        out = c.get_competitions([{}])
         assert out == []
         assert "requires 'id' or 'url'" in caplog.text
 
@@ -911,9 +880,7 @@ class TestOutsideApiGraphQlClient:
             raise RuntimeError("fetch fail")
 
         monkeypatch.setattr(OutsideApiGraphQlClient, "get_event", staticmethod(boom_get_event))
-        out = c.get_competitions(
-            [{"id": 1}]
-        )  # lines 523-525 (except) and 528-529 (event not found warning)
+        out = c.get_competitions([{"id": 1}])
         assert out == []
         assert "Failed to retrieve event" in caplog.text or "event not found" in caplog.text
 
@@ -923,7 +890,6 @@ class TestOutsideApiGraphQlClient:
         def provider_raises(_eid: int):
             raise RuntimeError("cat-fail")
 
-        # No event.date -> date block will try categories (lines 537-538)
         e = self._make_event(event_id=5, date=None, event_end_date=dt(2026, 9, 1), categories=None)
         object.__setattr__(e, "_categories_cache", None)
         object.__setattr__(e, "_categories_provider", provider_raises)
@@ -932,7 +898,6 @@ class TestOutsideApiGraphQlClient:
             OutsideApiGraphQlClient, "get_event", staticmethod(lambda _eid, precache=True: e)
         )
         out = c.get_competitions([{"id": 5}])
-        # Fallback to event_end_date used
         assert out[0]["date"] == "2026-09-01"
 
     def test_get_competitions_categories_provider_raises_for_race_type_block(self, monkeypatch):
@@ -941,7 +906,6 @@ class TestOutsideApiGraphQlClient:
         def provider_raises(_eid: int):
             raise RuntimeError("cat-fail")
 
-        # event.date present skips earlier cat path; race_type block will try categories (lines 554-555)
         e = self._make_event(
             event_id=6, date=dt(2026, 10, 1), categories=None, event_types=["TypeX"]
         )
@@ -952,7 +916,7 @@ class TestOutsideApiGraphQlClient:
             OutsideApiGraphQlClient, "get_event", staticmethod(lambda _eid, precache=True: e)
         )
         out = c.get_competitions([{"id": 6}])
-        assert out[0]["race_type"] == "TypeX"  # fell back to event_types
+        assert out[0]["race_type"] == "TypeX"
 
     def test_get_competitions_date_obj_iso_branch(self, monkeypatch):
         from datetime import date as _date
@@ -961,7 +925,7 @@ class TestOutsideApiGraphQlClient:
 
         def fake_get_event(_eid: int, precache: bool = True) -> Event:
             e = self._make_event(event_id=_eid, categories=[])
-            object.__setattr__(e, "date", _date(2026, 7, 2))  # lines 500 branch
+            object.__setattr__(e, "date", _date(2026, 7, 2))
             return e
 
         monkeypatch.setattr(OutsideApiGraphQlClient, "get_event", staticmethod(fake_get_event))

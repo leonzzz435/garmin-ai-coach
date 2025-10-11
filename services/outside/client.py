@@ -1,47 +1,23 @@
-import logging
-from datetime import datetime
-from typing import Any, Dict, Iterable, List, Optional, Callable, Union
 import json
+import logging
+from collections.abc import Callable, Iterable
+from datetime import datetime
+from typing import Any
+
 import httpx
 
 from services.outside.models import (
+    CalendarNode,
+    CalendarResult,
     Event,
     EventCategory,
     EventType,
-    SanctioningBody,
-    CalendarResult,
-    CalendarNode,
     PageInfo,
+    SanctioningBody,
 )
 
 
 class OutsideApiGraphQlClient:
-    """GraphQL client for Outside AthleteReg event data.
-
-    Wraps the public endpoint at https://outsideapi.com/fed-gw/graphql for the
-    four supported application types: BIKEREG, RUNREG, TRIREG, SKIREG. Produces
-    typed results defined in services.outside.models, supports cursor pagination,
-    and can optionally pre-fetch and cache categories on Event objects.
-
-    Typical usage:
-        client = OutsideApiGraphQlClient(app_type="BIKEREG")
-        event = client.get_event(12345, precache=True)
-
-    Error handling:
-        - Transport errors raise httpx.HTTPError.
-        - Non-2xx responses raise httpx.HTTPStatusError with parsed GraphQL errors when available.
-        - GraphQL "errors" in a 200 OK response raise RuntimeError.
-
-    Key methods:
-      - get_event(event_id, precache=False) -> Optional[Event]
-      - get_events(event_ids, batch_size=25, precache=False) -> List[Optional[Event]]
-      - get_event_by_url(url, precache=False) -> Optional[Event]
-      - get_event_types(type_priorities=None) -> List[EventType]
-      - get_sanctioning_bodies() -> List[SanctioningBody]
-      - search_calendar(params, first=None, after=None, last=None, before=None, precache=False) -> CalendarResult
-      - get_competitions(entries) -> List[Dict[str, Any]]
-    """
-
     _EVENT_BASE_FIELDS = (
         "eventId name eventUrl staticUrl vanityUrl appType city state zip "
         "date eventEndDate openRegDate closeRegDate isOpen isHighlighted "
@@ -58,52 +34,18 @@ class OutsideApiGraphQlClient:
         self,
         app_type: str = "BIKEREG",
         endpoint: str = "https://outsideapi.com/fed-gw/graphql",
-        client: Optional[httpx.Client] = None,
+        client: httpx.Client | None = None,
         timeout_s: float = 20.0,
-        headers: Optional[Dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
     ):
-        """Initialize the GraphQL client.
-
-        Args:
-            app_type: Application type to scope queries to. Must be one of
-                {"BIKEREG", "RUNREG", "TRIREG", "SKIREG"}.
-            endpoint: GraphQL endpoint URL.
-            client: Optional preconfigured httpx.Client to reuse connections and settings.
-            timeout_s: Client timeout in seconds (ignored if a client is provided).
-            headers: Optional default headers; "Content-Type" is set automatically by httpx when using json=.
-
-        Raises:
-            ValueError: If app_type is not a supported ApplicationType.
-        """
         self.app_type = self._normalize_and_validate_app_type(app_type)
         self.endpoint = endpoint
         base_headers = headers or {"User-Agent": "garmin-ai-coach/1.0"}
-        # httpx sets Content-Type automatically when using json=...; we keep headers minimal here
         self._client = client or httpx.Client(timeout=timeout_s, headers=base_headers)
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.info("Initialized OutsideApiGraphQlClient for app_type=%s", self.app_type)
 
-    # ---------------
-    # Public Methods
-    # ---------------
-    def get_event(self, event_id: int, precache: bool = False) -> Optional[Event]:
-        """Fetch a single event by numeric identifier.
-
-        When precache is True, category data is included inline (when available)
-        and seeded into the Event's lazy categories cache.
-
-        Args:
-            event_id: Outside event identifier.
-            precache: If True, include categories inline and pre-populate the Event's cache.
-
-        Returns:
-            Event if found; otherwise None.
-
-        Raises:
-            httpx.HTTPError: On transport failures.
-            httpx.HTTPStatusError: On non-2xx HTTP responses (message includes GraphQL errors if present).
-            RuntimeError: If GraphQL-level errors are returned with HTTP 200.
-        """
+    def get_event(self, event_id: int, precache: bool = False) -> Event | None:
         selection = self._EVENT_BASE_FIELDS + (f" {self._CATEGORIES_FIELDS}" if precache else "")
         query = f"""
         query($appType: ApplicationType!, $id: Int!) {{
@@ -116,23 +58,7 @@ class OutsideApiGraphQlClient:
         node = ((data or {}).get("athleticEvent")) if data else None
         return self._map_event(node, precache_categories=precache)
 
-    def get_event_categories(self, event_id: int) -> List[EventCategory]:
-        """Retrieve categories for a given event.
-
-        Fetches EventCategory objects with fields:
-        name, raceRecId, startTime, distance, distanceUnit, appType, eventId, raceDates.
-
-        Args:
-            event_id: Outside event identifier.
-
-        Returns:
-            List[EventCategory]: Zero or more categories for the event.
-
-        Raises:
-            httpx.HTTPError: On transport failures.
-            httpx.HTTPStatusError: On non-2xx HTTP responses (message includes GraphQL errors if present).
-            RuntimeError: If GraphQL-level errors are returned with HTTP 200.
-        """
+    def get_event_categories(self, event_id: int) -> list[EventCategory]:
         query = """
             query($appType: ApplicationType!, $id: Int!) {
               athleticEvent(appType: $appType, id: $id) {
@@ -151,34 +77,16 @@ class OutsideApiGraphQlClient:
             """
         data = self._gql(query, {"appType": self.app_type, "id": int(event_id)}) or {}
         cats = ((data.get("athleticEvent") or {}).get("categories")) or []
-        out: List[EventCategory] = []
+        out: list[EventCategory] = []
         for c in cats:
             if isinstance(c, dict):
                 out.append(self._map_category(c))
         return out
 
     def get_events(
-        self, event_ids: List[int], batch_size: int = 25, precache: bool = False
-    ) -> List[Optional[Event]]:
-        """Fetch multiple events by id using GraphQL aliases, preserving input order.
-
-        The provided IDs are chunked into batches to avoid very large queries. For each
-        ID in the input, the aligned result is either an Event or None if not found.
-
-        Args:
-            event_ids: List of numeric event identifiers to resolve.
-            batch_size: Maximum number of event IDs per GraphQL request.
-            precache: If True, include and cache categories for each returned event.
-
-        Returns:
-            List[Optional[Event]]: Results aligned to event_ids.
-
-        Raises:
-            httpx.HTTPError: On transport failures.
-            httpx.HTTPStatusError: On non-2xx HTTP responses (message includes GraphQL errors if present).
-            RuntimeError: If GraphQL-level errors are returned with HTTP 200.
-        """
-        results: List[Optional[Event]] = []
+        self, event_ids: list[int], batch_size: int = 25, precache: bool = False
+    ) -> list[Event | None]:
+        results: list[Event | None] = []
         selection_extra = f" {self._CATEGORIES_FIELDS}" if precache else ""
         for chunk in self._chunks(event_ids, batch_size):
             alias_vars = {}
@@ -198,7 +106,7 @@ class OutsideApiGraphQlClient:
             query = f"query({', '.join(var_defs)}) {{\n" + "\n".join(selections) + "\n}"
             variables = {"appType": self.app_type, **alias_vars}
             data = self._gql(query, variables) or {}
-            # preserve order for this chunk
+
             for i, _eid in enumerate(chunk):
                 node = data.get(f"e_{i}")
                 results.append(
@@ -206,21 +114,7 @@ class OutsideApiGraphQlClient:
                 )
         return results
 
-    def get_event_by_url(self, url: str, precache: bool = False) -> Optional[Event]:
-        """Fetch a single event by its public URL.
-
-        Args:
-            url: Public event URL.
-            precache: If True, include categories inline and pre-populate the Event's cache.
-
-        Returns:
-            Event if found; otherwise None.
-
-        Raises:
-            httpx.HTTPError: On transport failures.
-            httpx.HTTPStatusError: On non-2xx HTTP responses (message includes GraphQL errors if present).
-            RuntimeError: If GraphQL-level errors are returned with HTTP 200.
-        """
+    def get_event_by_url(self, url: str, precache: bool = False) -> Event | None:
         selection = self._EVENT_BASE_FIELDS + (f" {self._CATEGORIES_FIELDS}" if precache else "")
         query = f"""
         query($url: String) {{
@@ -233,20 +127,7 @@ class OutsideApiGraphQlClient:
         node = ((data or {}).get("athleticEventByURL")) if data else None
         return self._map_event(node, precache_categories=precache) if node else None
 
-    def get_event_types(self, type_priorities: Optional[List[int]] = None) -> List[EventType]:
-        """Return event types for the configured application.
-
-        Args:
-            type_priorities: Optional list of priorities used by the API to order/filter results.
-
-        Returns:
-            List[EventType]: Event type metadata for the selected app_type.
-
-        Raises:
-            httpx.HTTPError: On transport failures.
-            httpx.HTTPStatusError: On non-2xx HTTP responses (message includes GraphQL errors if present).
-            RuntimeError: If GraphQL-level errors are returned with HTTP 200.
-        """
+    def get_event_types(self, type_priorities: list[int] | None = None) -> list[EventType]:
         query = """
         query($appType: ApplicationType!, $typePriorities: [Int!]) {
           athleticEventTypes(appType: $appType, typePriorities: $typePriorities) {
@@ -259,17 +140,7 @@ class OutsideApiGraphQlClient:
         items = data.get("athleticEventTypes") or []
         return [self._map_event_type(it) for it in items if isinstance(it, dict)]
 
-    def get_sanctioning_bodies(self) -> List[SanctioningBody]:
-        """Return known sanctioning bodies.
-
-        Returns:
-            List[SanctioningBody]: Known bodies with id, name, and app_type.
-
-        Raises:
-            httpx.HTTPError: On transport failures.
-            httpx.HTTPStatusError: On non-2xx HTTP responses (message includes GraphQL errors if present).
-            RuntimeError: If GraphQL-level errors are returned with HTTP 200.
-        """
+    def get_sanctioning_bodies(self) -> list[SanctioningBody]:
         query = """
         query {
           ARegSanctioningBodies {
@@ -279,7 +150,7 @@ class OutsideApiGraphQlClient:
         """
         data = self._gql(query, {}) or {}
         items = data.get("ARegSanctioningBodies") or []
-        out: List[SanctioningBody] = []
+        out: list[SanctioningBody] = []
         for it in items:
             if not isinstance(it, dict):
                 continue
@@ -294,35 +165,13 @@ class OutsideApiGraphQlClient:
 
     def search_calendar(
         self,
-        params: Optional[Dict[str, Any]] = None,
-        first: Optional[int] = None,
-        after: Optional[str] = None,
-        last: Optional[int] = None,
-        before: Optional[str] = None,
+        params: dict[str, Any] | None = None,
+        first: int | None = None,
+        after: str | None = None,
+        last: int | None = None,
+        before: str | None = None,
         precache: bool = False,
     ) -> CalendarResult:
-        """Search the event calendar with cursor-based pagination.
-
-        Wraps the athleticEventCalendar query and maps results to CalendarResult.
-        When precache is True, nested athleticEvent nodes include categories and
-        the corresponding Event objects are pre-cached.
-
-        Args:
-            params: A dict matching SearchEventQueryParamsInput (per Outside API).
-            first: Page size for forward pagination (mutually exclusive with last).
-            after: Cursor token for forward pagination.
-            last: Page size for backward pagination (mutually exclusive with first).
-            before: Cursor token for backward pagination.
-            precache: If True, preload categories on nested Event objects.
-
-        Returns:
-            CalendarResult: Total count, page info, and a list of CalendarNode items.
-
-        Raises:
-            httpx.HTTPError: On transport failures.
-            httpx.HTTPStatusError: On non-2xx HTTP responses (message includes GraphQL errors if present).
-            RuntimeError: If GraphQL-level errors are returned with HTTP 200.
-        """
         categories_fragment = f" {self._CATEGORIES_FIELDS}" if precache else ""
         query = f"""
         query($searchParameters: SearchEventQueryParamsInput, $first: Int, $after: String, $last: Int, $before: String) {{
@@ -353,7 +202,7 @@ class OutsideApiGraphQlClient:
         page_info = payload.get("pageInfo") or {}
         nodes = payload.get("nodes") or []
 
-        mapped_nodes: List[CalendarNode] = []
+        mapped_nodes: list[CalendarNode] = []
         for n in nodes:
             if not isinstance(n, dict):
                 continue
@@ -391,13 +240,9 @@ class OutsideApiGraphQlClient:
             nodes=mapped_nodes,
         )
 
-    # ---------------
-    # Internals
-    # ---------------
-    def _map_category(self, node: Dict[str, Any]) -> EventCategory:
-        # raceDates are GraphQL Date (often YYYY-MM-DD), startTime may be DateTime
+    def _map_category(self, node: dict[str, Any]) -> EventCategory:
         raw_dates = node.get("raceDates") or []
-        race_dates: List[datetime] = []
+        race_dates: list[datetime] = []
         for d in raw_dates:
             dt = self._parse_dt(d) or self._parse_dt(f"{d}T00:00:00")
             if dt:
@@ -423,32 +268,25 @@ class OutsideApiGraphQlClient:
             race_dates=race_dates,
         )
 
-    def _gql(self, query: str, variables: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Execute a GraphQL request. On non-2xx responses, attempt to parse and surface
-        GraphQL error messages to aid debugging (rather than hiding them behind a 400).
-        """
+    def _gql(self, query: str, variables: dict[str, Any]) -> dict[str, Any]:
         try:
             resp = self._client.post(self.endpoint, json={"query": query, "variables": variables})
         except httpx.HTTPError as e:
             self.logger.error("GraphQL transport error: %s", e)
             raise
 
-        # Try to parse the JSON body regardless of status; GraphQL servers often include 'errors'
-        payload: Dict[str, Any] = {}
+        payload: dict[str, Any] = {}
         parse_error = None
         try:
             payload = resp.json()
         except Exception as pe:
-            parse_error = pe  # keep for logging
+            parse_error = pe
 
-        # If 4xx/5xx, raise with as much detail as we can
         if resp.status_code >= 400:
             msg = f"GraphQL HTTP error {resp.status_code}"
             if payload and "errors" in payload:
                 try:
                     errs = payload.get("errors") or []
-                    # Condense typical GraphQL errors into a single line
                     details = " | ".join(
                         str(e.get("message", "")) for e in errs if isinstance(e, dict)
                     )
@@ -458,14 +296,11 @@ class OutsideApiGraphQlClient:
             elif parse_error:
                 msg = f"{msg} (also failed to parse JSON errors: {parse_error})"
             self.logger.error(msg)
-            # Preserve original semantics too
             try:
                 resp.raise_for_status()
             except httpx.HTTPStatusError as e:
-                # Attach the parsed errors message for caller visibility
-                raise httpx.HTTPStatusError(msg, request=e.request, response=e.response)
+                raise httpx.HTTPStatusError(msg, request=e.request, response=e.response) from e
 
-        # GraphQL-level errors with 200 OK
         if payload and "errors" in payload and payload["errors"]:
             errs = payload["errors"]
             details = " | ".join(str(e.get("message", "")) for e in errs if isinstance(e, dict))
@@ -475,21 +310,19 @@ class OutsideApiGraphQlClient:
         return payload.get("data") or {}
 
     @staticmethod
-    def _chunks(seq: List[int], size: int) -> Iterable[List[int]]:
+    def _chunks(seq: list[int], size: int) -> Iterable[list[int]]:
         for i in range(0, len(seq), size):
             yield seq[i : i + size]
 
     @staticmethod
-    def _parse_dt(val: Optional[str]) -> Optional[datetime]:
+    def _parse_dt(val: str | None) -> datetime | None:
         if not val:
             return None
-        # Try common ISO formats
         for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
             try:
                 return datetime.strptime(val, fmt)
             except ValueError:
                 continue
-        # Remove timezone colon if present, e.g. +05:00 -> +0500
         if val[-3:-2] == ":":
             vt = val[:-3] + val[-2:]
             try:
@@ -499,7 +332,7 @@ class OutsideApiGraphQlClient:
         return None
 
     @staticmethod
-    def _to_float(v: Any) -> Optional[float]:
+    def _to_float(v: Any) -> float | None:
         try:
             return float(v) if v is not None else None
         except Exception:
@@ -507,13 +340,12 @@ class OutsideApiGraphQlClient:
 
     def _map_event(
         self,
-        node: Optional[Dict[str, Any]],
-        categories_provider: Optional[Callable[[int], List["EventCategory"]]] = None,
+        node: dict[str, Any] | None,
+        categories_provider: Callable[[int], list["EventCategory"]] | None = None,
         precache_categories: bool = False,
-    ) -> Optional[Event]:
+    ) -> Event | None:
         if not isinstance(node, dict):
             return None
-        # eventId is a string ID in schema, but the resolver param is Int; coerce safely
         eid_raw = node.get("eventId")
         try:
             eid = int(eid_raw)
@@ -525,8 +357,7 @@ class OutsideApiGraphQlClient:
 
         provider = categories_provider or (lambda event_id: self.get_event_categories(event_id))
 
-        # Optionally pre-cache categories, preferring inline data when present
-        preloaded: Optional[List[EventCategory]] = None
+        preloaded: list[EventCategory] | None = None
         if precache_categories:
             inline = node.get("categories")
             if isinstance(inline, list):
@@ -564,7 +395,7 @@ class OutsideApiGraphQlClient:
         )
 
     @staticmethod
-    def _map_event_type(node: Dict[str, Any]) -> EventType:
+    def _map_event_type(node: dict[str, Any]) -> EventType:
         return EventType(
             type_id=int(node["typeID"]),
             description=node.get("typeDesc"),
@@ -579,35 +410,10 @@ class OutsideApiGraphQlClient:
         return p_str if p_str in {"A", "B", "C"} else "B"
 
     def get_competitions(
-        self, entries: Union[List[Dict[str, Any]], Dict[str, List[Dict[str, Any]]]]
-    ) -> List[Dict[str, Any]]:
-        """Convert Outside entries to normalized competition dictionaries.
-
-        Supports either:
-          - List[dict]: [{"id": 12345, "priority": "A", "target_time": "4:00:00"}]
-            Uses this client's app_type for all entries; each item must include "id" or "url".
-          - Dict[str, List[dict]]: {"bikereg": [...], "runreg": [...], "trireg": [...], "skireg": [...]}
-            Dispatches automatically per section using sub-clients that reuse this client's HTTPX session.
-
-        Normalization:
-            - date: ISO YYYY-MM-DD (prefers event.date, then earliest category race date, then event_end_date)
-            - race_type: First category name if available; else first event type; else "AthleteReg Event"
-            - priority: Normalized to one of {"A", "B", "C"} (defaults to "B")
-            - target_time: Taken verbatim if supplied
-            - location: "City, State" if available
-
-        Args:
-            entries: Either a list of entry dictionaries or a mapping of app sections to lists of entries.
-
-        Returns:
-            List[Dict[str, Any]]: Normalized competition dictionaries suitable for downstream planning.
-
-        Side effects:
-            Logs warnings for invalid entries or missing events and logs errors for retrieval failures.
-        """
-        # Dispatch if we received a mapping {bikereg|runreg|trireg|skireg: [...]}
+        self, entries: list[dict[str, Any]] | dict[str, list[dict[str, Any]]]
+    ) -> list[dict[str, Any]]:
         if isinstance(entries, dict):
-            out: List[Dict[str, Any]] = []
+            out: list[dict[str, Any]] = []
             app_map = {
                 "bikereg": "BIKEREG",
                 "runreg": "RUNREG",
@@ -622,22 +428,21 @@ class OutsideApiGraphQlClient:
                     self.logger.warning("Unknown Outside app section '%s' ignored", key)
                     continue
                 try:
-                    # Reuse the same HTTPX session/endpoint
                     sub = OutsideApiGraphQlClient(
                         app_type=app_type,
                         endpoint=self.endpoint,
                         client=self._client,
                     )
-                    out.extend(sub.get_competitions(lst))  # recurse into list handler below
+                    out.extend(sub.get_competitions(lst))
                 except Exception as e:
                     self.logger.error("Failed resolving competitions for '%s': %s", key, e)
             return out
 
-        # --- Existing list handler (unchanged logic) ---
         if not isinstance(entries, list) or not entries:
             return []
 
-        from datetime import datetime, date as _date
+        from datetime import date as _date
+        from datetime import datetime
 
         def _iso_date(d: Any) -> str | None:
             try:
@@ -651,7 +456,7 @@ class OutsideApiGraphQlClient:
                 return None
             return None
 
-        resolved: List[Dict[str, Any]] = []
+        resolved: list[dict[str, Any]] = []
 
         for entry in entries:
             eid = entry.get("id")
@@ -679,7 +484,6 @@ class OutsideApiGraphQlClient:
                 )
                 continue
 
-            # Event date: prefer event.date, else earliest category race date, else event_end_date
             event_date = event.date
             if event_date is None:
                 earliest = None
@@ -701,7 +505,6 @@ class OutsideApiGraphQlClient:
                 )
                 continue
 
-            # race_type: prefer first category name; else first event_types entry; else generic
             race_type = None
             try:
                 cats = event.categories
@@ -718,7 +521,7 @@ class OutsideApiGraphQlClient:
 
             location = ", ".join([x for x in [event.city, event.state] if x]) or None
 
-            comp: Dict[str, Any] = {
+            comp: dict[str, Any] = {
                 "name": event.name or (f"Outside Event {eid}" if eid else "Outside Event"),
                 "date": iso_date,
                 "race_type": race_type,
