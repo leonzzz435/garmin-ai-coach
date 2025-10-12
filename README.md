@@ -32,6 +32,7 @@
 * Parallel analysis across specialized agents (load, physiology, execution)
 * Interactive reports with evidence and actionable next steps
 * CLI-first, config-driven headless runs
+* Outside AthleteReg integration: optional auto-import of competitions (BikeReg, RunReg, TriReg, SkiReg)
 * Telegram bot interface (deprecated) — see Deprecated section below
 * Privacy-first: local encrypted credentials; no cloud storage of personal data
 * Built-in observability and cost tracking (LangSmith)

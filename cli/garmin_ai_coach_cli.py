@@ -18,8 +18,6 @@ from services.outside.client import OutsideApiGraphQlClient
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from services.ai.langgraph.workflows.planning_workflow import run_complete_analysis_and_planning
-from services.garmin import ExtractionConfig, TriathlonCoachDataExtractor
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
@@ -144,6 +142,9 @@ async def run_analysis_from_config(config_path: Path) -> None:
     ai_mode = extraction_settings.get('ai_mode', 'development')
     os.environ['AI_MODE'] = ai_mode
     logger.info(f"AI Mode: {ai_mode}")
+
+    from services.ai.langgraph.workflows.planning_workflow import run_complete_analysis_and_planning
+    from services.garmin import ExtractionConfig, TriathlonCoachDataExtractor
 
     output_dir.mkdir(parents=True, exist_ok=True)
 

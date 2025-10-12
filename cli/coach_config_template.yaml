@@ -20,12 +20,12 @@ context:
 extraction:
   activities_days: 21      # How many days of activities to extract
   metrics_days: 56         # How many days of metrics to extract
-  ai_mode: "standard"   # "development" (faster, cheaper) or "standard" (comprehensive)
+  ai_mode: "standard"   # Overrides .env AI_MODE for coach-cli runs; one of: "development", "standard", "cost_effective"
 
 # Upcoming Competitions
 competitions:
   - name: "Local Olympic Triathlon"
-    date: "2026-04-15"         # YYYY-MM-DD format
+    date: "2026-04-15"         # YYYY-MM-DD or free-text format (e.g. 'September 2026')
     race_type: "Olympic"
     priority: "A"              # A (highest), B, C priorities
     target_time: "02:30:00"    # HH:MM:SS format
