@@ -628,7 +628,9 @@ class TriathlonCoachDataExtractor(DataExtractor):
                     if summary.normalized_power is None and 'normalizedPower' in first_lap:
                         summary.normalized_power = first_lap['normalizedPower']
 
-            weather_out = None if activity_type == 'meditation' else self._extract_weather_data(weather_data)
+            weather_out = (
+                None if activity_type == 'meditation' else self._extract_weather_data(weather_data)
+            )
             laps_out = [] if activity_type == 'meditation' else lap_data
 
             return Activity(
@@ -666,9 +668,15 @@ class TriathlonCoachDataExtractor(DataExtractor):
             vigorous_intensity_minutes=summary.get('vigorousIntensityMinutes'),
             recovery_heart_rate=summary.get('recoveryHeartRate'),
             # Respiration
-            avg_respiration_rate=summary.get('avgRespirationRate') or summary.get('avgRespirationValue'),
-            min_respiration_rate=summary.get('minRespirationRate') or summary.get('lowestRespirationValue'),
-            max_respiration_rate=summary.get('maxRespirationRate') or summary.get('highestRespirationValue'),
+            avg_respiration_rate=(
+                summary.get('avgRespirationRate') or summary.get('avgRespirationValue')
+            ),
+            min_respiration_rate=(
+                summary.get('minRespirationRate') or summary.get('lowestRespirationValue')
+            ),
+            max_respiration_rate=(
+                summary.get('maxRespirationRate') or summary.get('highestRespirationValue')
+            ),
             # Stress
             start_stress=summary.get('startStress'),
             end_stress=summary.get('endStress'),
@@ -745,15 +753,16 @@ class TriathlonCoachDataExtractor(DataExtractor):
         except Exception as e:
             logger.error(f"Error fetching HRV data: {str(e)}")
             hrv_summary = {}
+
+        hrv_baseline = hrv_summary.get('baseline', {}) or {}
         hrv = {
             'weekly_avg': hrv_summary.get('weeklyAvg'),
             'last_night_avg': hrv_summary.get('lastNightAvg'),
             'last_night_5min_high': hrv_summary.get('lastNight5MinHigh'),
-            # Removed 'status' field as requested
             'baseline': {
-                'low_upper': hrv_summary.get('baseline', {}).get('lowUpper'),
-                'balanced_low': hrv_summary.get('baseline', {}).get('balancedLow'),
-                'balanced_upper': hrv_summary.get('baseline', {}).get('balancedUpper'),
+                'low_upper': hrv_baseline.get('lowUpper'),
+                'balanced_low': hrv_baseline.get('balancedLow'),
+                'balanced_upper': hrv_baseline.get('balancedUpper'),
             },
         }
 
