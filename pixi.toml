@@ -69,6 +69,3 @@ coach-init = "python cli/garmin_ai_coach_cli.py --init-config"
 
 [environments]
 default = { solve-group = "default" }
-
-[activation]
-scripts = ["scripts/setup_env.sh"]
