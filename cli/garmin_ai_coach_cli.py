@@ -35,7 +35,7 @@ class ConfigParser:
         if not self.config_path.exists():
             raise FileNotFoundError(f"Config file not found: {self.config_path}")
 
-        content = self.config_path.read_text()
+        content = self.config_path.read_text(encoding='utf-8')
 
         if self.config_path.suffix in ['.yaml', '.yml']:
             return yaml.safe_load(content)
@@ -190,13 +190,13 @@ async def run_analysis_from_config(config_path: Path) -> None:
 
         analysis_html = result.get('analysis_html')
         if analysis_html:
-            (output_dir / 'analysis.html').write_text(analysis_html)
+            (output_dir / 'analysis.html').write_text(analysis_html, encoding='utf-8')
             files_generated.append('analysis.html')
             logger.info(f"Saved: {output_dir}/analysis.html")
 
         planning_html = result.get('planning_html')
         if planning_html:
-            (output_dir / 'planning.html').write_text(planning_html)
+            (output_dir / 'planning.html').write_text(planning_html, encoding='utf-8')
             files_generated.append('planning.html')
             logger.info(f"Saved: {output_dir}/planning.html")
 
@@ -209,7 +209,7 @@ async def run_analysis_from_config(config_path: Path) -> None:
 
         for filename, content in intermediate_results.items():
             if content:
-                (output_dir / filename).write_text(content)
+                (output_dir / filename).write_text(content, encoding='utf-8')
                 files_generated.append(filename)
                 logger.info(f"Saved intermediate result: {output_dir}/{filename}")
 
@@ -236,7 +236,7 @@ async def run_analysis_from_config(config_path: Path) -> None:
             'files_generated': files_generated,
         }
 
-        (output_dir / 'summary.json').write_text(json.dumps(summary, indent=2))
+        (output_dir / 'summary.json').write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding='utf-8')
 
         logger.info("✅ Analysis completed successfully!")
         if outside_competitions:
@@ -252,7 +252,7 @@ def create_config_template(output_path: Path) -> None:
     template_path = Path(__file__).parent / 'coach_config_template.yaml'
 
     if template_path.exists():
-        output_path.write_text(template_path.read_text())
+        output_path.write_text(template_path.read_text(encoding='utf-8'), encoding='utf-8')
         logger.info(f"✅ Config template created: {output_path}")
         logger.info("Edit this file with your settings and run analysis with --config")
     else:
