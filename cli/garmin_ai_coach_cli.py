@@ -14,6 +14,8 @@ from typing import Any
 
 import yaml
 
+from services.outside.client import OutsideApiGraphQlClient
+
 sys.path.append(str(Path(__file__).parent.parent))
 
 from services.ai.langgraph.workflows.planning_workflow import run_complete_analysis_and_planning
@@ -96,13 +98,42 @@ class ConfigParser:
         return password
 
 
-async def run_analysis_from_config(config_path: Path) -> None:
+def fetch_outside_competitions_from_config(config: dict[str, Any]) -> list[dict[str, Any]]:
+    outside_cfg = config.get("outside")
+    client = OutsideApiGraphQlClient()
 
+    if isinstance(outside_cfg, dict) and any(isinstance(v, list) for v in outside_cfg.values()):
+        return client.get_competitions(outside_cfg)
+
+    aggregate: list[dict[str, Any]] = []
+
+    legacy_bikereg = config.get("bikereg", [])
+    if isinstance(legacy_bikereg, list) and legacy_bikereg:
+        aggregate.extend(client.get_competitions(legacy_bikereg))
+
+    legacy_all = {}
+    for k in ("runreg", "trireg", "skireg"):
+        entries = config.get(k, [])
+        if isinstance(entries, list) and entries:
+            legacy_all[k] = entries
+
+    if legacy_all:
+        aggregate.extend(client.get_competitions(legacy_all))
+
+    return aggregate
+
+
+async def run_analysis_from_config(config_path: Path) -> None:
     config_parser = ConfigParser(config_path)
     athlete_name, email = config_parser.get_athlete_info()
     analysis_context, planning_context = config_parser.get_contexts()
     extraction_settings = config_parser.get_extraction_config()
+
     competitions = config_parser.get_competitions()
+    outside_competitions = fetch_outside_competitions_from_config(config_parser.config)
+    if outside_competitions:
+        competitions.extend(outside_competitions)
+
     output_dir = config_parser.get_output_directory()
 
     logger.info(f"Starting analysis for {athlete_name}")
@@ -110,7 +141,6 @@ async def run_analysis_from_config(config_path: Path) -> None:
 
     password = config_parser.get_password()
 
-    # Set AI mode environment variable
     ai_mode = extraction_settings.get('ai_mode', 'development')
     os.environ['AI_MODE'] = ai_mode
     logger.info(f"AI Mode: {ai_mode}")
@@ -208,9 +238,10 @@ async def run_analysis_from_config(config_path: Path) -> None:
         (output_dir / 'summary.json').write_text(json.dumps(summary, indent=2))
 
         logger.info("✅ Analysis completed successfully!")
+        if outside_competitions:
+            logger.info(f"✅  Added {len(outside_competitions)} Outside competitions from config")
         logger.info(f"📁 Results saved to: {output_dir}")
         logger.info(f"💰 Total cost: ${cost_total:.2f} ({total_tokens} tokens)")
-
     except Exception as e:
         logger.error(f"❌ Analysis failed: {e}")
         raise

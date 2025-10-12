@@ -34,6 +34,7 @@ packages = ["bot", "core", "services"]
 line-length = 100
 target-version = ["py310"]
 skip-string-normalization = true
+exclude = '/\.pixi/'
 
 [tool.ruff]
 line-length = 120  # Increased from 100 to be more practical
@@ -79,3 +80,7 @@ ignore = [
 quote-style = "double"
 indent-style = "space"
 line-ending = "auto"
+
+[tool.isort]
+skip = [".pixi"]
+
