@@ -1,8 +1,8 @@
 [project]
 name = "garmin-ai-coach"
-version = "0.1.0"
+version = "1.0.0"
 description = "CLI tool for Garmin data analysis with AI-powered insights"
-authors = ["Developer <dev@example.com>"]
+authors = ["Leon Zajchowski <l.zajchowski@web.de>"]
 channels = ["conda-forge"]
 platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
 
