@@ -1,8 +1,8 @@
 # data_extractor.py
 import logging
-import traceback
+from collections.abc import Iterable
 from datetime import date, datetime, timedelta
-from typing import Any, Iterable
+from typing import Any
 
 from .client import GarminConnectClient
 from .models import (
