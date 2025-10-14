@@ -11,15 +11,13 @@ addopts = "-v --cov=. --cov-report=term-missing"
 markers = [
     "unit: mark test as a unit test",
     "integration: mark test as an integration test",
-    "bot: mark test as a bot-related test",
     "garmin: mark test as a Garmin service test",
-    "security: mark test as a security-related test",
 ]
 
 [project]
 name = "garmin-ai-coach"
 version = "0.1.0"
-description = "Telegram bot for Garmin data analysis with AI-powered insights"
+description = "CLI tool for Garmin data analysis with AI-powered insights"
 requires-python = ">=3.10"
 authors = [
     {name = "Developer"}
@@ -27,7 +25,7 @@ authors = [
 # Dependencies now managed by Pixi in pixi.toml
 
 [tool.setuptools]
-packages = ["bot", "core", "services"]
+packages = ["core", "services", "cli"]
 
 
 [tool.black]

@@ -1,7 +1,7 @@
 [project]
 name = "garmin-ai-coach"
 version = "0.1.0"
-description = "Telegram bot for Garmin data analysis with AI-powered insights"
+description = "CLI tool for Garmin data analysis with AI-powered insights"
 authors = ["Developer <dev@example.com>"]
 channels = ["conda-forge"]
 platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
@@ -13,7 +13,6 @@ pre-commit = ">=4.3.0,<5"
 
 [pypi-dependencies]
 # All dependencies managed by pip to avoid conda conflicts
-python-telegram-bot = ">=21.0"
 garminconnect = "==0.2.25"
 anthropic = ">=0.45.0"
 langchain = ">=0.2.0"
@@ -27,7 +26,6 @@ litellm = ">=1.60.0"
 numpy = ">=1.24.0"
 pandas = ">=2.0.0"
 plotly = ">=5.15.0"
-cryptography = ">=41.0.0"
 python-dotenv = ">=1.0.0"
 setuptools = ">=75.0.0"
 pytest = ">=7.0.0"
@@ -42,7 +40,7 @@ vulture = ">=2.14.0"
 
 [tasks]
 # Development tasks
-dev = "python main.py"
+dev = "python cli/garmin_ai_coach_cli.py --help"
 test = "pytest"
 test-cov = "pytest --cov=. --cov-report=term-missing --cov-report=html"
 lint = "flake8 ."
@@ -55,13 +53,6 @@ type-check = "mypy ."
 dead-code = "vulture --config vulture.toml"
 dead-code-all = "vulture --config vulture.toml --min-confidence 60"
 dead-code-verbose = "vulture --config vulture.toml --verbose"
-
-# Bot management
-start-dev = { cmd = "python main.py", env = { ENV_FILE = ".env.dev", ENVIRONMENT = "development" } }
-start-prod = { cmd = "python main.py", env = { ENV_FILE = ".env", ENVIRONMENT = "production" } }
-
-# Utility scripts
-list-users = "python scripts/list_users.py"
 
 # CLI coach interface
 coach-cli = "python cli/garmin_ai_coach_cli.py"

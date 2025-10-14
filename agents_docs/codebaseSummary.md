@@ -16,38 +16,26 @@ SecureCredentialManager -> GarminData -> LangChain Agents -> HTML Reports
 
 ### Primary Components
 
-#### 1. Authentication & Security (`core/security/`)
-- **SecureCredentialManager** - Encrypted storage of Garmin credentials
-- **SecureReportManager** - Manages analysis report storage
-- **SecureCache** (Metrics, Activity, Physiology) - Caches analysis results
-- **ExecutionTracker** - Tracks usage limits and execution history
-
-#### 2. Data Extraction (`services/garmin/`)
+#### 1. Data Extraction (`services/garmin/`)
 - **TriathlonCoachDataExtractor** - Main data extraction orchestrator
 - **GarminConnectClient** - Low-level Garmin Connect API interface
 - **Models** - Pydantic data models (GarminData, Activity, UserProfile, etc.)
 - **ExtractionConfig** - Configurable data extraction parameters
 
-#### 3. AI Analysis Pipeline (`services/ai/langchain/`)
+#### 2. AI Analysis Pipeline (`services/ai/langgraph/`)
 - **MasterOrchestrator** - Coordinates analysis and planning flows
 - **AnalysisOrchestrator** - Multi-agent training analysis
 - **WeeklyPlanOrchestrator** - Training plan generation
 - **AnalysisChains** - Individual AI agent implementations
 - **PlottingTool** - Secure chart/visualization generation
 
-#### 4. Telegram Interface (`bot/`)
-- **TelegramBot** - Main bot class and setup
-- **CommandHandlers** - Basic bot commands (/start, /help, etc.)
-- **CoachHandlers** - AI analysis workflow handlers
-- **ConversationHandlers** - Multi-step user interactions
-
 ### Data Flow
 
-1. **User Authentication**: Garmin credentials stored via SecureCredentialManager
+1. **User Authentication**: Garmin credentials provided via CLI configuration
 2. **Data Extraction**: TriathlonCoachDataExtractor pulls training data from Garmin Connect
-3. **AI Processing**: MasterOrchestrator coordinates multi-agent analysis
+3. **AI Processing**: LangGraph workflows coordinate multi-agent analysis
 4. **Report Generation**: HTML reports with embedded charts created
-5. **Delivery**: Reports sent via Telegram with progress updates
+5. **Output**: Reports saved to specified output directory
 
 ### AI Agent Workflow
 
@@ -73,8 +61,7 @@ Each agent specializes in a specific analysis domain:
 ### Core Dependencies
 - **Anthropic Claude API** - LLM for analysis generation
 - **Garmin Connect** - Training data source (unofficial API)
-- **Python Telegram Bot** - Telegram integration
-- **LangChain** - AI agent orchestration framework
+- **LangGraph** - AI workflow orchestration framework
 - **Matplotlib/Plotly** - Chart generation
 - **Pixi** - Package and environment management
 
@@ -107,8 +94,7 @@ Each agent specializes in a specific analysis domain:
 ```
 garmin-ai-coach/
 ├── agents_docs/          # Project documentation
-├── bot/                  # Telegram bot interface
-├── core/security/        # Authentication and security
+├── core/                 # Configuration management
 ├── data/                 # Data storage and artifacts
 │   ├── analysis/        # Intermediate AI analysis results
 │   ├── weekly_plans/    # Weekly planning outputs
@@ -117,7 +103,7 @@ garmin-ai-coach/
 ├── examples/             # Demo/test scripts showing component usage
 ├── scripts/              # Operational utilities for system management
 ├── services/
-│   ├── ai/langchain/    # AI orchestration and agents (with web search)
+│   ├── ai/langgraph/    # AI workflow orchestration
 │   ├── garmin/          # Data extraction
 │   └── report/          # Report utilities
 └── config files         # Pixi, PyProject, etc.
@@ -156,8 +142,8 @@ garmin-ai-coach/
 ## User Feedback Integration and Development Impact
 
 ### Current User Experience
-- **Telegram-based Interface**: Text commands trigger complex AI analysis
-- **Context-aware Analysis**: Users provide health/training context
+- **CLI Interface**: Configuration-driven workflow execution
+- **Context-aware Analysis**: Users provide health/training context via config files
 - **Comprehensive Output**: Multiple file types (HTML, markdown, charts)
 - **Progress Updates**: Live progress during analysis
 

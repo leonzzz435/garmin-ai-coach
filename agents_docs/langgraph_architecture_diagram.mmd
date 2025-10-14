@@ -74,7 +74,6 @@ flowchart TD
     end
 
     %% External Systems
-    TB[Telegram Bot<br/>Progress Updates<br/>File Delivery]
     API[Future FastAPI<br/>Mobile Integration]
 
     %% Main Flow Connections
@@ -137,11 +136,6 @@ flowchart TD
     WCT --> EM
 
     %% Final Delivery
-    AH --> TB
-    PH --> TB
-    PC --> TB
-    CS --> TB
-
     AH -.-> API
     PH -.-> API
     PC -.-> API
@@ -160,4 +154,4 @@ flowchart TD
     class TS,PT,PS,WS tools
     class SMS,TAS,MS,SR,ES,CPT,LS,WCT,PM state
     class OG,AH,PH,PC,CS,EM output
-    class TB,API external
+    class API external
