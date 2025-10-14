@@ -1,9 +1,7 @@
-python-telegram-bot==20.3
 garminconnect==0.2.25
 anthropic==0.45.0
 numpy==1.26.4
 pandas==2.2.3
-cryptography>=43.0.3
 python-dotenv==1.0.0
 langchain>=0.2.0
 langchain-openai>=0.1.0

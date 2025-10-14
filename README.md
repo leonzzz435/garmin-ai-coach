@@ -33,8 +33,8 @@
 * Interactive reports with evidence and actionable next steps
 * CLI-first, config-driven headless runs
 * Outside AthleteReg integration: optional auto-import of competitions (BikeReg, RunReg, TriReg, SkiReg)
-* Telegram bot interface (deprecated) — see Deprecated section below
-* Privacy-first: local encrypted credentials; no cloud storage of personal data
+* ⚡ CLI interface for headless operation and automation
+* Privacy-first: local credentials; no cloud storage of personal data
 * Built-in observability and cost tracking (LangSmith)
 
 ---
@@ -162,17 +162,6 @@ python cli/garmin_ai_coach_cli.py --init-config my_training_config.yaml
 
   * `total_cost_usd`, `total_tokens`, `execution_id`, `trace_id`, `root_run_id`, `files_generated`, `competitions`
 
-### Legacy: Telegram Bot (Deprecated)
-
-The Telegram chat interface is deprecated and will be removed in a future release. Prefer the CLI.
-If you still need to use it temporarily:
-
-```bash
-pixi run start-dev
-```
-
-* Requires `TELE_BOT_KEY` in your environment. See the “Project Structure” section for legacy notes.
-
 ---
 
 ## 💻 Installation & Setup
@@ -182,7 +171,6 @@ pixi run start-dev
 * Garmin Connect account (your training data source)
 * LLM API key for your chosen provider (OpenAI, Anthropic, or OpenRouter)
 * Optional: `LANGSMITH_API_KEY` for observability
-* Legacy Telegram bot requires `TELE_BOT_KEY` — see "Legacy: Telegram Bot (Deprecated)" above
 
 ### Installing Pixi
 
@@ -422,16 +410,11 @@ START → [Metrics, Physiology, Activity Data] → Activity Interpreter
 * ✅ **Automatic State Management** — Typed state with reducers
 * ✅ **Error Recovery** — Node-level handling and retries
 
-### Security Architecture
+### Security & Privacy
 
-```
-🔐 Local Encryption → 📊 Data Processing → 🤖 AI Analysis → 📋 Report Generation
-     (Per-user keys)      (In-memory)        (API calls)       (Local storage)
-```
-
-* **Encrypted Credentials** — AES-256 encryption with per-user keys
+* **Local Credentials** — Stored securely in configuration files
 * **Local Data Storage** — No cloud persistence of personal data
-* **Secure API Calls** — Direct LLM provider communication
+* **Direct API Calls** — Secure communication with LLM providers
 * **Usage Tracking** — Transparent cost monitoring
 
 ---
@@ -440,15 +423,13 @@ START → [Metrics, Physiology, Activity Data] → Activity Interpreter
 
 ```
 garmin-ai-coach/
-├── 🤖 bot/                      # Telegram interface & handlers (deprecated)
-├── 🔒 core/security/           # Encryption & usage limits
+├── 🔒 core/                     # Configuration management
 ├── 🔧 services/
 │   ├── 🏃‍♂️ garmin/              # Data extraction & models
 │   ├── 🧠 ai/langgraph/        # Modern AI workflow system
 │   └── 🎨 ai/tools/plotting/   # Secure visualization tools
 ├── 📚 agents_docs/             # Architecture & planning docs
 ├── ⚡ cli/                     # CLI (primary interface)
-├── 🚀 main.py                  # Legacy Telegram bot entry point (deprecated)
 └── ⚙️ pixi.toml                # Dependencies & tasks
 ```
 
@@ -466,9 +447,6 @@ pixi run type-check             # MyPy type checking
 # Testing & Analysis
 pixi run test                   # Run test suite
 pixi run dead-code              # Find unused code (Vulture)
-
-# Utilities  
-pixi run list-users            # User management
 ```
 
 ---

@@ -18,13 +18,8 @@
 - **Framework-Agnostic Tools** - Pydantic v2-based tools with Protocol interfaces
 
 ### Security & Storage
-- **Custom Security Managers** - Credential encryption and user management
+- **Local Configuration** - Credentials in config files
 - **Local File Storage** - Report caching and intermediate results
-- **Encrypted Credential Storage** - Secure Garmin login handling
-
-### Telegram Integration (Current)
-- **python-telegram-bot** - Bot framework and handlers
-- **HTML Report Generation** - Rich formatted output
 
 ## Backend API (New - Phase 1)
 
@@ -89,8 +84,8 @@
 
 ### ✅ **Current LangGraph Architecture (OPERATIONAL)**
 ```
-✅ NOW: Telegram Bot -> StateGraph Workflow -> Garmin Connect -> AI Nodes -> HTML Reports
-                       (services/ai/langgraph/ - ACTIVE)
+✅ NOW: CLI -> StateGraph Workflow -> Garmin Connect -> AI Nodes -> HTML Reports
+              (services/ai/langgraph/ - ACTIVE)
 ```
 
 ### Future Hybrid Architecture (Post-Migration)

@@ -176,12 +176,3 @@ Practical guidance:
 - If you ONLY set `ANTHROPIC_API_KEY`, use `extraction.ai_mode: "development"` or `"cost_effective"` (default Anthropic mapping), or update the mapping accordingly.
 - For OpenRouter/DeepSeek, map your chosen mode to a model key defined in [`python.ModelSelector.CONFIGURATIONS`](../services/ai/model_config.py:22).
 
-## Migration from Telegram bot
-
-The Telegram chat interface is deprecated. Mappings:
-- `/login` → Provide `athlete.email` and enter password at CLI prompt (or set `credentials.password`).
-- `/coach` → `pixi run coach-cli --config my_config.yaml`
-- `/races` → Add items under `competitions` in your config
-- `/help` → `python cli/garmin_ai_coach_cli.py -h`
-
-See the root [README.md](../README.md) for details.
