@@ -12,6 +12,9 @@ pip = "*"
 pre-commit = ">=4.3.0,<5"
 
 [pypi-dependencies]
+# Install the project itself in editable mode
+garmin-ai-coach = { path = ".", editable = true }
+
 # All dependencies managed by pip to avoid conda conflicts
 garminconnect = "==0.2.25"
 anthropic = ">=0.45.0"
