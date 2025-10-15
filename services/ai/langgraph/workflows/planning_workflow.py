@@ -145,6 +145,7 @@ async def run_complete_analysis_and_planning(
     current_date: dict = None,
     week_dates: list = None,
     progress_manager=None,
+    plotting_enabled: bool = False,
 ) -> dict:
     from ..utils.workflow_cost_tracker import ProgressIntegratedCostTracker
 
@@ -164,6 +165,7 @@ async def run_complete_analysis_and_planning(
         current_date=current_date or {},
         week_dates=week_dates or [],
         execution_id=execution_id,
+        plotting_enabled=plotting_enabled,
     )
 
     final_state, execution = await cost_tracker.run_workflow_with_progress(

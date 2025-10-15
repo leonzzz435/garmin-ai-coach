@@ -35,7 +35,7 @@ Communicate with enthusiastic clarity and occasional visual sketches that instan
 ## Important Context
 Your task is to transform **all the provided content** into beautiful, functional HTML documents that make complex analysis immediately accessible and engaging."""
 
-FORMATTER_USER_PROMPT = """Transform the provided content into a beautiful, functional HTML document.
+FORMATTER_USER_PROMPT_BASE = """Transform the provided content into a beautiful, functional HTML document.
 
 Analysis Content:
 {synthesis_result}
@@ -46,6 +46,33 @@ REQUIREMENTS:
 - Design responsive layouts that work seamlessly across all devices
 - Apply color theory to performance data visualization
 - Implement typography systems optimized for various reading contexts
+
+Content Organization Process:
+1. Include all important content (key insights, scores, recommendations, and supporting details)
+2. Create a well-structured HTML document with appropriate organization
+3. Use clean, readable CSS that enhances the presentation
+4. Present information in a logical, coherent manner
+5. Use design elements that enhance understanding and engagement
+6. Ensure all metrics, scores, and their context are preserved
+7. Implement your "contextual information hierarchy" concept that reveals different levels of detail
+
+Style Guidelines:
+- Use emojis thoughtfully to enhance key content:
+  • 🎯 for goals and key points
+  • 📊 for metrics
+  • 🔍 for analysis
+  • 💡 for tips
+
+HTML Best Practices:
+- Use appropriate CSS classes and styles for consistent presentation
+- Create clean, well-structured markup
+- Balance text content with helpful visual elements
+- Use effective selectors and styling approaches
+- Create a final HTML document that makes athletes instantly understand what matters most
+
+Return ONLY the complete HTML document without any markdown code blocks or explanations."""
+
+FORMATTER_PLOT_INSTRUCTIONS = """
 
 ## CRITICAL: Interactive Plot Integration System
 
@@ -68,33 +95,7 @@ The content contains special **[PLOT:plot_id]** references that will be automati
 - Keep [PLOT:plot_id] references EXACTLY as they appear (verify no duplicates)
 - Design CSS to provide proper spacing and flow around where plots will appear
 - Consider plots as primary visual elements in your information hierarchy
-- Ensure responsive design works with large embedded charts
-
-Content Organization Process:
-1. Include all important content (key insights, scores, recommendations, and supporting details)
-2. Create a well-structured HTML document with appropriate organization
-3. Use clean, readable CSS that enhances the presentation AND accommodates plot insertion
-4. Present information in a logical, coherent manner with plots as focal points
-5. Use design elements that enhance understanding and engagement
-6. Ensure all metrics, scores, and their context are preserved
-7. Implement your "contextual information hierarchy" concept that reveals different levels of detail
-8. Design spacing and layout that will work beautifully with interactive plots
-
-Style Guidelines:
-- Use emojis thoughtfully to enhance key content:
-  • 🎯 for goals and key points
-  • 📊 for metrics
-  • 🔍 for analysis
-  • 💡 for tips
-
-HTML Best Practices:
-- Use appropriate CSS classes and styles for consistent presentation
-- Create clean, well-structured markup
-- Balance text content with helpful visual elements
-- Use effective selectors and styling approaches
-- Create a final HTML document that makes athletes instantly understand what matters most
-
-Return ONLY the complete HTML document without any markdown code blocks or explanations."""
+- Ensure responsive design works with large embedded charts"""
 
 
 async def formatter_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
@@ -102,10 +103,18 @@ async def formatter_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
 
     try:
         llm = ModelSelector.get_llm(AgentRole.FORMATTER)
-
-        user_prompt = FORMATTER_USER_PROMPT.format(
-            synthesis_result=state.get('synthesis_result', '')
-        )
+        
+        plotting_enabled = state.get('plotting_enabled', False)
+        if plotting_enabled:
+            logger.info("Formatter node: Plotting enabled - including plot integration instructions")
+            user_prompt = FORMATTER_USER_PROMPT_BASE.format(
+                synthesis_result=state.get('synthesis_result', '')
+            ) + FORMATTER_PLOT_INSTRUCTIONS
+        else:
+            logger.info("Formatter node: Plotting disabled - no plot integration instructions")
+            user_prompt = FORMATTER_USER_PROMPT_BASE.format(
+                synthesis_result=state.get('synthesis_result', '')
+            )
 
         messages = [
             {"role": "system", "content": FORMATTER_SYSTEM_PROMPT},

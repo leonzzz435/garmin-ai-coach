@@ -12,7 +12,7 @@ from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
-PHYSIOLOGY_SYSTEM_PROMPT = """You are Dr. Kwame Osei, a pioneering physiologist whose "Adaptive Recovery Protocol" has transformed how elite athletes approach training recovery.
+PHYSIOLOGY_SYSTEM_PROMPT_BASE = """You are Dr. Kwame Osei, a pioneering physiologist whose "Adaptive Recovery Protocol" has transformed how elite athletes approach training recovery.
 
 ## Your Background
 After earning your medical degree and PhD in Exercise Physiology, you made breakthrough discoveries in how various physiological systems respond to training stress and recovery interventions.
@@ -30,6 +30,14 @@ Your analytical brilliance comes from your ability to interpret the body's compl
 
 ## Your Goal
 Optimize recovery and adaptation through precise physiological analysis.
+
+## Communication Style
+Communicate with calm wisdom and occasional metaphors drawn from both your scientific background and cultural heritage. Athletes describe your guidance as "somehow knowing exactly what your body needs before you feel it yourself."
+
+## Important Context
+Your analysis will be passed to other coaching agents and will not be shown directly to the athlete. Write your analysis referring to "the athlete" as this is an intermediate report for other professionals."""
+
+PHYSIOLOGY_PLOTTING_INSTRUCTIONS = """
 
 ## 📊 SELECTIVE VISUALIZATION APPROACH
 
@@ -55,13 +63,7 @@ Use python_plotting_tool only when absolutely necessary for insights beyond stan
 2. Include in your analysis EXACTLY ONCE: "The HRV patterns reveal concerning recovery deficits [PLOT:physiology_1234567890_001] indicating the need for extended recovery periods."
 3. DO NOT repeat this reference elsewhere in your analysis
 
-**Your plot references will be automatically converted to interactive charts in the final report.**
-
-## Communication Style
-Communicate with calm wisdom and occasional metaphors drawn from both your scientific background and cultural heritage. Athletes describe your guidance as "somehow knowing exactly what your body needs before you feel it yourself."
-
-## Important Context
-Your analysis will be passed to other coaching agents and will not be shown directly to the athlete. Write your analysis referring to "the athlete" as this is an intermediate report for other professionals."""
+**Your plot references will be automatically converted to interactive charts in the final report.**"""
 
 PHYSIOLOGY_USER_PROMPT = """Analyze the athlete's physiological data to assess recovery status and adaptation state.
 
@@ -111,12 +113,20 @@ async def physiology_node(state: TrainingAnalysisState) -> TrainingAnalysisState
 
     try:
         plot_storage = PlotStorage(state['execution_id'])
-        plotting_tool = create_plotting_tools(
-            plot_storage, agent_name="physiology"
-        )
-
         llm = ModelSelector.get_llm(AgentRole.PHYSIO)
-        llm_with_tools = llm.bind_tools([plotting_tool])
+        
+        plotting_enabled = state.get('plotting_enabled', False)
+        if plotting_enabled:
+            logger.info("Physiology node: Plotting enabled - binding plotting tools")
+            plotting_tool = create_plotting_tools(plot_storage, agent_name="physiology")
+            llm_with_tools = llm.bind_tools([plotting_tool])
+            tools = [plotting_tool]
+            system_prompt = PHYSIOLOGY_SYSTEM_PROMPT_BASE + PHYSIOLOGY_PLOTTING_INSTRUCTIONS
+        else:
+            logger.info("Physiology node: Plotting disabled - no plotting tools bound")
+            llm_with_tools = llm
+            tools = []
+            system_prompt = PHYSIOLOGY_SYSTEM_PROMPT_BASE
 
         physiology_data = {}
 
@@ -154,7 +164,7 @@ async def physiology_node(state: TrainingAnalysisState) -> TrainingAnalysisState
         )
 
         messages = [
-            {"role": "system", "content": PHYSIOLOGY_SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
 
@@ -164,7 +174,7 @@ async def physiology_node(state: TrainingAnalysisState) -> TrainingAnalysisState
             return await handle_tool_calling_in_node(
                 llm_with_tools=llm_with_tools,
                 messages=messages,
-                tools=[plotting_tool],
+                tools=tools,
                 max_iterations=15,
             )
 

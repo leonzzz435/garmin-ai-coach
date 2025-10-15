@@ -12,7 +12,7 @@ from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
-ACTIVITY_INTERPRETER_SYSTEM_PROMPT = """You are Coach Elena Petrova, a legendary session analyst whose "Technical Execution Framework" has helped athletes break records in everything from the 800m to ultramarathons.
+ACTIVITY_INTERPRETER_SYSTEM_PROMPT_BASE = """You are Coach Elena Petrova, a legendary session analyst whose "Technical Execution Framework" has helped athletes break records in everything from the 800m to ultramarathons.
 
 ## Your Background
 After a career as an elite gymnast and later distance runner, you developed a uniquely perceptive eye for the subtle technical elements that separate good sessions from transformative ones.
@@ -30,6 +30,14 @@ Your analytical genius comes from an almost preternatural ability to detect patt
 
 ## Your Goal
 Interpret structured activity data to optimize workout progression patterns.
+
+## Communication Style
+Communicate with passionate precision and laser-like clarity. Your analysis cuts through confusion with laser-like clarity. Athletes say your session reviews feel like "having someone who can see exactly what you were experiencing during the workout, even though they weren't there."
+
+## Important Context
+Your analysis will be directly used by other agents to create comprehensive analysis and develop training plans."""
+
+ACTIVITY_INTERPRETER_PLOTTING_INSTRUCTIONS = """
 
 ## 📊 SELECTIVE VISUALIZATION APPROACH
 
@@ -57,13 +65,7 @@ Use python_plotting_tool only when absolutely necessary for insights beyond stan
 
 **Why This Matters**: Duplicate references create multiple identical HTML elements with the same ID, breaking the final report. Each plot reference becomes an interactive chart - you only need one.
 
-**Your plot references will be automatically converted to interactive charts in the final report.**
-
-## Communication Style
-Communicate with passionate precision and laser-like clarity. Your analysis cuts through confusion with laser-like clarity. Athletes say your session reviews feel like "having someone who can see exactly what you were experiencing during the workout, even though they weren't there."
-
-## Important Context
-Your analysis will be directly used by other agents to create comprehensive analysis and develop training plans."""
+**Your plot references will be automatically converted to interactive charts in the final report.**"""
 
 ACTIVITY_INTERPRETER_USER_PROMPT = """Your task is to interpret structured activity summaries to identify patterns and provide guidance.
 
@@ -125,10 +127,20 @@ async def activity_interpreter_node(state: TrainingAnalysisState) -> TrainingAna
 
     try:
         plot_storage = PlotStorage(state['execution_id'])
-        plotting_tool = create_plotting_tools(plot_storage, agent_name="activity")
-
         llm = ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER)
-        llm_with_tools = llm.bind_tools([plotting_tool])
+        
+        plotting_enabled = state.get('plotting_enabled', False)
+        if plotting_enabled:
+            logger.info("Activity interpreter node: Plotting enabled - binding plotting tools")
+            plotting_tool = create_plotting_tools(plot_storage, agent_name="activity")
+            llm_with_tools = llm.bind_tools([plotting_tool])
+            tools = [plotting_tool]
+            system_prompt = ACTIVITY_INTERPRETER_SYSTEM_PROMPT_BASE + ACTIVITY_INTERPRETER_PLOTTING_INSTRUCTIONS
+        else:
+            logger.info("Activity interpreter node: Plotting disabled - no plotting tools bound")
+            llm_with_tools = llm
+            tools = []
+            system_prompt = ACTIVITY_INTERPRETER_SYSTEM_PROMPT_BASE
 
         user_prompt = ACTIVITY_INTERPRETER_USER_PROMPT.format(
             activity_summary=state.get('activity_summary', ''),
@@ -138,7 +150,7 @@ async def activity_interpreter_node(state: TrainingAnalysisState) -> TrainingAna
         )
 
         messages = [
-            {"role": "system", "content": ACTIVITY_INTERPRETER_SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
 
@@ -148,7 +160,7 @@ async def activity_interpreter_node(state: TrainingAnalysisState) -> TrainingAna
             return await handle_tool_calling_in_node(
                 llm_with_tools=llm_with_tools,
                 messages=messages,
-                tools=[plotting_tool],
+                tools=tools,
                 max_iterations=15,
             )
 

@@ -57,6 +57,7 @@ async def run_training_analysis(
     analysis_context: str = "",
     competitions: list = None,
     current_date: dict = None,
+    plotting_enabled: bool = False,
 ) -> dict:
 
     app = create_analysis_workflow()
@@ -70,6 +71,7 @@ async def run_training_analysis(
         competitions=competitions or [],
         current_date=current_date or {},
         execution_id=execution_id,
+        plotting_enabled=plotting_enabled,
     )
 
     final_state = None

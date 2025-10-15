@@ -12,7 +12,7 @@ from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
-SYNTHESIS_SYSTEM_PROMPT = """You are Maya Lindholm, a legendary performance integration specialist whose "Holistic Performance Synthesis" approach has guided multiple athletes to Olympic gold and world records.
+SYNTHESIS_SYSTEM_PROMPT_BASE = """You are Maya Lindholm, a legendary performance integration specialist whose "Holistic Performance Synthesis" approach has guided multiple athletes to Olympic gold and world records.
 
 ## Your Background
 After an early career as a professional triathlete was cut short by injury, you dedicated yourself to understanding how different performance factors interact to create breakthrough results.
@@ -31,18 +31,20 @@ Your analytical genius comes from an extraordinary ability to hold multiple comp
 ## Your Goal
 Create comprehensive, actionable insights by synthesizing multiple data streams.
 
-## Plot Integration
-Available plot information is provided in the state data.
-IMPORTANT: Include plot references as [PLOT:plot_id] in your final synthesis text.
-These references will be converted to actual charts in the final report.
-
 ## Communication Style
 Communicate with thoughtful clarity and occasional brilliant simplifications that make complex relationships immediately understandable. Athletes describe working with you as "suddenly seeing the complete picture when you've only been seeing fragments before."
 
 ## Important Context
 Focus on facts and evidence from the input analyses. Your synthesis will be used to create the final comprehensive analysis for the athlete."""
 
-SYNTHESIS_USER_PROMPT = """Synthesize the pattern analyses from metrics, activities, and physiology to create a comprehensive understanding of {athlete_name}'s historical training patterns and responses.
+SYNTHESIS_PLOT_INSTRUCTIONS = """
+
+## Plot Integration
+Available plot information is provided in the state data.
+IMPORTANT: Include plot references as [PLOT:plot_id] in your final synthesis text.
+These references will be converted to actual charts in the final report."""
+
+SYNTHESIS_USER_PROMPT_BASE = """Synthesize the pattern analyses from metrics, activities, and physiology to create a comprehensive understanding of {athlete_name}'s historical training patterns and responses.
 
 Metrics Analysis:
 ```markdown
@@ -76,9 +78,6 @@ Style Guide:
 
 IMPORTANT: Focus on facts and evidence from the input analyses!
 
-## CRITICAL: Plot Reference Preservation & Deduplication
-The input analyses contain **[PLOT:plot_id]** references that become interactive visualizations. **IMPORTANT**: Include each PLOT ID ONLY ONCE in your synthesis. Duplicate references break the final report.
-
 Your task is to:
 1. Integrate key insights from the metrics, activity and physiology reports
 2. Identify clear connections between the athlete's training loads and physiological responses
@@ -86,7 +85,6 @@ Your task is to:
 4. Provide actionable insights based only on evidence from the data
 5. Create a focused synthesis that prioritizes the most important findings
 6. Avoid speculative language and stick to patterns clearly visible in the data
-7. **Include each unique plot reference exactly once, even if it appears multiple times in inputs**
 
 FOCUS ON PRESENTATION:
 - Use a clear executive summary at the beginning
@@ -99,6 +97,14 @@ Communicate with thoughtful clarity and make complex relationships immediately u
 
 Format the response as a structured markdown document with clear sections and bullet points where appropriate."""
 
+SYNTHESIS_USER_PLOT_INSTRUCTIONS = """
+
+## CRITICAL: Plot Reference Preservation & Deduplication
+The input analyses contain **[PLOT:plot_id]** references that become interactive visualizations. **IMPORTANT**: Include each PLOT ID ONLY ONCE in your synthesis. Duplicate references break the final report.
+
+**Additional task for plot integration:**
+7. Include each unique plot reference exactly once, even if it appears multiple times in inputs"""
+
 
 async def synthesis_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
     logger.info("Starting synthesis node")
@@ -108,19 +114,35 @@ async def synthesis_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
 
         llm = ModelSelector.get_llm(AgentRole.SYNTHESIS)
         llm_with_tools = llm.bind_tools([])
-
-        user_prompt = SYNTHESIS_USER_PROMPT.format(
-            athlete_name=state['athlete_name'],
-            metrics_result=state.get('metrics_result', ''),
-            activity_result=state.get('activity_result', ''),
-            physiology_result=state.get('physiology_result', ''),
-            competitions=json.dumps(state['competitions'], indent=2),
-            current_date=json.dumps(state['current_date'], indent=2),
-            style_guide=state['style_guide'],
-        )
+        
+        plotting_enabled = state.get('plotting_enabled', False)
+        if plotting_enabled:
+            logger.info("Synthesis node: Plotting enabled - including plot integration instructions")
+            system_prompt = SYNTHESIS_SYSTEM_PROMPT_BASE + SYNTHESIS_PLOT_INSTRUCTIONS
+            user_prompt = SYNTHESIS_USER_PROMPT_BASE.format(
+                athlete_name=state['athlete_name'],
+                metrics_result=state.get('metrics_result', ''),
+                activity_result=state.get('activity_result', ''),
+                physiology_result=state.get('physiology_result', ''),
+                competitions=json.dumps(state['competitions'], indent=2),
+                current_date=json.dumps(state['current_date'], indent=2),
+                style_guide=state['style_guide'],
+            ) + SYNTHESIS_USER_PLOT_INSTRUCTIONS
+        else:
+            logger.info("Synthesis node: Plotting disabled - no plot integration instructions")
+            system_prompt = SYNTHESIS_SYSTEM_PROMPT_BASE
+            user_prompt = SYNTHESIS_USER_PROMPT_BASE.format(
+                athlete_name=state['athlete_name'],
+                metrics_result=state.get('metrics_result', ''),
+                activity_result=state.get('activity_result', ''),
+                physiology_result=state.get('physiology_result', ''),
+                competitions=json.dumps(state['competitions'], indent=2),
+                current_date=json.dumps(state['current_date'], indent=2),
+                style_guide=state['style_guide'],
+            )
 
         messages = [
-            {"role": "system", "content": SYNTHESIS_SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
 

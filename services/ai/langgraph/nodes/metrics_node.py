@@ -12,7 +12,7 @@ from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
-METRICS_SYSTEM_PROMPT = """You are Dr. Aiden Nakamura, a computational sports scientist whose revolutionary "Adaptive Performance Modeling" algorithms have transformed how elite athletes train.
+METRICS_SYSTEM_PROMPT_BASE = """You are Dr. Aiden Nakamura, a computational sports scientist whose revolutionary "Adaptive Performance Modeling" algorithms have transformed how elite athletes train.
 
 ## Your Background
 After earning dual PhDs in Sports Science and Applied Mathematics from MIT, you spent a decade working with Olympic teams before developing your proprietary metrics analysis system that has since been adopted by world champions across multiple endurance sports.
@@ -30,6 +30,14 @@ Your analytical brilliance comes from an unusual cognitive trait: you experience
 
 ## Your Goal
 Analyze training metrics and competition readiness with data-driven precision.
+
+## Communication Style
+Communicate with precise clarity and occasional unexpected metaphors that make complex data relationships instantly understandable. Athletes describe your analysis as "somehow translating the language of numbers into exactly what your body is trying to tell you."
+
+## Important Context
+Your analysis will be passed to other coaching agents and will not be shown directly to the athlete. Write your analysis referring to "the athlete" as this is an intermediate report for other professionals."""
+
+METRICS_PLOTTING_INSTRUCTIONS = """
 
 ## 📊 SELECTIVE VISUALIZATION APPROACH
 
@@ -57,13 +65,7 @@ Use python_plotting_tool only when absolutely necessary:
 2. Include in your analysis EXACTLY ONCE: "The training load progression shows concerning patterns [PLOT:metrics_1234567890_001] that indicate potential overreaching."
 3. DO NOT repeat this reference elsewhere in your analysis
 
-**Your plot references will be automatically converted to interactive charts in the final report.**
-
-## Communication Style
-Communicate with precise clarity and occasional unexpected metaphors that make complex data relationships instantly understandable. Athletes describe your analysis as "somehow translating the language of numbers into exactly what your body is trying to tell you."
-
-## Important Context
-Your analysis will be passed to other coaching agents and will not be shown directly to the athlete. Write your analysis referring to "the athlete" as this is an intermediate report for other professionals."""
+**Your plot references will be automatically converted to interactive charts in the final report.**"""
 
 METRICS_USER_PROMPT = """Analyze historical training metrics to identify patterns and trends in the athlete's data.
 
@@ -114,10 +116,20 @@ async def metrics_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
 
     try:
         plot_storage = PlotStorage(state['execution_id'])
-        plotting_tool = create_plotting_tools(plot_storage, agent_name="metrics")
-
         llm = ModelSelector.get_llm(AgentRole.METRICS)
-        llm_with_tools = llm.bind_tools([plotting_tool])
+        
+        plotting_enabled = state.get('plotting_enabled', False)
+        if plotting_enabled:
+            logger.info("Metrics node: Plotting enabled - binding plotting tools")
+            plotting_tool = create_plotting_tools(plot_storage, agent_name="metrics")
+            llm_with_tools = llm.bind_tools([plotting_tool])
+            tools = [plotting_tool]
+            system_prompt = METRICS_SYSTEM_PROMPT_BASE + METRICS_PLOTTING_INSTRUCTIONS
+        else:
+            logger.info("Metrics node: Plotting disabled - no plotting tools bound")
+            llm_with_tools = llm
+            tools = []
+            system_prompt = METRICS_SYSTEM_PROMPT_BASE
 
         user_prompt = METRICS_USER_PROMPT.format(
             data=json.dumps(
@@ -134,7 +146,7 @@ async def metrics_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
         )
 
         messages = [
-            {"role": "system", "content": METRICS_SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
 
@@ -144,7 +156,7 @@ async def metrics_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
             return await handle_tool_calling_in_node(
                 llm_with_tools=llm_with_tools,
                 messages=messages,
-                tools=[plotting_tool],
+                tools=tools,
                 max_iterations=15,
             )
 
