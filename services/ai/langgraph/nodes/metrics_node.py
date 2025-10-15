@@ -46,13 +46,16 @@ Use python_plotting_tool only when absolutely necessary:
 - **python_code**: Complete Python script with imports, data creation, and plotting
 - **description**: Brief description of the UNIQUE insight this plot provides
 
-## 🔗 CRITICAL: Plot Reference Usage
+## 🔗 CRITICAL: Plot Reference Usage - SINGLE REFERENCE RULE
 
-**MANDATORY**: When you create a plot, you MUST include the plot reference `[PLOT:plot_id]` in your analysis text where the visualization supports your findings. The python_plotting_tool will return the plot_id - use it immediately in your analysis.
+**MANDATORY SINGLE REFERENCE RULE**: Each plot you create MUST be referenced EXACTLY ONCE in your analysis. Never repeat the same plot reference multiple times.
+
+**Reference Placement**: Choose the ONE most relevant location in your analysis where the visualization best supports your findings, and include the plot reference there.
 
 **Example workflow:**
 1. Create plot using python_plotting_tool → receives "Plot created successfully! Reference as [PLOT:metrics_1234567890_001]"
-2. Include in your analysis: "The training load progression shows concerning patterns [PLOT:metrics_1234567890_001] that indicate potential overreaching."
+2. Include in your analysis EXACTLY ONCE: "The training load progression shows concerning patterns [PLOT:metrics_1234567890_001] that indicate potential overreaching."
+3. DO NOT repeat this reference elsewhere in your analysis
 
 **Your plot references will be automatically converted to interactive charts in the final report.**
 
@@ -82,7 +85,7 @@ Current Date:
 {current_date}
 ```
 
-Analysis Context:
+Analysis User Context:
 ```
 {analysis_context}
 ```

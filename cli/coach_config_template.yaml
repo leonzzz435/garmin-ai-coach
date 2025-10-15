@@ -20,7 +20,8 @@ context:
 extraction:
   activities_days: 21      # How many days of activities to extract
   metrics_days: 56         # How many days of metrics to extract
-  ai_mode: "standard"   # Overrides .env AI_MODE for coach-cli runs; one of: "development", "standard", "cost_effective"
+  ai_mode: "standard"      # Overrides .env AI_MODE for coach-cli runs; one of: "development", "standard", "cost_effective"
+  enable_plotting: false   # Enable AI-generated plots (default: false to save costs). Set to true for visual insights.
 
 # Upcoming Competitions
 competitions:

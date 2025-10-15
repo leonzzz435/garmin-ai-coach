@@ -66,6 +66,7 @@ class ConfigParser:
             'activities_days': extraction.get('activities_days', 7),
             'metrics_days': extraction.get('metrics_days', 14),
             'ai_mode': extraction.get('ai_mode', 'development'),
+            'enable_plotting': extraction.get('enable_plotting', False),
         }
 
     def get_competitions(self) -> list[dict[str, Any]]:
@@ -172,6 +173,9 @@ async def run_analysis_from_config(config_path: Path) -> None:
             date = datetime.now() + timedelta(days=i)
             week_dates.append({'date': date.strftime('%Y-%m-%d'), 'day_name': date.strftime('%A')})
 
+        plotting_enabled = extraction_settings.get('enable_plotting', False)
+        logger.info(f"Plotting enabled: {plotting_enabled}")
+        
         logger.info("Running AI analysis and planning...")
         result = await run_complete_analysis_and_planning(
             user_id="cli_user",
@@ -182,6 +186,7 @@ async def run_analysis_from_config(config_path: Path) -> None:
             competitions=competitions,
             current_date=current_date,
             week_dates=week_dates,
+            plotting_enabled=plotting_enabled,
         )
 
         logger.info("Saving results...")

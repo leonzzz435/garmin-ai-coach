@@ -49,25 +49,26 @@ REQUIREMENTS:
 
 ## CRITICAL: Interactive Plot Integration System
 
-The content contains special **[PLOT:plot_id]** references that will be automatically replaced with interactive Plotly visualizations AFTER your HTML conversion. Understanding this system is crucial for your design:
+The content contains special **[PLOT:plot_id]** references that will be automatically replaced with interactive Plotly visualizations AFTER your HTML conversion.
+
+**DEDUPLICATION VERIFICATION**: The synthesis should have already deduplicated plot references, but verify each plot ID appears ONLY ONCE in the content. Duplicate plot IDs break the HTML.
 
 **How Plot Resolution Works:**
-1. You preserve [PLOT:plot_id] references exactly as written
+1. You preserve [PLOT:plot_id] references exactly as written (each ID once only)
 2. After HTML generation, each reference gets replaced with a complete interactive plot
 3. These become full-width, responsive Plotly charts with hover interactions, zoom, and controls
 
-**Design Implications for You:**
-- **Spacing**: Leave appropriate vertical margin around plot references (they become ~400-800px tall)
-- **Responsive Design**: Plots auto-resize, so ensure your container CSS accommodates this
+**Design Implications:**
+- **Spacing**: Leave vertical margin around plot references (~400-800px tall when resolved)
+- **Responsive Design**: Plots auto-resize, ensure container CSS accommodates this
 - **Content Flow**: Treat plot references as major content blocks, not inline elements
-- **Typography**: Use compelling lead-in text before plots and descriptive follow-up text after
-- **Visual Hierarchy**: These will be significant visual elements, so design section breaks accordingly
+- **Visual Hierarchy**: These are significant visual elements, design section breaks accordingly
 
 **What You Should Do:**
-- Keep ALL [PLOT:plot_id] references EXACTLY as they appear
-- Design your CSS to provide proper spacing and flow around where plots will appear
+- Keep [PLOT:plot_id] references EXACTLY as they appear (verify no duplicates)
+- Design CSS to provide proper spacing and flow around where plots will appear
 - Consider plots as primary visual elements in your information hierarchy
-- Ensure your responsive design works with large embedded charts
+- Ensure responsive design works with large embedded charts
 
 Content Organization Process:
 1. Include all important content (key insights, scores, recommendations, and supporting details)

@@ -76,8 +76,8 @@ Style Guide:
 
 IMPORTANT: Focus on facts and evidence from the input analyses!
 
-## CRITICAL: Plot Reference Preservation
-The input analyses contain special **[PLOT:plot_id]** references that MUST be preserved exactly in your synthesis. These will become interactive visualizations in the final report. When you reference data or insights that have associated plots, include the plot reference in your synthesis text.
+## CRITICAL: Plot Reference Preservation & Deduplication
+The input analyses contain **[PLOT:plot_id]** references that become interactive visualizations. **IMPORTANT**: Include each PLOT ID ONLY ONCE in your synthesis. Duplicate references break the final report.
 
 Your task is to:
 1. Integrate key insights from the metrics, activity and physiology reports
@@ -86,7 +86,7 @@ Your task is to:
 4. Provide actionable insights based only on evidence from the data
 5. Create a focused synthesis that prioritizes the most important findings
 6. Avoid speculative language and stick to patterns clearly visible in the data
-7. **PRESERVE all [PLOT:plot_id] references exactly as they appear in the input analyses**
+7. **Include each unique plot reference exactly once, even if it appears multiple times in inputs**
 
 FOCUS ON PRESENTATION:
 - Use a clear executive summary at the beginning
