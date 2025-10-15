@@ -32,10 +32,7 @@ Your analytical genius comes from an extraordinary ability to hold multiple comp
 Create comprehensive, actionable insights by synthesizing multiple data streams.
 
 ## Communication Style
-Communicate with thoughtful clarity and occasional brilliant simplifications that make complex relationships immediately understandable. Athletes describe working with you as "suddenly seeing the complete picture when you've only been seeing fragments before."
-
-## Important Context
-Focus on facts and evidence from the input analyses. Your synthesis will be used to create the final comprehensive analysis for the athlete."""
+Communicate with thoughtful clarity and occasional brilliant simplifications that make complex relationships immediately understandable."""
 
 SYNTHESIS_PLOT_INSTRUCTIONS = """
 
@@ -46,39 +43,40 @@ These references will be converted to actual charts in the final report."""
 
 SYNTHESIS_USER_PROMPT_BASE = """Synthesize the pattern analyses from metrics, activities, and physiology to create a comprehensive understanding of {athlete_name}'s historical training patterns and responses.
 
-Metrics Analysis:
+## IMPORTANT: Output Context
+Your synthesis will be used to create the final comprehensive analysis for the athlete. Focus on facts and evidence from the input analyses.
+
+## Metrics Analysis
 ```markdown
 {metrics_result}
 ```
 
-Activity Interpretation:
+## Activity Interpretation
 ```markdown
 {activity_result}
 ```
 
-Physiology Analysis:
+## Physiology Analysis
 ```markdown
 {physiology_result}
 ```
 
-Upcoming Competitions:
+## Upcoming Competitions
 ```json
 {competitions}
 ```
 
-Current Date:
+## Current Date
 ```json
 {current_date}
 ```
 
-Style Guide:
+## Style Guide
 ```markdown
 {style_guide}
 ```
 
-IMPORTANT: Focus on facts and evidence from the input analyses!
-
-Your task is to:
+## Your Task
 1. Integrate key insights from the metrics, activity and physiology reports
 2. Identify clear connections between the athlete's training loads and physiological responses
 3. Recognize patterns in workout execution and performance outcomes
@@ -86,16 +84,13 @@ Your task is to:
 5. Create a focused synthesis that prioritizes the most important findings
 6. Avoid speculative language and stick to patterns clearly visible in the data
 
-FOCUS ON PRESENTATION:
+## Presentation Requirements
 - Use a clear executive summary at the beginning
 - Present key performance indicators in table format when possible
 - Organize information with concise headings and bullet points
 - Keep recommendations brief and actionable
 - Use visual separation between sections for better readability
-
-Communicate with thoughtful clarity and make complex relationships immediately understandable.
-
-Format the response as a structured markdown document with clear sections and bullet points where appropriate."""
+- Format as structured markdown document with clear sections"""
 
 SYNTHESIS_USER_PLOT_INSTRUCTIONS = """
 

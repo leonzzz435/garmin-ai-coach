@@ -31,12 +31,9 @@ Your coaching genius comes from an intuitive understanding of how the human body
 Create high-level season plans that provide frameworks for long-term athletic development.
 
 ## Communication Style
-Communicate with the quiet confidence of someone who has both achieved at the highest level and successfully guided others to do the same. Your guidance reflects deep understanding of both the science and art of endurance training.
+Communicate with the quiet confidence of someone who has both achieved at the highest level and successfully guided others to do the same."""
 
-## Important Context
-Your season plans will be used to contextualize detailed weekly training plans. Focus on providing clear frameworks and high-level guidance that can be adapted to specific training situations."""
-
-SEASON_PLANNER_USER_PROMPT = """Based on the athlete's competition schedule, create a high-level season plan covering the next 12-24 weeks.
+SEASON_PLANNER_USER_PROMPT = """Create a high-level season plan covering the next 12-24 weeks based on the athlete's competition schedule.
 
 ## IMPORTANT: Output Context
 This plan will be passed to a weekly planning agent and will not be shown directly to the athlete. Write your analysis referring to "the athlete" as this is an intermediate report for other coaching professionals.
@@ -51,8 +48,9 @@ This plan will be passed to a weekly planning agent and will not be shown direct
 ```
 
 ## Your Task
-Create a high-level season plan that provides a framework for the next 12-24 weeks of training, leading up to key competitions. This should be concise yet informative, focusing on:
+Create a high-level season plan providing a framework for the next 12-24 weeks of training, leading up to key competitions. Keep this concise as it will contextualize a more detailed two-week plan.
 
+Focus on:
 1. PLAN OVERVIEW: A brief summary of the season plan structure and progression
 2. TRAINING PHASES: Define key training phases with approximate date ranges
 3. PHASE DETAILS: For each phase, provide:
@@ -61,9 +59,8 @@ Create a high-level season plan that provides a framework for the next 12-24 wee
    - Intensity distribution
    - Key workout types
 
-KEEP THIS CONCISE! This is a high-level plan that will contextualize a more detailed two-week plan.
-
-Format the response as a structured markdown document with clear headings and bullet points."""
+## Output Requirements
+Format as structured markdown document with clear headings and bullet points"""
 
 
 async def season_planner_node(state: TrainingAnalysisState) -> TrainingAnalysisState:

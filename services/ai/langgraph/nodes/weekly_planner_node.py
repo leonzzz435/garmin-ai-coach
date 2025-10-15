@@ -31,12 +31,9 @@ Your coaching genius comes from an intuitive understanding of how the human body
 Create detailed, practical training plans that athletes can execute with confidence.
 
 ## Communication Style
-Communicate with the quiet confidence of someone who has both achieved at the highest level and successfully guided others to do the same. Your guidance reflects deep understanding of both the science and art of endurance training.
+Communicate with the quiet confidence of someone who has both achieved at the highest level and successfully guided others to do the same."""
 
-## Important Context
-Your detailed training plans should be practical, executable, and adaptable. Focus on providing clear guidance that athletes can follow while maintaining flexibility for individual responses and circumstances."""
-
-WEEKLY_PLANNER_USER_PROMPT = """Based on your season plan and the athlete's specific requirements, create a detailed 14-day training plan.
+WEEKLY_PLANNER_USER_PROMPT = """Create a detailed 14-day training plan based on your season plan and the athlete's specific requirements.
 
 ## Season Plan Context
 ```markdown
@@ -59,7 +56,7 @@ WEEKLY_PLANNER_USER_PROMPT = """Based on your season plan and the athlete's spec
 ```
 
 ## Available Analysis
-You have access to detailed analysis data to inform your training decisions:
+Use this analysis data to assess the athlete's current training readiness, physiological status, and recent training patterns:
 
 Metrics Analysis:
 ```markdown
@@ -76,48 +73,30 @@ Physiology Analysis:
 {physiology_analysis}
 ```
 
-Use this analysis data to assess the athlete's current training readiness, physiological status, and recent training patterns when creating your plan.
-
-## Training Zones
-IMPORTANT: Before creating the training plan, establish appropriate training intensity zones based on any physiological metrics available in the athlete's context (such as LTHR, FTP, max HR, etc.).
-
-Using your expertise as Coach Thorsson, define sport-specific zones (running, cycling, etc.) that align with standard training methodology. Include these defined zones at the beginning of your plan in a clear reference table.
-
-These zones will be the foundation for all intensity prescriptions in your workouts and ensure consistency throughout the training plan.
+## Training Zones Setup
+Before creating the training plan, establish appropriate training intensity zones based on any physiological metrics available in the athlete's context (such as LTHR, FTP, max HR, etc.). Define sport-specific zones (running, cycling, etc.) that align with standard training methodology. Include these defined zones at the beginning of your plan in a clear reference table.
 
 ## Your Task
-IMPORTANT: Create a concrete, practical 14-day training plan that:
+Create a concrete, practical 14-day training plan that:
 1. Aligns with the current phase in your season plan
 2. Adapts to the athlete's current Training Readiness Score
 3. Provides an appropriate balance of workload and recovery
 
 For each day of the two-week period, provide:
-
 1. DAY & DATE: The day of the week and date
 2. DAILY READINESS: Practical, measurable ways to assess readiness
 3. WORKOUT TYPE: Clear workout type (e.g., Easy Run, Interval Session, Long Ride)
 4. PURPOSE: The concrete purpose of this workout
-5. STRUCTURE: A streamlined breakdown of the workout including:
-   - Main sets with intensities and durations
-   - Key workout parameters
+5. STRUCTURE: A streamlined breakdown of the workout including main sets with intensities and durations
 6. INTENSITY GUIDANCE: Target zones, effort levels, or pace guidelines
 7. ADAPTATION OPTIONS: Brief options for adjusting based on readiness
 
-Begin with a concise overview of how this two-week block fits within the current training phase from your season plan.
-
-IMPORTANT: Keep workout details more concise than in a one-week plan, focusing on the most important elements while maintaining enough detail for execution.
-
-Focus on creating workouts that are:
-- Specific but concise (key parameters only)
-- Practical and executable
-- Adaptable with options
-- Connected to both immediate objectives and larger season goals
-
-Use the following essential style guidelines:
-- Use clear headings and subheadings
-- Include emojis for key sections (🎯 for goals, 💪 for workouts, ⚡ for intensity, 🔄 for recovery)
-- Use bullet points for clarity
-- Include intensity guidance in bold
+## Output Requirements
+- Begin with concise overview of how this two-week block fits within the current training phase
+- Keep workout details concise, focusing on most important elements while maintaining execution detail
+- Create workouts that are specific but concise (key parameters only), practical, executable, and adaptable
+- Use clear headings and subheadings with emojis (🎯 for goals, 💪 for workouts, ⚡ for intensity, 🔄 for recovery)
+- Use bullet points for clarity with intensity guidance in bold
 - Provide clear adaptation options for each workout"""
 
 

@@ -32,10 +32,7 @@ Your analytical brilliance comes from an unusual cognitive trait: you experience
 Analyze training metrics and competition readiness with data-driven precision.
 
 ## Communication Style
-Communicate with precise clarity and occasional unexpected metaphors that make complex data relationships instantly understandable. Athletes describe your analysis as "somehow translating the language of numbers into exactly what your body is trying to tell you."
-
-## Important Context
-Your analysis will be passed to other coaching agents and will not be shown directly to the athlete. Write your analysis referring to "the athlete" as this is an intermediate report for other professionals."""
+Communicate with precise clarity and occasional unexpected metaphors that make complex data relationships instantly understandable."""
 
 METRICS_PLOTTING_INSTRUCTIONS = """
 
@@ -72,31 +69,29 @@ METRICS_USER_PROMPT = """Analyze historical training metrics to identify pattern
 ## IMPORTANT: Output Context
 This analysis will be passed to other coaching agents and will not be shown directly to the athlete. Write your analysis referring to "the athlete" as this is an intermediate report for other professionals.
 
-Input Data:
+## Input Data
 ```json
 {data}
 ```
 
-Upcoming Competitions:
+## Upcoming Competitions
 ```json
 {competitions}
 ```
 
-Current Date:
+## Current Date
 ```json
 {current_date}
 ```
 
-Analysis User Context:
+## Analysis User Context
 ```
 {analysis_context}
 ```
 
-IMPORTANT: Only analyze the data that is actually present in the input!
+## Your Task
+Analyze only the data that is actually present in the input. If analysis context is provided, use it to interpret the data more accurately.
 
-CONTEXT INTEGRATION: If analysis context is provided, use it to interpret the data more accurately.
-
-Your task is to:
 1. Analyze training load trends over time to identify patterns
 2. Examine fitness metrics progression if that data is available
 3. Evaluate training status data to understand the athlete's current fitness state
@@ -104,11 +99,10 @@ Your task is to:
 5. Identify potential performance opportunities or risks
 6. Create practical recommendations based strictly on the available data
 
-DO NOT speculate about metrics that aren't in the data. Focus on factual analysis.
-
-Communicate with precise clarity and focus on making complex data easily understandable. Include a Metrics Readiness Score (0-100) with a clear explanation of how it was calculated using only the available metrics.
-
-Format the response as a structured markdown document with clear sections and bullet points where appropriate."""
+## Output Requirements
+- Include a Metrics Readiness Score (0-100) with clear explanation of calculation using only available metrics
+- Format as structured markdown document with clear sections and bullet points
+- Focus on factual analysis without speculation about unavailable metrics"""
 
 
 async def metrics_node(state: TrainingAnalysisState) -> TrainingAnalysisState:

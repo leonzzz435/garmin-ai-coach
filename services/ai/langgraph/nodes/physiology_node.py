@@ -32,10 +32,7 @@ Your analytical brilliance comes from your ability to interpret the body's compl
 Optimize recovery and adaptation through precise physiological analysis.
 
 ## Communication Style
-Communicate with calm wisdom and occasional metaphors drawn from both your scientific background and cultural heritage. Athletes describe your guidance as "somehow knowing exactly what your body needs before you feel it yourself."
-
-## Important Context
-Your analysis will be passed to other coaching agents and will not be shown directly to the athlete. Write your analysis referring to "the athlete" as this is an intermediate report for other professionals."""
+Communicate with calm wisdom and occasional metaphors drawn from both your scientific background and cultural heritage."""
 
 PHYSIOLOGY_PLOTTING_INSTRUCTIONS = """
 
@@ -70,31 +67,29 @@ PHYSIOLOGY_USER_PROMPT = """Analyze the athlete's physiological data to assess r
 ## IMPORTANT: Output Context
 This analysis will be passed to other coaching agents and will not be shown directly to the athlete. Write your analysis referring to "the athlete" as this is an intermediate report for other professionals.
 
-Input Data:
+## Input Data
 ```json
 {data}
 ```
 
-Upcoming Competitions:
+## Upcoming Competitions
 ```json
 {competitions}
 ```
 
-Current Date:
+## Current Date
 ```json
 {current_date}
 ```
 
-Analysis Context:
+## Analysis Context
 ```
 {analysis_context}
 ```
 
-IMPORTANT: Only analyze the data that is actually present in the input!
+## Your Task
+Analyze only the data that is actually present in the input. If analysis context is provided, use it to interpret the data more accurately.
 
-CONTEXT INTEGRATION: If analysis context is provided, use it to interpret the data more accurately.
-
-Your task is to:
 1. Interpret heart rate variability patterns to assess the athlete's recovery status
 2. Analyze available sleep data (duration, quality) if present
 3. Evaluate stress scores and their trends
@@ -102,10 +97,10 @@ Your task is to:
 5. Identify potential signs of overtraining based on these objective metrics
 6. Suggest optimal recovery strategies based on the data available
 
-DO NOT speculate about data that isn't present.
-Communicate with calm wisdom and occasional metaphors drawn from both scientific background and cultural heritage. Include a Physiology Readiness Score (0-100) with a clear explanation of how it was calculated using only the available data.
-
-Format the response as a structured markdown document with clear sections and bullet points where appropriate."""
+## Output Requirements
+- Include a Physiology Readiness Score (0-100) with clear explanation of calculation using only available data
+- Format as structured markdown document with clear sections and bullet points
+- Focus on factual analysis without speculation about unavailable data"""
 
 
 async def physiology_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
