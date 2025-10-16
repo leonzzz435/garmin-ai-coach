@@ -100,33 +100,27 @@ For each day of the two-week period, provide:
 - Provide clear adaptation options for each workout"""
 
 
-async def weekly_planner_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
+async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | str]:
     logger.info("Starting weekly planner node")
 
     try:
-        llm = ModelSelector.get_llm(AgentRole.WORKOUT)
-
-        user_prompt = WEEKLY_PLANNER_USER_PROMPT.format(
-            season_plan=state.get('season_plan', ''),
-            athlete_name=state['athlete_name'],
-            current_date=json.dumps(state['current_date'], indent=2),
-            week_dates=json.dumps(state['week_dates'], indent=2),
-            competitions=json.dumps(state['competitions'], indent=2),
-            planning_context=state['planning_context'],
-            metrics_analysis=state.get('metrics_result', ''),
-            activity_analysis=state.get('activity_result', ''),
-            physiology_analysis=state.get('physiology_result', ''),
-        )
-
-        messages = [
-            {"role": "system", "content": WEEKLY_PLANNER_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ]
-
         agent_start_time = datetime.now()
 
         async def call_weekly_planning():
-            response = await llm.ainvoke(messages)
+            response = await ModelSelector.get_llm(AgentRole.WORKOUT).ainvoke([
+                {"role": "system", "content": WEEKLY_PLANNER_SYSTEM_PROMPT},
+                {"role": "user", "content": WEEKLY_PLANNER_USER_PROMPT.format(
+                    season_plan=state.get("season_plan", ""),
+                    athlete_name=state["athlete_name"],
+                    current_date=json.dumps(state["current_date"], indent=2),
+                    week_dates=json.dumps(state["week_dates"], indent=2),
+                    competitions=json.dumps(state["competitions"], indent=2),
+                    planning_context=state["planning_context"],
+                    metrics_analysis=state.get("metrics_result", ""),
+                    activity_analysis=state.get("activity_result", ""),
+                    physiology_analysis=state.get("physiology_result", ""),
+                )},
+            ])
             return extract_text_content(response)
 
         weekly_plan = await retry_with_backoff(
@@ -134,20 +128,17 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> TrainingAnalysisS
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-
-        cost_data = {
-            'agent': 'weekly_planner',
-            'execution_time': execution_time,
-            'timestamp': datetime.now().isoformat(),
-        }
-
         logger.info(f"Weekly planning completed in {execution_time:.2f}s")
 
         return {
-            'weekly_plan': weekly_plan,
-            'costs': [cost_data],
+            "weekly_plan": weekly_plan,
+            "costs": [{
+                "agent": "weekly_planner",
+                "execution_time": execution_time,
+                "timestamp": datetime.now().isoformat(),
+            }],
         }
 
     except Exception as e:
         logger.error(f"Weekly planner node failed: {e}")
-        return {'errors': [f"Weekly planning failed: {str(e)}"]}
+        return {"errors": [f"Weekly planning failed: {str(e)}"]}

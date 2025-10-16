@@ -12,9 +12,9 @@ from services.ai.langgraph.workflows.analysis_workflow import create_analysis_wo
 @pytest.fixture
 def sample_garmin_data():
     return {
-        'training_load_history': [{'date': '2024-01-01', 'load': 150}],
-        'vo2_max_history': [{'date': '2024-01-01', 'vo2_max': 45.2}],
-        'training_status': {'status': 'productive'},
+        "training_load_history": [{"date": "2024-01-01", "load": 150}],
+        "vo2_max_history": [{"date": "2024-01-01", "vo2_max": 45.2}],
+        "training_status": {"status": "productive"},
     }
 
 
@@ -37,25 +37,23 @@ def test_state_creation(sample_garmin_data):
         execution_id="exec_123",
     )
 
-    assert state['user_id'] == "user123"
-    assert state['athlete_name'] == "John Doe"
-    assert state['garmin_data'] == sample_garmin_data
-    assert state['metrics_result'] is None
-    assert state['plots'] == []
+    assert state["user_id"] == "user123"
+    assert state["athlete_name"] == "John Doe"
+    assert state["garmin_data"] == sample_garmin_data
+    assert state["metrics_result"] is None
+    assert state["plots"] == []
 
 
-@patch('services.ai.langgraph.config.langsmith_config.LangSmithConfig.setup_langsmith')
+@patch("services.ai.langgraph.config.langsmith_config.LangSmithConfig.setup_langsmith")
 def test_workflow_creation(mock_langsmith):
-    workflow_app = create_analysis_workflow()
-
-    assert workflow_app is not None
+    assert create_analysis_workflow() is not None
     mock_langsmith.assert_called_once()
 
 
 @pytest.mark.asyncio
-@patch('services.ai.model_config.ModelSelector.get_llm')
-@patch('services.ai.tools.plotting.PlotStorage')
-@patch('services.ai.langgraph.nodes.metrics_node.retry_with_backoff', new_callable=AsyncMock)
+@patch("services.ai.model_config.ModelSelector.get_llm")
+@patch("services.ai.tools.plotting.PlotStorage")
+@patch("services.ai.langgraph.nodes.metrics_node.retry_with_backoff", new_callable=AsyncMock)
 async def test_metrics_node_basic(mock_retry, mock_plot_storage, mock_get_llm, sample_state):
     mock_llm = Mock()
     mock_llm_with_tools = Mock()
@@ -76,15 +74,10 @@ async def test_metrics_node_basic(mock_retry, mock_plot_storage, mock_get_llm, s
 
     result = await metrics_node(sample_state)
 
-    assert 'metrics_result' in result
-    assert 'plots' in result
-    assert 'costs' in result
-    assert result['metrics_result'] == "Test analysis result"
+    assert "metrics_result" in result
+    assert "plots" in result
+    assert "costs" in result
+    assert result["metrics_result"] == "Test analysis result"
 
     mock_llm.bind_tools.assert_called_once()
     mock_get_llm.assert_called_once()
-
-
-def test_poc_imports():
-
-    assert True

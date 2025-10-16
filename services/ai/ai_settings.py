@@ -40,12 +40,8 @@ class AISettings:
         return self.model_assignments[self.mode][role]
 
     @classmethod
-    def load_settings(cls) -> 'AISettings':
-        config = get_config()
-
-        return cls(
-            mode=config.ai_mode,
-        )
+    def load_settings(cls) -> "AISettings":
+        return cls(mode=get_config().ai_mode)
 
 
 # Global settings instance

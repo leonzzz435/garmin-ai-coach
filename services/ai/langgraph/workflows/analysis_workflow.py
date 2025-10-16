@@ -55,28 +55,27 @@ async def run_training_analysis(
     athlete_name: str,
     garmin_data: dict,
     analysis_context: str = "",
-    competitions: list = None,
-    current_date: dict = None,
+    competitions: list | None = None,
+    current_date: dict | None = None,
     plotting_enabled: bool = False,
 ) -> dict:
-
-    app = create_analysis_workflow()
-
     execution_id = f"{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    initial_state = create_initial_state(
-        user_id=user_id,
-        athlete_name=athlete_name,
-        garmin_data=garmin_data,
-        analysis_context=analysis_context,
-        competitions=competitions or [],
-        current_date=current_date or {},
-        execution_id=execution_id,
-        plotting_enabled=plotting_enabled,
-    )
-
-    final_state = None
     config = {"configurable": {"thread_id": execution_id}}
-    async for chunk in app.astream(initial_state, config=config, stream_mode="values"):
+    
+    async for chunk in create_analysis_workflow().astream(
+        create_initial_state(
+            user_id=user_id,
+            athlete_name=athlete_name,
+            garmin_data=garmin_data,
+            analysis_context=analysis_context,
+            competitions=competitions,
+            current_date=current_date,
+            execution_id=execution_id,
+            plotting_enabled=plotting_enabled,
+        ),
+        config=config,
+        stream_mode="values",
+    ):
         logger.info(f"Workflow step: {list(chunk.keys()) if chunk else 'None'}")
         final_state = chunk
 

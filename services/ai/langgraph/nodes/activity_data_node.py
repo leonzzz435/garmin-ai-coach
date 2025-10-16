@@ -81,46 +81,37 @@ Format each activity using this template:
 Repeat this format for each activity, organizing them chronologically from newest to oldest."""
 
 
-async def activity_data_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
+async def activity_data_node(state: TrainingAnalysisState) -> dict[str, list | str]:
     logger.info("Starting activity data extraction node")
 
     try:
-        llm = ModelSelector.get_llm(AgentRole.ACTIVITY_DATA)
-
-        user_prompt = ACTIVITY_DATA_USER_PROMPT.format(
-            data=json.dumps(state['garmin_data'].get('recent_activities', []), indent=2)
-        )
-
-        messages = [
-            {"role": "system", "content": ACTIVITY_DATA_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ]
-
         agent_start_time = datetime.now()
 
-        async def call_activity_data_extraction():
-            response = await llm.ainvoke(messages)
+        async def call_llm():
+            response = await ModelSelector.get_llm(AgentRole.ACTIVITY_DATA).ainvoke([
+                {"role": "system", "content": ACTIVITY_DATA_SYSTEM_PROMPT},
+                {"role": "user", "content": ACTIVITY_DATA_USER_PROMPT.format(
+                    data=json.dumps(state["garmin_data"].get("recent_activities", []), indent=2)
+                )},
+            ])
             return extract_text_content(response)
 
         activity_summary = await retry_with_backoff(
-            call_activity_data_extraction, AI_ANALYSIS_CONFIG, "Activity Data Extraction"
+            call_llm, AI_ANALYSIS_CONFIG, "Activity Data Extraction"
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-
-        cost_data = {
-            'agent': 'activity_data',
-            'execution_time': execution_time,
-            'timestamp': datetime.now().isoformat(),
-        }
-
         logger.info(f"Activity data extraction completed in {execution_time:.2f}s")
 
         return {
-            'activity_summary': activity_summary,
-            'costs': [cost_data],
+            "activity_summary": activity_summary,
+            "costs": [{
+                "agent": "activity_data",
+                "execution_time": execution_time,
+                "timestamp": datetime.now().isoformat(),
+            }],
         }
 
     except Exception as e:
         logger.error(f"Activity data node failed: {e}")
-        return {'errors': [f"Activity data extraction failed: {str(e)}"]}
+        return {"errors": [f"Activity data extraction failed: {str(e)}"]}

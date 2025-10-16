@@ -101,52 +101,38 @@ The input analyses contain **[PLOT:plot_id]** references that become interactive
 7. Include each unique plot reference exactly once, even if it appears multiple times in inputs"""
 
 
-async def synthesis_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
+async def synthesis_node(state: TrainingAnalysisState) -> dict[str, list | str]:
     logger.info("Starting synthesis node")
 
     try:
-        plot_storage = PlotStorage(state['execution_id'])
-
-        llm = ModelSelector.get_llm(AgentRole.SYNTHESIS)
-        llm_with_tools = llm.bind_tools([])
+        plot_storage = PlotStorage(state["execution_id"])
+        plotting_enabled = state.get("plotting_enabled", False)
         
-        plotting_enabled = state.get('plotting_enabled', False)
-        if plotting_enabled:
-            logger.info("Synthesis node: Plotting enabled - including plot integration instructions")
-            system_prompt = SYNTHESIS_SYSTEM_PROMPT_BASE + SYNTHESIS_PLOT_INSTRUCTIONS
-            user_prompt = SYNTHESIS_USER_PROMPT_BASE.format(
-                athlete_name=state['athlete_name'],
-                metrics_result=state.get('metrics_result', ''),
-                activity_result=state.get('activity_result', ''),
-                physiology_result=state.get('physiology_result', ''),
-                competitions=json.dumps(state['competitions'], indent=2),
-                current_date=json.dumps(state['current_date'], indent=2),
-                style_guide=state['style_guide'],
-            ) + SYNTHESIS_USER_PLOT_INSTRUCTIONS
-        else:
-            logger.info("Synthesis node: Plotting disabled - no plot integration instructions")
-            system_prompt = SYNTHESIS_SYSTEM_PROMPT_BASE
-            user_prompt = SYNTHESIS_USER_PROMPT_BASE.format(
-                athlete_name=state['athlete_name'],
-                metrics_result=state.get('metrics_result', ''),
-                activity_result=state.get('activity_result', ''),
-                physiology_result=state.get('physiology_result', ''),
-                competitions=json.dumps(state['competitions'], indent=2),
-                current_date=json.dumps(state['current_date'], indent=2),
-                style_guide=state['style_guide'],
-            )
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ]
+        logger.info(
+            f"Synthesis node: Plotting {'enabled - including plot integration instructions' if plotting_enabled else 'disabled - no plot integration instructions'}"
+        )
 
         agent_start_time = datetime.now()
 
         async def call_synthesis_analysis():
             return await handle_tool_calling_in_node(
-                llm_with_tools=llm_with_tools,
-                messages=messages,
+                llm_with_tools=ModelSelector.get_llm(AgentRole.SYNTHESIS).bind_tools([]),
+                messages=[
+                    {"role": "system", "content": (
+                        SYNTHESIS_SYSTEM_PROMPT_BASE + (SYNTHESIS_PLOT_INSTRUCTIONS if plotting_enabled else "")
+                    )},
+                    {"role": "user", "content": (
+                        SYNTHESIS_USER_PROMPT_BASE.format(
+                            athlete_name=state["athlete_name"],
+                            metrics_result=state.get("metrics_result", ""),
+                            activity_result=state.get("activity_result", ""),
+                            physiology_result=state.get("physiology_result", ""),
+                            competitions=json.dumps(state["competitions"], indent=2),
+                            current_date=json.dumps(state["current_date"], indent=2),
+                            style_guide=state["style_guide"],
+                        ) + (SYNTHESIS_USER_PLOT_INSTRUCTIONS if plotting_enabled else "")
+                    )},
+                ],
                 tools=[],
                 max_iterations=3,
             )
@@ -156,24 +142,18 @@ async def synthesis_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-
-        # Get available plots for references
-        available_plots = plot_storage.list_available_plots()
-
-        cost_data = {
-            'agent': 'synthesis',
-            'execution_time': execution_time,
-            'timestamp': datetime.now().isoformat(),
-        }
-
         logger.info(f"Synthesis analysis completed in {execution_time:.2f}s")
 
         return {
-            'synthesis_result': synthesis_result,
-            'costs': [cost_data],
-            'available_plots': available_plots,
+            "synthesis_result": synthesis_result,
+            "costs": [{
+                "agent": "synthesis",
+                "execution_time": execution_time,
+                "timestamp": datetime.now().isoformat(),
+            }],
+            "available_plots": plot_storage.list_available_plots(),
         }
 
     except Exception as e:
         logger.error(f"Synthesis node failed: {e}")
-        return {'errors': [f"Synthesis analysis failed: {str(e)}"]}
+        return {"errors": [f"Synthesis analysis failed: {str(e)}"]}

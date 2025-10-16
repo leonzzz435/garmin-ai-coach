@@ -120,44 +120,41 @@ Structure your response to include two clearly distinguished sections:
 Format as structured markdown document with clear sections and bullet points"""
 
 
-async def activity_interpreter_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
+async def activity_interpreter_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
     logger.info("Starting activity interpreter node")
 
     try:
-        plot_storage = PlotStorage(state['execution_id'])
-        llm = ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER)
+        plot_storage = PlotStorage(state["execution_id"])
+        plotting_enabled = state.get("plotting_enabled", False)
         
-        plotting_enabled = state.get('plotting_enabled', False)
+        logger.info(
+            f"Activity interpreter node: Plotting {'enabled - binding plotting tools' if plotting_enabled else 'disabled - no plotting tools bound'}"
+        )
+
         if plotting_enabled:
-            logger.info("Activity interpreter node: Plotting enabled - binding plotting tools")
             plotting_tool = create_plotting_tools(plot_storage, agent_name="activity")
-            llm_with_tools = llm.bind_tools([plotting_tool])
+            llm_with_tools = ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER).bind_tools([plotting_tool])
             tools = [plotting_tool]
             system_prompt = ACTIVITY_INTERPRETER_SYSTEM_PROMPT_BASE + ACTIVITY_INTERPRETER_PLOTTING_INSTRUCTIONS
         else:
-            logger.info("Activity interpreter node: Plotting disabled - no plotting tools bound")
-            llm_with_tools = llm
+            llm_with_tools = ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER)
             tools = []
             system_prompt = ACTIVITY_INTERPRETER_SYSTEM_PROMPT_BASE
-
-        user_prompt = ACTIVITY_INTERPRETER_USER_PROMPT.format(
-            activity_summary=state.get('activity_summary', ''),
-            competitions=json.dumps(state['competitions'], indent=2),
-            current_date=json.dumps(state['current_date'], indent=2),
-            analysis_context=state['analysis_context'],
-        )
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ]
 
         agent_start_time = datetime.now()
 
         async def call_activity_interpretation():
             return await handle_tool_calling_in_node(
                 llm_with_tools=llm_with_tools,
-                messages=messages,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": ACTIVITY_INTERPRETER_USER_PROMPT.format(
+                        activity_summary=state.get("activity_summary", ""),
+                        competitions=json.dumps(state["competitions"], indent=2),
+                        current_date=json.dumps(state["current_date"], indent=2),
+                        analysis_context=state["analysis_context"],
+                    )},
+                ],
                 tools=tools,
                 max_iterations=15,
             )
@@ -167,48 +164,41 @@ async def activity_interpreter_node(state: TrainingAnalysisState) -> TrainingAna
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-
         all_plots = plot_storage.get_all_plots()
-        plot_storage_data = {}
-
-        for plot_id, plot_metadata in all_plots.items():
-            plot_storage_data[plot_id] = {
-                'plot_id': plot_metadata.plot_id,
-                'description': plot_metadata.description,
-                'agent_name': plot_metadata.agent_name,
-                'created_at': plot_metadata.created_at.isoformat(),
-                'html_content': plot_metadata.html_content,
-                'data_summary': plot_metadata.data_summary,
-            }
-
-        available_plots = list(all_plots.keys())
-        plots_data = [
-            {
-                'agent': 'activity_interpreter',
-                'plot_id': plot_id,
-                'timestamp': datetime.now().isoformat(),
-            }
-            for plot_id in available_plots
-        ]
-
-        cost_data = {
-            'agent': 'activity_interpreter',
-            'execution_time': execution_time,
-            'timestamp': datetime.now().isoformat(),
-        }
 
         logger.info(
-            f"Activity interpreter completed in {execution_time:.2f}s with {len(available_plots)} plots"
+            f"Activity interpreter completed in {execution_time:.2f}s with {len(all_plots)} plots"
         )
 
         return {
-            'activity_result': activity_result,
-            'plots': plots_data,
-            'plot_storage_data': plot_storage_data,
-            'costs': [cost_data],
-            'available_plots': available_plots,
+            "activity_result": activity_result,
+            "plots": [
+                {
+                    "agent": "activity_interpreter",
+                    "plot_id": plot_id,
+                    "timestamp": datetime.now().isoformat(),
+                }
+                for plot_id in all_plots
+            ],
+            "plot_storage_data": {
+                plot_id: {
+                    "plot_id": plot_metadata.plot_id,
+                    "description": plot_metadata.description,
+                    "agent_name": plot_metadata.agent_name,
+                    "created_at": plot_metadata.created_at.isoformat(),
+                    "html_content": plot_metadata.html_content,
+                    "data_summary": plot_metadata.data_summary,
+                }
+                for plot_id, plot_metadata in all_plots.items()
+            },
+            "costs": [{
+                "agent": "activity_interpreter",
+                "execution_time": execution_time,
+                "timestamp": datetime.now().isoformat(),
+            }],
+            "available_plots": list(all_plots.keys()),
         }
 
     except Exception as e:
         logger.error(f"Activity interpreter node failed: {e}")
-        return {'errors': [f"Activity interpretation failed: {str(e)}"]}
+        return {"errors": [f"Activity interpretation failed: {str(e)}"]}

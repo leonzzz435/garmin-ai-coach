@@ -59,75 +59,62 @@ class ModelSelector:
 
     @classmethod
     def get_llm(cls, role: AgentRole):
-        config = get_config()
-
         model_name = ai_settings.get_model_for_role(role)
         model_config = cls.CONFIGURATIONS[model_name]
-
-        if "anthropic" in model_config.base_url:
-            api_key = config.anthropic_api_key
-        elif "openrouter" in model_config.base_url:
-            api_key = config.openrouter_api_key
-        else:
-            api_key = config.openai_api_key
+        config = get_config()
+        
+        api_key_map = {
+            "anthropic": config.anthropic_api_key,
+            "openrouter": config.openrouter_api_key,
+        }
+        api_key = next((api_key_map[k] for k in api_key_map if k in model_config.base_url), config.openai_api_key)
 
         logger.info(f"Configuring LLM for role {role.value} with model {model_config.name}")
 
-        # Base LLM parameters - optimized for training analysis tasks
-        llm_params = {
-            "model": model_config.name,
+        llm_params = {"model": model_config.name, "api_key": api_key}
+        
+        model_configs = {
+            "claude-opus-thinking": {
+                "max_tokens": 32000,
+                "thinking": {"type": "enabled", "budget_tokens": 16000},
+                "log": "Using extended thinking mode for {role} (max_tokens: 32000, budget_tokens: 16000)",
+            },
+            "claude-4-thinking": {
+                "max_tokens": 64000,
+                "thinking": {"type": "enabled", "budget_tokens": 16000},
+                "log": "Using extended thinking mode for {role} (max_tokens: 64000, budget_tokens: 16000)",
+            },
+            "claude-4": {
+                "max_tokens": 64000,
+                "log": "Using extended output tokens for {role} (max_tokens: 64000)",
+            },
+            "claude-opus": {
+                "max_tokens": 32000,
+                "log": "Using extended output tokens for {role} (max_tokens: 32000)",
+            },
+            "gpt-5": {
+                "use_responses_api": True,
+                "reasoning": {"effort": "high"},
+                "model_kwargs": {"text": {"verbosity": "high"}},
+                "log": "Using GPT-5 with Responses API for {role} (verbosity: high, reasoning_effort: high)",
+            },
+            "gpt-5-mini": {
+                "use_responses_api": True,
+                "reasoning": {"effort": "high"},
+                "model_kwargs": {"text": {"verbosity": "high"}},
+                "log": "Using GPT-5-mini with Responses API for {role} (verbosity: high, reasoning_effort: high)",
+            },
         }
+        
+        if model_name in model_configs:
+            config_data = model_configs[model_name]
+            log_msg = config_data.pop("log", None)
+            llm_params.update(config_data)
+            if log_msg:
+                logger.info(log_msg.format(role=role.value))
 
-        # Configure thinking mode and token limits based on model
-        if model_name == "claude-opus-thinking":
-            llm_params["max_tokens"] = 32000
-            llm_params["thinking"] = {"type": "enabled", "budget_tokens": 16000}
-            logger.info(
-                f"Using extended thinking mode for {role.value} (max_tokens: 32000, budget_tokens: 16000)"
-            )
-        elif model_name == "claude-4-thinking":
-            llm_params["max_tokens"] = 64000
-            llm_params["thinking"] = {"type": "enabled", "budget_tokens": 16000}
-            logger.info(
-                f"Using extended thinking mode for {role.value} (max_tokens: 64000, budget_tokens: 16000)"
-            )
-        elif model_name == "claude-4":
-            llm_params["max_tokens"] = 64000
-            logger.info(f"Using extended output tokens for {role.value} (max_tokens: 64000)")
-        elif model_name == "claude-opus":
-            llm_params["max_tokens"] = 32000
-            logger.info(f"Using extended output tokens for {role.value} (max_tokens: 32000)")
-        elif model_name == "gpt-5":
-            llm_params["use_responses_api"] = True
-            llm_params["reasoning"] = {"effort": "high"}
-            llm_params["model_kwargs"] = {
-                "text": {"verbosity": "high"}
-            }
-            logger.info(f"Using GPT-5 with Responses API for {role.value} (verbosity: high, reasoning_effort: high)")
-        elif model_name == "gpt-5-mini":
-            llm_params["use_responses_api"] = True
-            llm_params["reasoning"] = {"effort": "high"}
-            llm_params["model_kwargs"] = {
-                "text": {"verbosity": "high"}
-            }
-            logger.info(f"Using GPT-5-mini with Responses API for {role.value} (verbosity: high, reasoning_effort: high)")
-
-        # Create the appropriate LangChain LLM based on provider
         if "anthropic" in model_config.base_url:
-            llm_params["api_key"] = api_key
-            llm = ChatAnthropic(**llm_params)
-
-            logger.info(f"LLM configured without web search tools for {model_config.name}")
-
-        elif "openrouter" in model_config.base_url:
-            llm_params["api_key"] = api_key
-            llm_params["base_url"] = model_config.base_url
-            llm = ChatOpenAI(**llm_params)
-        else:
-            # Modern OpenAI configuration with Responses API support
-            llm_params["api_key"] = api_key
-            llm_params["base_url"] = model_config.base_url
-            llm = ChatOpenAI(**llm_params)
-
-        logger.info(f"LLM configured for {model_config.name}")
-        return llm
+            return ChatAnthropic(**llm_params)
+        
+        llm_params["base_url"] = model_config.base_url
+        return ChatOpenAI(**llm_params)

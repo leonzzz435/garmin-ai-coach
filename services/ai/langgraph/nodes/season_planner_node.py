@@ -63,27 +63,21 @@ Focus on:
 Format as structured markdown document with clear headings and bullet points"""
 
 
-async def season_planner_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
+async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | str]:
     logger.info("Starting season planner node")
 
     try:
-        llm = ModelSelector.get_llm(AgentRole.SEASON_PLANNER)
-
-        user_prompt = SEASON_PLANNER_USER_PROMPT.format(
-            athlete_name=state['athlete_name'],
-            current_date=json.dumps(state['current_date'], indent=2),
-            competitions=json.dumps(state['competitions'], indent=2),
-        )
-
-        messages = [
-            {"role": "system", "content": SEASON_PLANNER_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ]
-
         agent_start_time = datetime.now()
 
         async def call_season_planning():
-            response = await llm.ainvoke(messages)
+            response = await ModelSelector.get_llm(AgentRole.SEASON_PLANNER).ainvoke([
+                {"role": "system", "content": SEASON_PLANNER_SYSTEM_PROMPT},
+                {"role": "user", "content": SEASON_PLANNER_USER_PROMPT.format(
+                    athlete_name=state["athlete_name"],
+                    current_date=json.dumps(state["current_date"], indent=2),
+                    competitions=json.dumps(state["competitions"], indent=2),
+                )},
+            ])
             return extract_text_content(response)
 
         season_plan = await retry_with_backoff(
@@ -91,20 +85,17 @@ async def season_planner_node(state: TrainingAnalysisState) -> TrainingAnalysisS
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-
-        cost_data = {
-            'agent': 'season_planner',
-            'execution_time': execution_time,
-            'timestamp': datetime.now().isoformat(),
-        }
-
         logger.info(f"Season planning completed in {execution_time:.2f}s")
 
         return {
-            'season_plan': season_plan,
-            'costs': [cost_data],
+            "season_plan": season_plan,
+            "costs": [{
+                "agent": "season_planner",
+                "execution_time": execution_time,
+                "timestamp": datetime.now().isoformat(),
+            }],
         }
 
     except Exception as e:
         logger.error(f"Season planner node failed: {e}")
-        return {'errors': [f"Season planning failed: {str(e)}"]}
+        return {"errors": [f"Season planning failed: {str(e)}"]}

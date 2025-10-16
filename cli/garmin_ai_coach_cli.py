@@ -140,9 +140,8 @@ async def run_analysis_from_config(config_path: Path) -> None:
 
     password = config_parser.get_password()
 
-    ai_mode = extraction_settings.get('ai_mode', 'development')
-    os.environ['AI_MODE'] = ai_mode
-    logger.info(f"AI Mode: {ai_mode}")
+    os.environ['AI_MODE'] = extraction_settings.get('ai_mode', 'development')
+    logger.info(f"AI Mode: {os.environ['AI_MODE']}")
 
     from services.ai.langgraph.workflows.planning_workflow import run_complete_analysis_and_planning
     from services.garmin import ExtractionConfig, TriathlonCoachDataExtractor
@@ -163,16 +162,7 @@ async def run_analysis_from_config(config_path: Path) -> None:
         garmin_data = extractor.extract_data(extraction_config)
         logger.info("Data extraction completed")
 
-        current_date = {
-            'date': datetime.now().strftime('%Y-%m-%d'),
-            'day_name': datetime.now().strftime('%A'),
-        }
-
-        week_dates = []
-        for i in range(14):
-            date = datetime.now() + timedelta(days=i)
-            week_dates.append({'date': date.strftime('%Y-%m-%d'), 'day_name': date.strftime('%A')})
-
+        now = datetime.now()
         plotting_enabled = extraction_settings.get('enable_plotting', False)
         logger.info(f"Plotting enabled: {plotting_enabled}")
         
@@ -184,64 +174,60 @@ async def run_analysis_from_config(config_path: Path) -> None:
             analysis_context=analysis_context,
             planning_context=planning_context,
             competitions=competitions,
-            current_date=current_date,
-            week_dates=week_dates,
+            current_date={'date': now.strftime('%Y-%m-%d'), 'day_name': now.strftime('%A')},
+            week_dates=[
+                {'date': (now + timedelta(days=i)).strftime('%Y-%m-%d'),
+                 'day_name': (now + timedelta(days=i)).strftime('%A')}
+                for i in range(14)
+            ],
             plotting_enabled=plotting_enabled,
         )
 
         logger.info("Saving results...")
 
         files_generated: list[str] = []
-
-        analysis_html = result.get('analysis_html')
-        if analysis_html:
-            (output_dir / 'analysis.html').write_text(analysis_html, encoding='utf-8')
-            files_generated.append('analysis.html')
-            logger.info(f"Saved: {output_dir}/analysis.html")
-
-        planning_html = result.get('planning_html')
-        if planning_html:
-            (output_dir / 'planning.html').write_text(planning_html, encoding='utf-8')
-            files_generated.append('planning.html')
-            logger.info(f"Saved: {output_dir}/planning.html")
-
-        intermediate_results = {
-            'metrics_result.md': result.get('metrics_result'),
-            'activity_result.md': result.get('activity_result'),
-            'physiology_result.md': result.get('physiology_result'),
-            'season_plan.md': result.get('season_plan'),
-        }
-
-        for filename, content in intermediate_results.items():
+        
+        for filename, key in [
+            ('analysis.html', 'analysis_html'),
+            ('planning.html', 'planning_html'),
+            ('metrics_result.md', 'metrics_result'),
+            ('activity_result.md', 'activity_result'),
+            ('physiology_result.md', 'physiology_result'),
+            ('season_plan.md', 'season_plan'),
+        ]:
+            content = result.get(key)
             if content:
                 (output_dir / filename).write_text(content, encoding='utf-8')
                 files_generated.append(filename)
-                logger.info(f"Saved intermediate result: {output_dir}/{filename}")
+                logger.info(f"Saved: {output_dir}/{filename}")
 
-        cost_total = 0.0
-        total_tokens = 0
-        if isinstance(result.get('cost_summary'), dict):
-            cost_total = float(result['cost_summary'].get('total_cost_usd', 0.0) or 0.0)
-            total_tokens = int(result['cost_summary'].get('total_tokens', 0) or 0)
-        elif isinstance(result.get('execution_metadata'), dict):
-            cost_total = float(result['execution_metadata'].get('total_cost_usd', 0.0) or 0.0)
-            total_tokens = int(result['execution_metadata'].get('total_tokens', 0) or 0)
-        else:
-            cost_total = sum(cost.get('total_cost', 0) for cost in result.get('costs', []))
+        cost_summary = result.get('cost_summary', {})
+        execution_metadata = result.get('execution_metadata', {})
+        
+        cost_total = float(
+            cost_summary.get('total_cost_usd', 0.0) or
+            execution_metadata.get('total_cost_usd', 0.0) or
+            sum(cost.get('total_cost', 0) for cost in result.get('costs', []))
+        )
+        total_tokens = int(
+            cost_summary.get('total_tokens', 0) or
+            execution_metadata.get('total_tokens', 0)
+        )
 
-        summary = {
-            'athlete': athlete_name,
-            'analysis_date': datetime.now().isoformat(),
-            'competitions': competitions,
-            'total_cost_usd': cost_total,
-            'total_tokens': total_tokens,
-            'execution_id': result.get('execution_id', ''),
-            'trace_id': (result.get('execution_metadata') or {}).get('trace_id', ''),
-            'root_run_id': (result.get('execution_metadata') or {}).get('root_run_id', ''),
-            'files_generated': files_generated,
-        }
-
-        (output_dir / 'summary.json').write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding='utf-8')
+        (output_dir / 'summary.json').write_text(
+            json.dumps({
+                'athlete': athlete_name,
+                'analysis_date': datetime.now().isoformat(),
+                'competitions': competitions,
+                'total_cost_usd': cost_total,
+                'total_tokens': total_tokens,
+                'execution_id': result.get('execution_id', ''),
+                'trace_id': execution_metadata.get('trace_id', ''),
+                'root_run_id': execution_metadata.get('root_run_id', ''),
+                'files_generated': files_generated,
+            }, indent=2, ensure_ascii=False),
+            encoding='utf-8'
+        )
 
         logger.info("✅ Analysis completed successfully!")
         if outside_competitions:

@@ -97,33 +97,26 @@ The content contains special **[PLOT:plot_id]** references that will be automati
 - Ensure responsive design works with large embedded charts"""
 
 
-async def formatter_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
+async def formatter_node(state: TrainingAnalysisState) -> dict[str, list | str]:
     logger.info("Starting HTML formatter node")
 
     try:
-        llm = ModelSelector.get_llm(AgentRole.FORMATTER)
-        
-        plotting_enabled = state.get('plotting_enabled', False)
-        if plotting_enabled:
-            logger.info("Formatter node: Plotting enabled - including plot integration instructions")
-            user_prompt = FORMATTER_USER_PROMPT_BASE.format(
-                synthesis_result=state.get('synthesis_result', '')
-            ) + FORMATTER_PLOT_INSTRUCTIONS
-        else:
-            logger.info("Formatter node: Plotting disabled - no plot integration instructions")
-            user_prompt = FORMATTER_USER_PROMPT_BASE.format(
-                synthesis_result=state.get('synthesis_result', '')
-            )
-
-        messages = [
-            {"role": "system", "content": FORMATTER_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ]
+        plotting_enabled = state.get("plotting_enabled", False)
+        logger.info(
+            f"Formatter node: Plotting {'enabled' if plotting_enabled else 'disabled'} - "
+            f"{'including' if plotting_enabled else 'no'} plot integration instructions"
+        )
 
         agent_start_time = datetime.now()
 
         async def call_html_formatting():
-            response = await llm.ainvoke(messages)
+            response = await ModelSelector.get_llm(AgentRole.FORMATTER).ainvoke([
+                {"role": "system", "content": FORMATTER_SYSTEM_PROMPT},
+                {"role": "user", "content": (
+                    FORMATTER_USER_PROMPT_BASE.format(synthesis_result=state.get("synthesis_result", ""))
+                    + (FORMATTER_PLOT_INSTRUCTIONS if plotting_enabled else "")
+                )},
+            ])
             return extract_text_content(response)
 
         analysis_html = await retry_with_backoff(
@@ -131,20 +124,17 @@ async def formatter_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-
-        cost_data = {
-            'agent': 'formatter',
-            'execution_time': execution_time,
-            'timestamp': datetime.now().isoformat(),
-        }
-
         logger.info(f"HTML formatting completed in {execution_time:.2f}s")
 
         return {
-            'analysis_html': analysis_html,
-            'costs': [cost_data],
+            "analysis_html": analysis_html,
+            "costs": [{
+                "agent": "formatter",
+                "execution_time": execution_time,
+                "timestamp": datetime.now().isoformat(),
+            }],
         }
 
     except Exception as e:
         logger.error(f"Formatter node failed: {e}")
-        return {'errors': [f"HTML formatting failed: {str(e)}"]}
+        return {"errors": [f"HTML formatting failed: {str(e)}"]}

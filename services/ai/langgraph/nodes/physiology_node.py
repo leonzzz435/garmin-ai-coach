@@ -103,72 +103,51 @@ Analyze only the data that is actually present in the input. If analysis context
 - Focus on factual analysis without speculation about unavailable data"""
 
 
-async def physiology_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
+async def physiology_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
     logger.info("Starting physiology analysis node")
 
     try:
-        plot_storage = PlotStorage(state['execution_id'])
-        llm = ModelSelector.get_llm(AgentRole.PHYSIO)
+        plot_storage = PlotStorage(state["execution_id"])
+        plotting_enabled = state.get("plotting_enabled", False)
         
-        plotting_enabled = state.get('plotting_enabled', False)
+        logger.info(
+            f"Physiology node: Plotting {'enabled - binding plotting tools' if plotting_enabled else 'disabled - no plotting tools bound'}"
+        )
+
         if plotting_enabled:
-            logger.info("Physiology node: Plotting enabled - binding plotting tools")
             plotting_tool = create_plotting_tools(plot_storage, agent_name="physiology")
-            llm_with_tools = llm.bind_tools([plotting_tool])
+            llm_with_tools = ModelSelector.get_llm(AgentRole.PHYSIO).bind_tools([plotting_tool])
             tools = [plotting_tool]
             system_prompt = PHYSIOLOGY_SYSTEM_PROMPT_BASE + PHYSIOLOGY_PLOTTING_INSTRUCTIONS
         else:
-            logger.info("Physiology node: Plotting disabled - no plotting tools bound")
-            llm_with_tools = llm
+            llm_with_tools = ModelSelector.get_llm(AgentRole.PHYSIO)
             tools = []
             system_prompt = PHYSIOLOGY_SYSTEM_PROMPT_BASE
 
-        physiology_data = {}
-
-        if state['garmin_data'].get('physiological_markers'):
-            physiology_data['hrv_data'] = state['garmin_data']['physiological_markers'].get(
-                'hrv', {}
-            )
-        else:
-            physiology_data['hrv_data'] = {}
-
-        recovery_indicators = state['garmin_data'].get('recovery_indicators', [])
-        sleep_data = []
-        stress_data = []
-
-        for indicator in recovery_indicators:
-            if indicator.get('sleep'):
-                sleep_data.append(indicator['sleep'])
-            if indicator.get('stress'):
-                stress_data.append(indicator['stress'])
-
-        physiology_data['sleep_data'] = sleep_data
-        physiology_data['stress_data'] = stress_data
-
-        physiology_data['recovery_metrics'] = {
-            'physiological_markers': state['garmin_data'].get('physiological_markers', {}),
-            'body_metrics': state['garmin_data'].get('body_metrics', {}),
-            'recovery_indicators': recovery_indicators,
-        }
-
-        user_prompt = PHYSIOLOGY_USER_PROMPT.format(
-            data=json.dumps(physiology_data, indent=2),
-            competitions=json.dumps(state['competitions'], indent=2),
-            current_date=json.dumps(state['current_date'], indent=2),
-            analysis_context=state['analysis_context'],
-        )
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ]
-
+        recovery_indicators = state["garmin_data"].get("recovery_indicators", [])
         agent_start_time = datetime.now()
 
         async def call_physiology_analysis():
             return await handle_tool_calling_in_node(
                 llm_with_tools=llm_with_tools,
-                messages=messages,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": PHYSIOLOGY_USER_PROMPT.format(
+                        data=json.dumps({
+                            "hrv_data": state["garmin_data"].get("physiological_markers", {}).get("hrv", {}),
+                            "sleep_data": [ind["sleep"] for ind in recovery_indicators if ind.get("sleep")],
+                            "stress_data": [ind["stress"] for ind in recovery_indicators if ind.get("stress")],
+                            "recovery_metrics": {
+                                "physiological_markers": state["garmin_data"].get("physiological_markers", {}),
+                                "body_metrics": state["garmin_data"].get("body_metrics", {}),
+                                "recovery_indicators": recovery_indicators,
+                            },
+                        }, indent=2),
+                        competitions=json.dumps(state["competitions"], indent=2),
+                        current_date=json.dumps(state["current_date"], indent=2),
+                        analysis_context=state["analysis_context"],
+                    )},
+                ],
                 tools=tools,
                 max_iterations=15,
             )
@@ -178,44 +157,38 @@ async def physiology_node(state: TrainingAnalysisState) -> TrainingAnalysisState
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-
         all_plots = plot_storage.get_all_plots()
-        plot_storage_data = {}
-
-        for plot_id, plot_metadata in all_plots.items():
-            plot_storage_data[plot_id] = {
-                'plot_id': plot_metadata.plot_id,
-                'description': plot_metadata.description,
-                'agent_name': plot_metadata.agent_name,
-                'created_at': plot_metadata.created_at.isoformat(),
-                'html_content': plot_metadata.html_content,
-                'data_summary': plot_metadata.data_summary,
-            }
-
-        available_plots = list(all_plots.keys())
-        plots_data = [
-            {'agent': 'physiology', 'plot_id': plot_id, 'timestamp': datetime.now().isoformat()}
-            for plot_id in available_plots
-        ]
-
-        cost_data = {
-            'agent': 'physiology',
-            'execution_time': execution_time,
-            'timestamp': datetime.now().isoformat(),
-        }
+        timestamp_iso = datetime.now().isoformat()
 
         logger.info(
-            f"Physiology analysis completed in {execution_time:.2f}s with {len(available_plots)} plots"
+            f"Physiology analysis completed in {execution_time:.2f}s with {len(all_plots)} plots"
         )
 
         return {
-            'physiology_result': physiology_result,
-            'plots': plots_data,
-            'plot_storage_data': plot_storage_data,
-            'costs': [cost_data],
-            'available_plots': available_plots,
+            "physiology_result": physiology_result,
+            "plots": [
+                {"agent": "physiology", "plot_id": plot_id, "timestamp": timestamp_iso}
+                for plot_id in all_plots
+            ],
+            "plot_storage_data": {
+                plot_id: {
+                    "plot_id": metadata.plot_id,
+                    "description": metadata.description,
+                    "agent_name": metadata.agent_name,
+                    "created_at": metadata.created_at.isoformat(),
+                    "html_content": metadata.html_content,
+                    "data_summary": metadata.data_summary,
+                }
+                for plot_id, metadata in all_plots.items()
+            },
+            "costs": [{
+                "agent": "physiology",
+                "execution_time": execution_time,
+                "timestamp": timestamp_iso,
+            }],
+            "available_plots": list(all_plots.keys()),
         }
 
     except Exception as e:
         logger.error(f"Physiology analysis node failed: {e}")
-        return {'errors': [f"Physiology analysis failed: {str(e)}"]}
+        return {"errors": [f"Physiology analysis failed: {str(e)}"]}

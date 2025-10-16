@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class PlotReferenceResolver:
-    PLOT_PATTERN = r'\[PLOT:([^\]]+)\]'
+    PLOT_PATTERN = r"\[PLOT:([^\]]+)\]"
 
     def __init__(self, plot_storage: PlotStorage):
         self.plot_storage = plot_storage
@@ -26,12 +26,9 @@ class PlotReferenceResolver:
 
         resolved_text = re.sub(self.PLOT_PATTERN, replace_plot_reference, text)
         
-        original_refs = len(re.findall(self.PLOT_PATTERN, text))
-        duplicates_removed = original_refs - len(resolved_plots)
-        
         logger.info(
-            f"Resolved {len(resolved_plots)}/{original_refs} plot references, "
-            f"removed {duplicates_removed} duplicates"
+            f"Resolved {len(resolved_plots)}/{len(re.findall(self.PLOT_PATTERN, text))} plot references, "
+            f"removed {len(re.findall(self.PLOT_PATTERN, text)) - len(resolved_plots)} duplicates"
         )
         
         return resolved_text
@@ -72,31 +69,28 @@ class PlotReferenceResolver:
 
     def validate_plot_references(self, text: str) -> dict[str, Any]:
         referenced_plots = self.extract_plot_references(text)
-        available_plots = set(self.plot_storage.get_all_plots().keys())
+        available = set(self.plot_storage.get_all_plots().keys())
+        found, missing = [], []
         
-        found_plots = [pid for pid in referenced_plots if pid in available_plots]
-        missing_plots = [pid for pid in referenced_plots if pid not in available_plots]
+        for pid in referenced_plots:
+            (found if pid in available else missing).append(pid)
         
         return {
             "total_references": len(referenced_plots),
             "unique_references": len(set(referenced_plots)),
-            "found_plots": found_plots,
-            "missing_plots": missing_plots,
-            "validation_passed": len(missing_plots) == 0,
+            "found_plots": found,
+            "missing_plots": missing,
+            "validation_passed": len(missing) == 0,
         }
 
     def get_plot_summary(self) -> str:
-        plots = self.plot_storage.list_available_plots()
-        
-        if not plots:
+        if not (plots := self.plot_storage.list_available_plots()):
             return "No plots available"
         
-        summary_lines = [f"Available plots ({len(plots)}):"] + [
-            f"  - {plot['plot_id']}: {plot['description']} (by {plot['agent_name']})"
-            for plot in plots
-        ]
-        
-        return "\n".join(summary_lines)
+        return "\n".join([
+            f"Available plots ({len(plots)}):",
+            *[f"  - {plot['plot_id']}: {plot['description']} (by {plot['agent_name']})" for plot in plots]
+        ])
 
 
 class HTMLPlotEmbedder:
