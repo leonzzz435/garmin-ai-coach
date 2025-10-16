@@ -25,6 +25,7 @@ def sample_state(sample_garmin_data):
         athlete_name="Test Athlete",
         garmin_data=sample_garmin_data,
         execution_id="test_exec_123",
+        plotting_enabled=True
     )
 
 
@@ -54,7 +55,7 @@ def test_workflow_creation(mock_langsmith):
 @pytest.mark.asyncio
 @patch('services.ai.model_config.ModelSelector.get_llm')
 @patch('services.ai.tools.plotting.PlotStorage')
-@patch('services.ai.utils.retry_handler.retry_with_backoff', new_callable=AsyncMock)
+@patch('services.ai.langgraph.nodes.metrics_node.retry_with_backoff', new_callable=AsyncMock)
 async def test_metrics_node_basic(mock_retry, mock_plot_storage, mock_get_llm, sample_state):
     mock_llm = Mock()
     mock_llm_with_tools = Mock()

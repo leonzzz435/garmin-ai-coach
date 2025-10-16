@@ -11,6 +11,19 @@ logger = logging.getLogger(__name__)
 async def plot_resolution_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
     logger.info("Starting plot resolution node")
 
+    if not state.get('plotting_enabled', False):
+        logger.info("Plotting disabled - skipping plot resolution")
+        return {
+            'analysis_html': state.get('analysis_html', ''),
+            'plot_resolution_stats': {
+                'total_references': 0,
+                'resolved_count': 0,
+                'missing_plots': [],
+                'skipped': True,
+                'reason': 'plotting_disabled',
+            },
+        }
+
     try:
         analysis_html = state.get('analysis_html', '')
 

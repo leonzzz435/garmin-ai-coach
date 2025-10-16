@@ -37,7 +37,7 @@ class ModelSelector:
             name="claude-sonnet-4-20250514", base_url="https://api.anthropic.com"
         ),
         "claude-4-thinking": ModelConfiguration(
-            name="claude-sonnet-4-20250514", base_url="https://api.anthropic.com"
+            name="claude-sonnet-4-5-20250929", base_url="https://api.anthropic.com"
         ),
         "claude-opus": ModelConfiguration(
             name="claude-opus-4-1-20250805", base_url="https://api.anthropic.com"

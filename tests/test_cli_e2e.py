@@ -20,6 +20,7 @@ async def test_cli_e2e_smoke_with_mocks(tmp_path, monkeypatch):
         competitions: list,
         current_date: dict,
         week_dates: list,
+        plotting_enabled: bool = False,
     ):
         return {
             "analysis_html": "<html><body>Analysis OK</body></html>",
