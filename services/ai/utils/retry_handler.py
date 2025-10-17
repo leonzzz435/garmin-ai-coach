@@ -9,6 +9,19 @@ import anthropic
 
 logger = logging.getLogger(__name__)
 
+# Import GraphInterrupt exception class (not the interrupt function!)
+try:
+    from langgraph.errors import GraphInterrupt
+except ImportError:
+    try:
+        # Older versions may have NodeInterrupt
+        from langgraph.errors import NodeInterrupt as GraphInterrupt
+    except ImportError:
+        # Fallback if langgraph not available - create a real exception class
+        class GraphInterrupt(BaseException):  # type: ignore
+            """Placeholder exception for when LangGraph is not installed"""
+            pass
+
 
 class RetryableError(Exception):
     pass
@@ -64,6 +77,10 @@ async def retry_with_backoff(
         try:
             logger.debug(f"Attempting {context} (attempt {attempt + 1}/{config.max_retries + 1})")
             return await func()
+
+        except GraphInterrupt:
+            # CRITICAL: Let LangGraph handle the pause/resume - do not wrap or retry
+            raise
 
         except Exception as e:
             last_exception = e

@@ -67,6 +67,7 @@ class ConfigParser:
             'metrics_days': extraction.get('metrics_days', 14),
             'ai_mode': extraction.get('ai_mode', 'development'),
             'enable_plotting': extraction.get('enable_plotting', False),
+            'hitl_enabled': extraction.get('hitl_enabled', True),
         }
 
     def get_competitions(self) -> list[dict[str, Any]]:
@@ -143,7 +144,12 @@ async def run_analysis_from_config(config_path: Path) -> None:
     os.environ['AI_MODE'] = extraction_settings.get('ai_mode', 'development')
     logger.info(f"AI Mode: {os.environ['AI_MODE']}")
 
-    from services.ai.langgraph.workflows.planning_workflow import run_complete_analysis_and_planning
+    from services.ai.langgraph.state.training_analysis_state import create_initial_state
+    from services.ai.langgraph.workflows.interactive_runner import run_workflow_with_hitl
+    from services.ai.langgraph.workflows.planning_workflow import (
+        create_integrated_analysis_and_planning_workflow,
+        run_complete_analysis_and_planning,
+    )
     from services.garmin import ExtractionConfig, TriathlonCoachDataExtractor
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -164,24 +170,68 @@ async def run_analysis_from_config(config_path: Path) -> None:
 
         now = datetime.now()
         plotting_enabled = extraction_settings.get('enable_plotting', False)
+        hitl_enabled = extraction_settings.get('hitl_enabled', True)
+        
         logger.info(f"Plotting enabled: {plotting_enabled}")
+        logger.info(f"HITL enabled: {hitl_enabled}")
+        
+        current_date = {'date': now.strftime('%Y-%m-%d'), 'day_name': now.strftime('%A')}
+        week_dates = [
+            {'date': (now + timedelta(days=i)).strftime('%Y-%m-%d'),
+             'day_name': (now + timedelta(days=i)).strftime('%A')}
+            for i in range(14)
+        ]
         
         logger.info("Running AI analysis and planning...")
-        result = await run_complete_analysis_and_planning(
-            user_id="cli_user",
-            athlete_name=athlete_name,
-            garmin_data=asdict(garmin_data),
-            analysis_context=analysis_context,
-            planning_context=planning_context,
-            competitions=competitions,
-            current_date={'date': now.strftime('%Y-%m-%d'), 'day_name': now.strftime('%A')},
-            week_dates=[
-                {'date': (now + timedelta(days=i)).strftime('%Y-%m-%d'),
-                 'day_name': (now + timedelta(days=i)).strftime('%A')}
-                for i in range(14)
-            ],
-            plotting_enabled=plotting_enabled,
-        )
+        
+        if hitl_enabled:
+            def prompt_user(question: str) -> str:
+                print(f"\n{'='*70}")
+                print(f"🤖 AGENT QUESTION:")
+                print(f"{'='*70}")
+                print(f"\n{question}\n")
+                response = input("👤 Your answer: ").strip()
+                return response
+            
+            def show_progress(message: str) -> None:
+                logger.info(message)
+            
+            workflow = create_integrated_analysis_and_planning_workflow()
+            execution_id = f"cli_user_{datetime.now().strftime('%Y%m%d_%H%M%S')}_complete"
+            config = {"configurable": {"thread_id": execution_id}}
+            
+            result = await run_workflow_with_hitl(
+                workflow_app=workflow,
+                initial_state=create_initial_state(
+                    user_id="cli_user",
+                    athlete_name=athlete_name,
+                    garmin_data=asdict(garmin_data),
+                    analysis_context=analysis_context,
+                    planning_context=planning_context,
+                    competitions=competitions,
+                    current_date=current_date,
+                    week_dates=week_dates,
+                    execution_id=execution_id,
+                    plotting_enabled=plotting_enabled,
+                    hitl_enabled=True,
+                ),
+                config=config,
+                prompt_callback=prompt_user,
+                progress_callback=show_progress,
+            )
+        else:
+            result = await run_complete_analysis_and_planning(
+                user_id="cli_user",
+                athlete_name=athlete_name,
+                garmin_data=asdict(garmin_data),
+                analysis_context=analysis_context,
+                planning_context=planning_context,
+                competitions=competitions,
+                current_date=current_date,
+                week_dates=week_dates,
+                plotting_enabled=plotting_enabled,
+                hitl_enabled=False,
+            )
 
         logger.info("Saving results...")
 

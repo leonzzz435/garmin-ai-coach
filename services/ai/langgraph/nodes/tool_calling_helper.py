@@ -4,6 +4,17 @@ from langchain_core.messages import ToolMessage
 
 logger = logging.getLogger(__name__)
 
+# Import GraphInterrupt exception class (not the interrupt function!)
+try:
+    from langgraph.errors import GraphInterrupt
+except ImportError:
+    try:
+        from langgraph.errors import NodeInterrupt as GraphInterrupt
+    except ImportError:
+        class GraphInterrupt(BaseException):  # type: ignore
+            """Placeholder exception for when LangGraph is not installed"""
+            pass
+
 
 def extract_text_content(response) -> str:
     content = response.content if hasattr(response, 'content') else str(response)
@@ -62,6 +73,7 @@ async def handle_tool_calling_in_node(
                     logger.error(error_msg)
                     tool_result = error_msg
                 else:
+                    # Execute tool - GraphInterrupt will bubble up for HITL
                     try:
                         if hasattr(tool, 'ainvoke'):
                             tool_result = await tool.ainvoke(tool_args)
@@ -73,9 +85,11 @@ async def handle_tool_calling_in_node(
                             tool_result = f"Unable to invoke tool {tool_name}"
 
                         logger.info(f"Tool {tool_name} executed successfully")
-                    except Exception as e:
-                        tool_result = f"Tool execution error: {str(e)}"
-                        logger.error(f"Tool {tool_name} failed: {e}")
+                    
+                    except GraphInterrupt:
+                        # CRITICAL: Let LangGraph handle the pause/resume
+                        logger.info(f"Tool {tool_name} triggered HITL interrupt - pausing workflow")
+                        raise
 
                 tool_message = ToolMessage(content=str(tool_result), tool_call_id=tool_id)
                 conversation.append(tool_message)

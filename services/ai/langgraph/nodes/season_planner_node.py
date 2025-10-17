@@ -4,12 +4,24 @@ from datetime import datetime
 
 from services.ai.ai_settings import AgentRole
 from services.ai.model_config import ModelSelector
+from services.ai.tools.hitl import ask_human_tool
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
-from .tool_calling_helper import extract_text_content
+from .tool_calling_helper import extract_text_content, handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
+
+# Import GraphInterrupt exception class (not the interrupt function!)
+try:
+    from langgraph.errors import GraphInterrupt
+except ImportError:
+    try:
+        from langgraph.errors import NodeInterrupt as GraphInterrupt
+    except ImportError:
+        class GraphInterrupt(BaseException):  # type: ignore
+            """Placeholder exception for when LangGraph is not installed"""
+            pass
 
 SEASON_PLANNER_SYSTEM_PROMPT = """You are Coach Magnus Thorsson, a legendary ultra-endurance champion from Iceland who developed the "Thorsson Method" of periodization.
 
@@ -32,6 +44,24 @@ Create high-level season plans that provide frameworks for long-term athletic de
 
 ## Communication Style
 Communicate with the quiet confidence of someone who has both achieved at the highest level and successfully guided others to do the same."""
+
+SEASON_PLANNER_HITL_INSTRUCTIONS = """
+
+## 🤝 HUMAN INTERACTION CAPABILITY
+
+You have access to the `ask_human` tool to request clarification or additional information from the user.
+
+**How to use ask_human:**
+- Ask ONE clear, specific question at a time
+- Provide brief context about why you're asking
+- Keep questions focused and actionable
+- Don't ask questions if the answer is already in the provided data
+
+**Response handling:**
+- Incorporate the human's answer into your analysis
+- If the answer raises new questions, you can ask follow-up questions
+- Acknowledge the information provided in your final analysis
+"""
 
 SEASON_PLANNER_USER_PROMPT = """Create a high-level season plan covering the next 12-24 weeks based on the athlete's competition schedule.
 
@@ -67,18 +97,41 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
     logger.info("Starting season planner node")
 
     try:
+        hitl_enabled = state.get("hitl_enabled", True)
+        
+        logger.info(f"Season planner node: HITL {'enabled' if hitl_enabled else 'disabled'}")
+        
         agent_start_time = datetime.now()
 
-        async def call_season_planning():
-            response = await ModelSelector.get_llm(AgentRole.SEASON_PLANNER).ainvoke([
-                {"role": "system", "content": SEASON_PLANNER_SYSTEM_PROMPT},
-                {"role": "user", "content": SEASON_PLANNER_USER_PROMPT.format(
-                    athlete_name=state["athlete_name"],
-                    current_date=json.dumps(state["current_date"], indent=2),
-                    competitions=json.dumps(state["competitions"], indent=2),
-                )},
-            ])
-            return extract_text_content(response)
+        if hitl_enabled:
+            system_prompt = SEASON_PLANNER_SYSTEM_PROMPT + SEASON_PLANNER_HITL_INSTRUCTIONS
+            llm_with_tools = ModelSelector.get_llm(AgentRole.SEASON_PLANNER).bind_tools([ask_human_tool])
+            
+            async def call_season_planning():
+                return await handle_tool_calling_in_node(
+                    llm_with_tools=llm_with_tools,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": SEASON_PLANNER_USER_PROMPT.format(
+                            athlete_name=state["athlete_name"],
+                            current_date=json.dumps(state["current_date"], indent=2),
+                            competitions=json.dumps(state["competitions"], indent=2),
+                        )},
+                    ],
+                    tools=[ask_human_tool],
+                    max_iterations=15,
+                )
+        else:
+            async def call_season_planning():
+                response = await ModelSelector.get_llm(AgentRole.SEASON_PLANNER).ainvoke([
+                    {"role": "system", "content": SEASON_PLANNER_SYSTEM_PROMPT},
+                    {"role": "user", "content": SEASON_PLANNER_USER_PROMPT.format(
+                        athlete_name=state["athlete_name"],
+                        current_date=json.dumps(state["current_date"], indent=2),
+                        competitions=json.dumps(state["competitions"], indent=2),
+                    )},
+                ])
+                return extract_text_content(response)
 
         season_plan = await retry_with_backoff(
             call_season_planning, AI_ANALYSIS_CONFIG, "Season Planning"
@@ -96,6 +149,10 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
             }],
         }
 
+    except GraphInterrupt:
+        # CRITICAL: Let LangGraph handle the pause/resume - do not wrap or catch
+        raise
+    
     except Exception as e:
         logger.error(f"Season planner node failed: {e}")
         return {"errors": [f"Season planning failed: {str(e)}"]}

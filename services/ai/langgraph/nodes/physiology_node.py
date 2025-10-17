@@ -4,6 +4,7 @@ from datetime import datetime
 
 from services.ai.ai_settings import AgentRole
 from services.ai.model_config import ModelSelector
+from services.ai.tools.hitl import ask_human_tool
 from services.ai.tools.plotting import PlotStorage, create_plotting_tools
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
@@ -11,6 +12,17 @@ from ..state.training_analysis_state import TrainingAnalysisState
 from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
+
+# Import GraphInterrupt exception class (not the interrupt function!)
+try:
+    from langgraph.errors import GraphInterrupt
+except ImportError:
+    try:
+        from langgraph.errors import NodeInterrupt as GraphInterrupt
+    except ImportError:
+        class GraphInterrupt(BaseException):  # type: ignore
+            """Placeholder exception for when LangGraph is not installed"""
+            pass
 
 PHYSIOLOGY_SYSTEM_PROMPT_BASE = """You are Dr. Kwame Osei, a pioneering physiologist whose "Adaptive Recovery Protocol" has transformed how elite athletes approach training recovery.
 
@@ -62,6 +74,24 @@ Use python_plotting_tool only when absolutely necessary for insights beyond stan
 
 **Your plot references will be automatically converted to interactive charts in the final report.**"""
 
+PHYSIOLOGY_HITL_INSTRUCTIONS = """
+
+## 🤝 HUMAN INTERACTION CAPABILITY
+
+You have access to the `ask_human` tool to request clarification or additional information from the user.
+
+**How to use ask_human:**
+- Ask ONE clear, specific question at a time
+- Provide brief context about why you're asking
+- Keep questions focused and actionable
+- Don't ask questions if the answer is already in the provided data
+
+**Response handling:**
+- Incorporate the human's answer into your analysis
+- If the answer raises new questions, you can ask follow-up questions
+- Acknowledge the information provided in your final analysis
+"""
+
 PHYSIOLOGY_USER_PROMPT = """Analyze the athlete's physiological data to assess recovery status and adaptation state.
 
 ## IMPORTANT: Output Context
@@ -109,20 +139,29 @@ async def physiology_node(state: TrainingAnalysisState) -> dict[str, list | str 
     try:
         plot_storage = PlotStorage(state["execution_id"])
         plotting_enabled = state.get("plotting_enabled", False)
+        hitl_enabled = state.get("hitl_enabled", True)
         
         logger.info(
-            f"Physiology node: Plotting {'enabled - binding plotting tools' if plotting_enabled else 'disabled - no plotting tools bound'}"
+            f"Physiology node: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
+            f"HITL {'enabled' if hitl_enabled else 'disabled'}"
         )
 
+        tools = []
+        system_prompt = PHYSIOLOGY_SYSTEM_PROMPT_BASE
+        
         if plotting_enabled:
             plotting_tool = create_plotting_tools(plot_storage, agent_name="physiology")
-            llm_with_tools = ModelSelector.get_llm(AgentRole.PHYSIO).bind_tools([plotting_tool])
-            tools = [plotting_tool]
-            system_prompt = PHYSIOLOGY_SYSTEM_PROMPT_BASE + PHYSIOLOGY_PLOTTING_INSTRUCTIONS
+            tools.append(plotting_tool)
+            system_prompt += PHYSIOLOGY_PLOTTING_INSTRUCTIONS
+        
+        if hitl_enabled:
+            tools.append(ask_human_tool)
+            system_prompt += PHYSIOLOGY_HITL_INSTRUCTIONS
+        
+        if tools:
+            llm_with_tools = ModelSelector.get_llm(AgentRole.PHYSIO).bind_tools(tools)
         else:
             llm_with_tools = ModelSelector.get_llm(AgentRole.PHYSIO)
-            tools = []
-            system_prompt = PHYSIOLOGY_SYSTEM_PROMPT_BASE
 
         recovery_indicators = state["garmin_data"].get("recovery_indicators", [])
         agent_start_time = datetime.now()
@@ -189,6 +228,10 @@ async def physiology_node(state: TrainingAnalysisState) -> dict[str, list | str 
             "available_plots": list(all_plots.keys()),
         }
 
+    except GraphInterrupt:
+        # CRITICAL: Let LangGraph handle the pause/resume - do not wrap or catch
+        raise
+    
     except Exception as e:
         logger.error(f"Physiology analysis node failed: {e}")
         return {"errors": [f"Physiology analysis failed: {str(e)}"]}

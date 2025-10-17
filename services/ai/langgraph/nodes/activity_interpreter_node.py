@@ -4,6 +4,7 @@ from datetime import datetime
 
 from services.ai.ai_settings import AgentRole
 from services.ai.model_config import ModelSelector
+from services.ai.tools.hitl import ask_human_tool
 from services.ai.tools.plotting import PlotStorage, create_plotting_tools
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
@@ -11,6 +12,17 @@ from ..state.training_analysis_state import TrainingAnalysisState
 from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
+
+# Import GraphInterrupt exception class (not the interrupt function!)
+try:
+    from langgraph.errors import GraphInterrupt
+except ImportError:
+    try:
+        from langgraph.errors import NodeInterrupt as GraphInterrupt
+    except ImportError:
+        class GraphInterrupt(BaseException):  # type: ignore
+            """Placeholder exception for when LangGraph is not installed"""
+            pass
 
 ACTIVITY_INTERPRETER_SYSTEM_PROMPT_BASE = """You are Coach Elena Petrova, a legendary session analyst whose "Technical Execution Framework" has helped athletes break records in everything from the 800m to ultramarathons.
 
@@ -63,6 +75,24 @@ Use python_plotting_tool only when absolutely necessary for insights beyond stan
 **Why This Matters**: Duplicate references create multiple identical HTML elements with the same ID, breaking the final report. Each plot reference becomes an interactive chart - you only need one.
 
 **Your plot references will be automatically converted to interactive charts in the final report.**"""
+
+ACTIVITY_INTERPRETER_HITL_INSTRUCTIONS = """
+
+## 🤝 HUMAN INTERACTION CAPABILITY
+
+You have access to the `ask_human` tool to request clarification or additional information from the user.
+
+**How to use ask_human:**
+- Ask ONE clear, specific question at a time
+- Provide brief context about why you're asking
+- Keep questions focused and actionable
+- Don't ask questions if the answer is already in the provided data
+
+**Response handling:**
+- Incorporate the human's answer into your analysis
+- If the answer raises new questions, you can ask follow-up questions
+- Acknowledge the information provided in your final analysis
+"""
 
 ACTIVITY_INTERPRETER_USER_PROMPT = """Interpret structured activity summaries to identify patterns and provide guidance.
 
@@ -126,20 +156,29 @@ async def activity_interpreter_node(state: TrainingAnalysisState) -> dict[str, l
     try:
         plot_storage = PlotStorage(state["execution_id"])
         plotting_enabled = state.get("plotting_enabled", False)
+        hitl_enabled = state.get("hitl_enabled", True)
         
         logger.info(
-            f"Activity interpreter node: Plotting {'enabled - binding plotting tools' if plotting_enabled else 'disabled - no plotting tools bound'}"
+            f"Activity interpreter node: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
+            f"HITL {'enabled' if hitl_enabled else 'disabled'}"
         )
 
+        tools = []
+        system_prompt = ACTIVITY_INTERPRETER_SYSTEM_PROMPT_BASE
+        
         if plotting_enabled:
             plotting_tool = create_plotting_tools(plot_storage, agent_name="activity")
-            llm_with_tools = ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER).bind_tools([plotting_tool])
-            tools = [plotting_tool]
-            system_prompt = ACTIVITY_INTERPRETER_SYSTEM_PROMPT_BASE + ACTIVITY_INTERPRETER_PLOTTING_INSTRUCTIONS
+            tools.append(plotting_tool)
+            system_prompt += ACTIVITY_INTERPRETER_PLOTTING_INSTRUCTIONS
+        
+        if hitl_enabled:
+            tools.append(ask_human_tool)
+            system_prompt += ACTIVITY_INTERPRETER_HITL_INSTRUCTIONS
+        
+        if tools:
+            llm_with_tools = ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER).bind_tools(tools)
         else:
             llm_with_tools = ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER)
-            tools = []
-            system_prompt = ACTIVITY_INTERPRETER_SYSTEM_PROMPT_BASE
 
         agent_start_time = datetime.now()
 
@@ -199,6 +238,10 @@ async def activity_interpreter_node(state: TrainingAnalysisState) -> dict[str, l
             "available_plots": list(all_plots.keys()),
         }
 
+    except GraphInterrupt:
+        # CRITICAL: Let LangGraph handle the pause/resume - do not wrap or catch
+        raise
+    
     except Exception as e:
         logger.error(f"Activity interpreter node failed: {e}")
         return {"errors": [f"Activity interpretation failed: {str(e)}"]}

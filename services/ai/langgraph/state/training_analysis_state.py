@@ -15,6 +15,7 @@ class TrainingAnalysisState(MessagesState):
     week_dates: list[dict[str, str]]
     style_guide: str
     plotting_enabled: bool
+    hitl_enabled: bool
 
     metrics_result: str | None
     activity_summary: str | None
@@ -51,6 +52,7 @@ def create_initial_state(
     style_guide: str = "",
     execution_id: str = "",
     plotting_enabled: bool = False,
+    hitl_enabled: bool = True,
 ) -> TrainingAnalysisState:
     return TrainingAnalysisState(
         user_id=user_id,
@@ -63,6 +65,7 @@ def create_initial_state(
         week_dates=week_dates or [],
         style_guide=style_guide,
         plotting_enabled=plotting_enabled,
+        hitl_enabled=hitl_enabled,
         execution_id=execution_id,
         metrics_result=None,
         activity_summary=None,
