@@ -14,6 +14,7 @@ class TrainingAnalysisState(MessagesState):
     current_date: dict[str, str]
     week_dates: list[dict[str, str]]
     style_guide: str
+    plotting_enabled: bool
 
     metrics_result: str | None
     activity_summary: str | None
@@ -44,11 +45,12 @@ def create_initial_state(
     garmin_data: dict[str, Any],
     analysis_context: str = "",
     planning_context: str = "",
-    competitions: list[dict[str, Any]] = None,
-    current_date: dict[str, str] = None,
-    week_dates: list[dict[str, str]] = None,
+    competitions: list[dict[str, Any]] | None = None,
+    current_date: dict[str, str] | None = None,
+    week_dates: list[dict[str, str]] | None = None,
     style_guide: str = "",
     execution_id: str = "",
+    plotting_enabled: bool = False,
 ) -> TrainingAnalysisState:
     return TrainingAnalysisState(
         user_id=user_id,
@@ -60,6 +62,8 @@ def create_initial_state(
         current_date=current_date or {},
         week_dates=week_dates or [],
         style_guide=style_guide,
+        plotting_enabled=plotting_enabled,
+        execution_id=execution_id,
         metrics_result=None,
         activity_summary=None,
         activity_result=None,
@@ -69,11 +73,11 @@ def create_initial_state(
         weekly_plan=None,
         analysis_html=None,
         planning_html=None,
+        plot_resolution_stats=None,
         plots=[],
         plot_storage_data={},
         costs=[],
         errors=[],
         tool_usage={},
         available_plots=[],
-        execution_id=execution_id,
     )

@@ -30,91 +30,93 @@ Your design brilliance comes from an almost empathic understanding of how athlet
 Create beautiful, functional HTML documents that enhance the training experience.
 
 ## Communication Style
-Communicate with enthusiastic clarity and occasional visual sketches that instantly clarify complex concepts. Athletes describe your formatted reports as "making you instantly understand what matters most while still having all the details available when you need them."
+Communicate with enthusiastic clarity and occasional visual sketches that instantly clarify complex concepts."""
 
-## Important Context
-Your task is to transform **all the provided content** into beautiful, functional HTML documents that make complex analysis immediately accessible and engaging."""
+FORMATTER_USER_PROMPT_BASE = """Transform **all the provided content** into a beautiful, functional HTML document that makes complex analysis immediately accessible and engaging.
 
-FORMATTER_USER_PROMPT = """Transform the provided content into a beautiful, functional HTML document.
-
-Analysis Content:
+## Analysis Content
 {synthesis_result}
 
-REQUIREMENTS:
-- Create information architecture optimized for athletic contexts
-- Develop visual systems that intuitively communicate training relationships
-- Design responsive layouts that work seamlessly across all devices
-- Apply color theory to performance data visualization
-- Implement typography systems optimized for various reading contexts
+## Your Task
+Apply your "Insight-First Design System" to create an HTML document with:
+1. Information architecture optimized for athletic contexts
+2. Visual systems that intuitively communicate training relationships
+3. Responsive layouts that work seamlessly across all devices
+4. Color theory applied to performance data visualization
+5. Typography systems optimized for various reading contexts
 
-## CRITICAL: Interactive Plot Integration System
-
-The content contains special **[PLOT:plot_id]** references that will be automatically replaced with interactive Plotly visualizations AFTER your HTML conversion. Understanding this system is crucial for your design:
-
-**How Plot Resolution Works:**
-1. You preserve [PLOT:plot_id] references exactly as written
-2. After HTML generation, each reference gets replaced with a complete interactive plot
-3. These become full-width, responsive Plotly charts with hover interactions, zoom, and controls
-
-**Design Implications for You:**
-- **Spacing**: Leave appropriate vertical margin around plot references (they become ~400-800px tall)
-- **Responsive Design**: Plots auto-resize, so ensure your container CSS accommodates this
-- **Content Flow**: Treat plot references as major content blocks, not inline elements
-- **Typography**: Use compelling lead-in text before plots and descriptive follow-up text after
-- **Visual Hierarchy**: These will be significant visual elements, so design section breaks accordingly
-
-**What You Should Do:**
-- Keep ALL [PLOT:plot_id] references EXACTLY as they appear
-- Design your CSS to provide proper spacing and flow around where plots will appear
-- Consider plots as primary visual elements in your information hierarchy
-- Ensure your responsive design works with large embedded charts
-
-Content Organization Process:
+## Content Organization
 1. Include all important content (key insights, scores, recommendations, and supporting details)
-2. Create a well-structured HTML document with appropriate organization
-3. Use clean, readable CSS that enhances the presentation AND accommodates plot insertion
-4. Present information in a logical, coherent manner with plots as focal points
+2. Create well-structured HTML document with appropriate organization
+3. Use clean, readable CSS that enhances presentation
+4. Present information in logical, coherent manner
 5. Use design elements that enhance understanding and engagement
 6. Ensure all metrics, scores, and their context are preserved
-7. Implement your "contextual information hierarchy" concept that reveals different levels of detail
-8. Design spacing and layout that will work beautifully with interactive plots
+7. Implement your "contextual information hierarchy" concept
 
-Style Guidelines:
-- Use emojis thoughtfully to enhance key content:
-  • 🎯 for goals and key points
-  • 📊 for metrics
-  • 🔍 for analysis
-  • 💡 for tips
+## Style Guidelines
+Use emojis thoughtfully to enhance key content:
+- 🎯 for goals and key points
+- 📊 for metrics
+- 🔍 for analysis
+- 💡 for tips
 
-HTML Best Practices:
+## HTML Best Practices
 - Use appropriate CSS classes and styles for consistent presentation
 - Create clean, well-structured markup
 - Balance text content with helpful visual elements
 - Use effective selectors and styling approaches
-- Create a final HTML document that makes athletes instantly understand what matters most
+- Make athletes instantly understand what matters most
 
+## Output Requirements
 Return ONLY the complete HTML document without any markdown code blocks or explanations."""
 
+FORMATTER_PLOT_INSTRUCTIONS = """
 
-async def formatter_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
+## CRITICAL: Interactive Plot Integration System
+
+The content contains special **[PLOT:plot_id]** references that will be automatically replaced with interactive Plotly visualizations AFTER your HTML conversion.
+
+**DEDUPLICATION VERIFICATION**: The synthesis should have already deduplicated plot references, but verify each plot ID appears ONLY ONCE in the content. Duplicate plot IDs break the HTML.
+
+**How Plot Resolution Works:**
+1. You preserve [PLOT:plot_id] references exactly as written (each ID once only)
+2. After HTML generation, each reference gets replaced with a complete interactive plot
+3. These become full-width, responsive Plotly charts with hover interactions, zoom, and controls
+
+**Design Implications:**
+- **Spacing**: Leave vertical margin around plot references (~400-800px tall when resolved)
+- **Responsive Design**: Plots auto-resize, ensure container CSS accommodates this
+- **Content Flow**: Treat plot references as major content blocks, not inline elements
+- **Visual Hierarchy**: These are significant visual elements, design section breaks accordingly
+
+**What You Should Do:**
+- Keep [PLOT:plot_id] references EXACTLY as they appear (verify no duplicates)
+- Design CSS to provide proper spacing and flow around where plots will appear
+- Consider plots as primary visual elements in your information hierarchy
+- Ensure responsive design works with large embedded charts"""
+
+
+async def formatter_node(state: TrainingAnalysisState) -> dict[str, list | str]:
     logger.info("Starting HTML formatter node")
 
     try:
-        llm = ModelSelector.get_llm(AgentRole.FORMATTER)
-
-        user_prompt = FORMATTER_USER_PROMPT.format(
-            synthesis_result=state.get('synthesis_result', '')
+        plotting_enabled = state.get("plotting_enabled", False)
+        logger.info(
+            f"Formatter node: Plotting {'enabled' if plotting_enabled else 'disabled'} - "
+            f"{'including' if plotting_enabled else 'no'} plot integration instructions"
         )
-
-        messages = [
-            {"role": "system", "content": FORMATTER_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ]
 
         agent_start_time = datetime.now()
 
         async def call_html_formatting():
-            response = await llm.ainvoke(messages)
+            response = await ModelSelector.get_llm(AgentRole.FORMATTER).ainvoke([
+                {"role": "system", "content": FORMATTER_SYSTEM_PROMPT},
+                {"role": "user", "content": (
+                    FORMATTER_USER_PROMPT_BASE.format(synthesis_result=state.get("synthesis_result", ""))
+                    + (FORMATTER_PLOT_INSTRUCTIONS if plotting_enabled else "")
+                )},
+            ])
             return extract_text_content(response)
 
         analysis_html = await retry_with_backoff(
@@ -122,20 +124,17 @@ async def formatter_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-
-        cost_data = {
-            'agent': 'formatter',
-            'execution_time': execution_time,
-            'timestamp': datetime.now().isoformat(),
-        }
-
         logger.info(f"HTML formatting completed in {execution_time:.2f}s")
 
         return {
-            'analysis_html': analysis_html,
-            'costs': [cost_data],
+            "analysis_html": analysis_html,
+            "costs": [{
+                "agent": "formatter",
+                "execution_time": execution_time,
+                "timestamp": datetime.now().isoformat(),
+            }],
         }
 
     except Exception as e:
         logger.error(f"Formatter node failed: {e}")
-        return {'errors': [f"HTML formatting failed: {str(e)}"]}
+        return {"errors": [f"HTML formatting failed: {str(e)}"]}

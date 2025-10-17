@@ -12,7 +12,7 @@ from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
-SYNTHESIS_SYSTEM_PROMPT = """You are Maya Lindholm, a legendary performance integration specialist whose "Holistic Performance Synthesis" approach has guided multiple athletes to Olympic gold and world records.
+SYNTHESIS_SYSTEM_PROMPT_BASE = """You are Maya Lindholm, a legendary performance integration specialist whose "Holistic Performance Synthesis" approach has guided multiple athletes to Olympic gold and world records.
 
 ## Your Background
 After an early career as a professional triathlete was cut short by injury, you dedicated yourself to understanding how different performance factors interact to create breakthrough results.
@@ -31,105 +31,108 @@ Your analytical genius comes from an extraordinary ability to hold multiple comp
 ## Your Goal
 Create comprehensive, actionable insights by synthesizing multiple data streams.
 
+## Communication Style
+Communicate with thoughtful clarity and occasional brilliant simplifications that make complex relationships immediately understandable."""
+
+SYNTHESIS_PLOT_INSTRUCTIONS = """
+
 ## Plot Integration
 Available plot information is provided in the state data.
 IMPORTANT: Include plot references as [PLOT:plot_id] in your final synthesis text.
-These references will be converted to actual charts in the final report.
+These references will be converted to actual charts in the final report."""
 
-## Communication Style
-Communicate with thoughtful clarity and occasional brilliant simplifications that make complex relationships immediately understandable. Athletes describe working with you as "suddenly seeing the complete picture when you've only been seeing fragments before."
+SYNTHESIS_USER_PROMPT_BASE = """Synthesize the pattern analyses from metrics, activities, and physiology to create a comprehensive understanding of {athlete_name}'s historical training patterns and responses.
 
-## Important Context
-Focus on facts and evidence from the input analyses. Your synthesis will be used to create the final comprehensive analysis for the athlete."""
+## IMPORTANT: Output Context
+Your synthesis will be used to create the final comprehensive analysis for the athlete. Focus on facts and evidence from the input analyses.
 
-SYNTHESIS_USER_PROMPT = """Synthesize the pattern analyses from metrics, activities, and physiology to create a comprehensive understanding of {athlete_name}'s historical training patterns and responses.
-
-Metrics Analysis:
+## Metrics Analysis
 ```markdown
 {metrics_result}
 ```
 
-Activity Interpretation:
+## Activity Interpretation
 ```markdown
 {activity_result}
 ```
 
-Physiology Analysis:
+## Physiology Analysis
 ```markdown
 {physiology_result}
 ```
 
-Upcoming Competitions:
+## Upcoming Competitions
 ```json
 {competitions}
 ```
 
-Current Date:
+## Current Date
 ```json
 {current_date}
 ```
 
-Style Guide:
+## Style Guide
 ```markdown
 {style_guide}
 ```
 
-IMPORTANT: Focus on facts and evidence from the input analyses!
-
-## CRITICAL: Plot Reference Preservation
-The input analyses contain special **[PLOT:plot_id]** references that MUST be preserved exactly in your synthesis. These will become interactive visualizations in the final report. When you reference data or insights that have associated plots, include the plot reference in your synthesis text.
-
-Your task is to:
+## Your Task
 1. Integrate key insights from the metrics, activity and physiology reports
 2. Identify clear connections between the athlete's training loads and physiological responses
 3. Recognize patterns in workout execution and performance outcomes
 4. Provide actionable insights based only on evidence from the data
 5. Create a focused synthesis that prioritizes the most important findings
 6. Avoid speculative language and stick to patterns clearly visible in the data
-7. **PRESERVE all [PLOT:plot_id] references exactly as they appear in the input analyses**
 
-FOCUS ON PRESENTATION:
+## Presentation Requirements
 - Use a clear executive summary at the beginning
 - Present key performance indicators in table format when possible
 - Organize information with concise headings and bullet points
 - Keep recommendations brief and actionable
 - Use visual separation between sections for better readability
+- Format as structured markdown document with clear sections"""
 
-Communicate with thoughtful clarity and make complex relationships immediately understandable.
+SYNTHESIS_USER_PLOT_INSTRUCTIONS = """
 
-Format the response as a structured markdown document with clear sections and bullet points where appropriate."""
+## CRITICAL: Plot Reference Preservation & Deduplication
+The input analyses contain **[PLOT:plot_id]** references that become interactive visualizations. **IMPORTANT**: Include each PLOT ID ONLY ONCE in your synthesis. Duplicate references break the final report.
+
+**Additional task for plot integration:**
+7. Include each unique plot reference exactly once, even if it appears multiple times in inputs"""
 
 
-async def synthesis_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
+async def synthesis_node(state: TrainingAnalysisState) -> dict[str, list | str]:
     logger.info("Starting synthesis node")
 
     try:
-        plot_storage = PlotStorage(state['execution_id'])
-
-        llm = ModelSelector.get_llm(AgentRole.SYNTHESIS)
-        llm_with_tools = llm.bind_tools([])
-
-        user_prompt = SYNTHESIS_USER_PROMPT.format(
-            athlete_name=state['athlete_name'],
-            metrics_result=state.get('metrics_result', ''),
-            activity_result=state.get('activity_result', ''),
-            physiology_result=state.get('physiology_result', ''),
-            competitions=json.dumps(state['competitions'], indent=2),
-            current_date=json.dumps(state['current_date'], indent=2),
-            style_guide=state['style_guide'],
+        plot_storage = PlotStorage(state["execution_id"])
+        plotting_enabled = state.get("plotting_enabled", False)
+        
+        logger.info(
+            f"Synthesis node: Plotting {'enabled - including plot integration instructions' if plotting_enabled else 'disabled - no plot integration instructions'}"
         )
-
-        messages = [
-            {"role": "system", "content": SYNTHESIS_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ]
 
         agent_start_time = datetime.now()
 
         async def call_synthesis_analysis():
             return await handle_tool_calling_in_node(
-                llm_with_tools=llm_with_tools,
-                messages=messages,
+                llm_with_tools=ModelSelector.get_llm(AgentRole.SYNTHESIS).bind_tools([]),
+                messages=[
+                    {"role": "system", "content": (
+                        SYNTHESIS_SYSTEM_PROMPT_BASE + (SYNTHESIS_PLOT_INSTRUCTIONS if plotting_enabled else "")
+                    )},
+                    {"role": "user", "content": (
+                        SYNTHESIS_USER_PROMPT_BASE.format(
+                            athlete_name=state["athlete_name"],
+                            metrics_result=state.get("metrics_result", ""),
+                            activity_result=state.get("activity_result", ""),
+                            physiology_result=state.get("physiology_result", ""),
+                            competitions=json.dumps(state["competitions"], indent=2),
+                            current_date=json.dumps(state["current_date"], indent=2),
+                            style_guide=state["style_guide"],
+                        ) + (SYNTHESIS_USER_PLOT_INSTRUCTIONS if plotting_enabled else "")
+                    )},
+                ],
                 tools=[],
                 max_iterations=3,
             )
@@ -139,24 +142,18 @@ async def synthesis_node(state: TrainingAnalysisState) -> TrainingAnalysisState:
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-
-        # Get available plots for references
-        available_plots = plot_storage.list_available_plots()
-
-        cost_data = {
-            'agent': 'synthesis',
-            'execution_time': execution_time,
-            'timestamp': datetime.now().isoformat(),
-        }
-
         logger.info(f"Synthesis analysis completed in {execution_time:.2f}s")
 
         return {
-            'synthesis_result': synthesis_result,
-            'costs': [cost_data],
-            'available_plots': available_plots,
+            "synthesis_result": synthesis_result,
+            "costs": [{
+                "agent": "synthesis",
+                "execution_time": execution_time,
+                "timestamp": datetime.now().isoformat(),
+            }],
+            "available_plots": plot_storage.list_available_plots(),
         }
 
     except Exception as e:
         logger.error(f"Synthesis node failed: {e}")
-        return {'errors': [f"Synthesis analysis failed: {str(e)}"]}
+        return {"errors": [f"Synthesis analysis failed: {str(e)}"]}
