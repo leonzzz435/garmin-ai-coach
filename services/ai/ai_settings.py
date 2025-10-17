@@ -23,7 +23,7 @@ class AISettings:
     # Model assignments - one model per stage for all agents
     stage_models: dict[AIMode, str] = field(
         default_factory=lambda: {
-            AIMode.STANDARD: "claude-4-thinking",  # Production: Top-tier reasoning with GPT-5
+            AIMode.STANDARD: "gpt-5",  # Production: Top-tier reasoning with GPT-5
             AIMode.COST_EFFECTIVE: "claude-3-haiku",  # Budget: Fast and cost-effective
             AIMode.DEVELOPMENT: "claude-4",  # Development: Fast iteration
         }
