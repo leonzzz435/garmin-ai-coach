@@ -1,3 +1,3 @@
-from .ask_human_tool import AskHumanInput, ask_human_tool
+from .ask_human_tool import AskHumanInput, create_ask_human_tool
 
-__all__ = ["ask_human_tool", "AskHumanInput"]
+__all__ = ["create_ask_human_tool", "AskHumanInput"]

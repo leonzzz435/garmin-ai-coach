@@ -37,17 +37,17 @@ class InterruptHandler:
     def format_question(payload: dict, index: int = None) -> str:
         question = payload.get("question", "Question not found")
         context = payload.get("context", "")
-        agent = payload.get("agent", "")
+        agent = payload.get("agent", "Agent")
         
-        prefix = ""
-        if index is not None:
-            prefix = f"Question {index}: "
-        if agent:
-            prefix += f"[{agent}] "
+        agent_label = f"[{agent.upper()}]" if agent and agent != "Unknown Agent" else ""
+        
+        prefix = f"Question {index}" if index is not None else "AGENT QUESTION"
+        
+        header = f"{prefix} {agent_label}".strip()
         
         if context:
-            return f"{prefix}{context}\n\nQuestion: {question}"
-        return f"{prefix}{question}"
+            return f"{header}\n{context}\n\nQuestion: {question}"
+        return f"{header}\n{question}"
 
 
 async def run_workflow_with_hitl(

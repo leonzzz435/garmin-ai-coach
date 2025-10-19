@@ -15,25 +15,30 @@ class AskHumanInput(BaseModel):
     )
 
 
-@tool("ask_human", args_schema=AskHumanInput)
-def ask_human_tool(question: str, context: str = "") -> str:
-    """
-    Ask the human user for clarification, additional information, or validation.
+def create_ask_human_tool(agent_name: str = "Agent"):
 
-    This tool pauses workflow execution and waits for human input.
-    Use when you need information that isn't available in the provided data.
+    @tool("ask_human", args_schema=AskHumanInput)
+    def ask_human_with_agent(question: str, context: str = "") -> str:
+        """
+        Ask the human user for clarification, additional information, or validation.
 
-    Args:
-        question: The question to ask the human
-        context: Optional context explaining why you're asking
+        This tool pauses workflow execution and waits for human input.
+        Use when you need information that isn't available in the provided data.
 
-    Returns:
-        The human's response as plain text
-    """
-    payload = {
-        "type": "ask_human",
-        "question": question,
-        "context": context,
-    }
-    reply = interrupt(payload)
-    return reply.get("content", "No response provided")
+        Args:
+            question: The question to ask the human
+            context: Optional context explaining why you're asking
+
+        Returns:
+            The human's response as plain text
+        """
+        payload = {
+            "type": "ask_human",
+            "question": question,
+            "context": context,
+            "agent": agent_name,
+        }
+        reply = interrupt(payload)
+        return reply.get("content", "No response provided")
+    
+    return ask_human_with_agent

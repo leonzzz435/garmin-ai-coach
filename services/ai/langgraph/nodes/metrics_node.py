@@ -4,7 +4,7 @@ from datetime import datetime
 
 from services.ai.ai_settings import AgentRole
 from services.ai.model_config import ModelSelector
-from services.ai.tools.hitl import ask_human_tool
+from services.ai.tools.hitl import create_ask_human_tool
 from services.ai.tools.plotting import PlotStorage, create_plotting_tools
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
@@ -157,7 +157,7 @@ async def metrics_node(state: TrainingAnalysisState) -> dict[str, list | str | d
             system_prompt += METRICS_PLOTTING_INSTRUCTIONS
         
         if hitl_enabled:
-            tools.append(ask_human_tool)
+            tools.append(create_ask_human_tool("Metrics"))
             system_prompt += METRICS_HITL_INSTRUCTIONS
         
         if tools:

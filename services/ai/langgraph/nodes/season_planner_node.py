@@ -4,7 +4,7 @@ from datetime import datetime
 
 from services.ai.ai_settings import AgentRole
 from services.ai.model_config import ModelSelector
-from services.ai.tools.hitl import ask_human_tool
+from services.ai.tools.hitl import create_ask_human_tool
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
@@ -105,6 +105,7 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
 
         if hitl_enabled:
             system_prompt = SEASON_PLANNER_SYSTEM_PROMPT + SEASON_PLANNER_HITL_INSTRUCTIONS
+            ask_human_tool = create_ask_human_tool("Season Planner")
             llm_with_tools = ModelSelector.get_llm(AgentRole.SEASON_PLANNER).bind_tools([ask_human_tool])
             
             async def call_season_planning():
