@@ -1,6 +1,7 @@
 import logging
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable, Optional
+from typing import Any
 
 from services.ai.tools.hitl import create_ask_human_tool
 from services.ai.tools.plotting import PlotStorage, create_plotting_tools
@@ -20,7 +21,7 @@ except ImportError:
 
 def configure_node_tools(
     agent_name: str,
-    plot_storage: Optional[PlotStorage] = None,
+    plot_storage: PlotStorage | None = None,
     plotting_enabled: bool = False,
     hitl_enabled: bool = True,
 ) -> list:

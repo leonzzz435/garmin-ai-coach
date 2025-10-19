@@ -145,6 +145,7 @@ async def run_analysis_from_config(config_path: Path) -> None:
     logger.info(f"AI Mode: {os.environ['AI_MODE']}")
 
     from langsmith.run_helpers import trace
+
     from services.ai.langgraph.state.training_analysis_state import create_initial_state
     from services.ai.langgraph.workflows.interactive_runner import run_workflow_with_hitl
     from services.ai.langgraph.workflows.planning_workflow import (

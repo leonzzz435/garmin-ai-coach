@@ -21,7 +21,7 @@ def get_workflow_context(agent_type: AgentType) -> str:
         "weekly_planner": "**Weekly Planner**: Develops detailed 14-day workout plans using season plan and analysis results"
     }
     
-    current_agent = agents[agent_type].replace("**", "**").replace(":", f"** (YOU):")
+    current_agent = agents[agent_type].replace("**", "**").replace(":", "** (YOU):")
     
     analysis_agents = []
     for agent in ["metrics", "physiology", "activity"]:

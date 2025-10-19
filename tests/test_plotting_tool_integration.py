@@ -32,8 +32,10 @@ fig.update_layout(title='Test Plot')
             {"python_code": test_code, "description": "Test plot for integration"}
         )
 
-        assert "Plot created successfully" in result
-        assert "[PLOT:" in result
+        assert result["ok"] is True
+        assert "Plot created successfully" in result["message"]
+        assert "[PLOT:" in result["message"]
+        assert "plot_id" in result
 
     @pytest.mark.asyncio
     async def test_model_tool_binding(self):

@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Callable, Optional
+from collections.abc import Callable
 
 from langgraph.types import Command
 

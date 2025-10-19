@@ -21,6 +21,7 @@ async def test_cli_e2e_smoke_with_mocks(tmp_path, monkeypatch):
         current_date: dict,
         week_dates: list,
         plotting_enabled: bool = False,
+        hitl_enabled: bool = True,
     ) -> dict:
         return {
             "analysis_html": "<html><body>Analysis OK</body></html>",
@@ -76,6 +77,7 @@ extraction:
   activities_days: 7
   metrics_days: 14
   ai_mode: "development"
+  hitl_enabled: false
 
 output:
   directory: "{out_dir.as_posix()}"
