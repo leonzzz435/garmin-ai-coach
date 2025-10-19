@@ -16,8 +16,10 @@ class LangGraphPlottingTool:
         logger.info(f"Initialized LangGraph plotting tool for agent: {agent_name}")
 
     def _count_agent_plots(self, agent_name: str) -> int:
-        plots = self.plot_storage.list_available_plots()
-        return len([plot for plot in plots if plot.get('agent_name') == agent_name])
+        return sum(
+            1 for plot in self.plot_storage.list_available_plots()
+            if plot.get("agent_name") == agent_name
+        )
 
     def create_plotting_tool(self):
 
@@ -104,8 +106,10 @@ class LangGraphPlottingTool:
 
             except Exception as e:
                 import traceback
-                full_traceback = traceback.format_exc()
-                logger.error(f"Agent {self.agent_name} plotting failed: {e}\n\nFull traceback:\n{full_traceback}")
+                logger.error(
+                    f"Agent {self.agent_name} plotting failed: {e}\n\n"
+                    f"Full traceback:\n{traceback.format_exc()}"
+                )
                 return {
                     "ok": False,
                     "error": str(e),

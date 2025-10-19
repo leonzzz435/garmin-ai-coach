@@ -1074,7 +1074,7 @@ packages:
 - pypi: ./
   name: garmin-ai-coach
   version: 1.1.0
-  sha256: 3babbd97553788d9233fa1b32f9b6ccf7720a95572f831704f1154247436dede
+  sha256: ec0f8817fc56eb9301cb511235bb32f2e245c6430eab78532072a09258ee1952
   requires_python: '>=3.10'
   editable: true
 - pypi: https://files.pythonhosted.org/packages/7a/db/dc389f77e3dbbd40defe104645b6d1c201f4ebdfadbaa376d81f5aebd9b6/garminconnect-0.2.30-py3-none-any.whl

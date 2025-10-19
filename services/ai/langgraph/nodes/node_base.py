@@ -3,20 +3,11 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
+from langgraph.errors import GraphInterrupt
 from services.ai.tools.hitl import create_ask_human_tool
 from services.ai.tools.plotting import PlotStorage, create_plotting_tools
 
 logger = logging.getLogger(__name__)
-
-try:
-    from langgraph.errors import GraphInterrupt
-except ImportError:
-    try:
-        from langgraph.errors import NodeInterrupt as GraphInterrupt
-    except ImportError:
-        class GraphInterrupt(BaseException):  # type: ignore
-            """Placeholder exception for when LangGraph is not installed"""
-            pass
 
 
 def configure_node_tools(
@@ -77,9 +68,7 @@ def create_plot_entries(agent_name: str, plot_storage: PlotStorage) -> tuple[lis
         for plot_id, metadata in all_plots.items()
     }
     
-    available_plots = list(all_plots.keys())
-    
-    return plots, plot_storage_data, available_plots
+    return plots, plot_storage_data, list(all_plots.keys())
 
 
 async def execute_node_with_error_handling(
@@ -102,9 +91,7 @@ async def execute_node_with_error_handling(
 
 def log_node_completion(node_name: str, execution_time: float, plot_count: int = 0) -> None:
     
-    if plot_count > 0:
-        logger.info(
-            f"{node_name} completed in {execution_time:.2f}s with {plot_count} plots"
-        )
-    else:
-        logger.info(f"{node_name} completed in {execution_time:.2f}s")
+    logger.info(
+        f"{node_name} completed in {execution_time:.2f}s"
+        + (f" with {plot_count} plots" if plot_count > 0 else "")
+    )

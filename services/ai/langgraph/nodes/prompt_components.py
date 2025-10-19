@@ -23,19 +23,15 @@ def get_workflow_context(agent_type: AgentType) -> str:
     
     current_agent = agents[agent_type].replace("**", "**").replace(":", "** (YOU):")
     
-    analysis_agents = []
-    for agent in ["metrics", "physiology", "activity"]:
-        if agent == agent_type:
-            analysis_agents.append(f"- {current_agent}")
-        else:
-            analysis_agents.append(f"- {agents[agent]}")
+    analysis_agents = "\n".join(
+        f"- {current_agent}" if agent == agent_type else f"- {agents[agent]}"
+        for agent in ["metrics", "physiology", "activity"]
+    )
     
-    integration_agents = []
-    for agent in ["synthesis", "season_planner", "weekly_planner"]:
-        if agent == agent_type:
-            integration_agents.append(f"- {current_agent}")
-        else:
-            integration_agents.append(f"- {agents[agent]}")
+    integration_agents = "\n".join(
+        f"- {current_agent}" if agent == agent_type else f"- {agents[agent]}"
+        for agent in ["synthesis", "season_planner", "weekly_planner"]
+    )
     
     return f"""
 
@@ -44,10 +40,10 @@ def get_workflow_context(agent_type: AgentType) -> str:
 You are part of a multi-agent coaching workflow where different specialists analyze different aspects of training:
 
 **Analysis Agents (run in parallel):**
-{chr(10).join(analysis_agents)}
+{analysis_agents}
 
 **Integration Agents (run sequentially after analysis):**
-{chr(10).join(integration_agents)}
+{integration_agents}
 
 ## Your Role in the Workflow
 

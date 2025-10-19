@@ -123,47 +123,31 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
     )
 
     system_prompt = WEEKLY_PLANNER_SYSTEM_PROMPT + get_workflow_context("weekly_planner")
+    
+    user_message = {"role": "user", "content": WEEKLY_PLANNER_USER_PROMPT.format(
+        season_plan=state.get("season_plan", ""),
+        athlete_name=state["athlete_name"],
+        current_date=json.dumps(state["current_date"], indent=2),
+        week_dates=json.dumps(state["week_dates"], indent=2),
+        competitions=json.dumps(state["competitions"], indent=2),
+        planning_context=state["planning_context"],
+        metrics_analysis=state.get("metrics_result", ""),
+        activity_analysis=state.get("activity_result", ""),
+        physiology_analysis=state.get("physiology_result", ""),
+    )}
+    
+    messages = [{"role": "system", "content": system_prompt}, user_message]
 
-    if hitl_enabled:
-        llm_with_tools = ModelSelector.get_llm(AgentRole.WORKOUT).bind_tools(tools)
-        
-        async def call_weekly_planning():
+    async def call_weekly_planning():
+        if hitl_enabled:
             return await handle_tool_calling_in_node(
-                llm_with_tools=llm_with_tools,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": WEEKLY_PLANNER_USER_PROMPT.format(
-                        season_plan=state.get("season_plan", ""),
-                        athlete_name=state["athlete_name"],
-                        current_date=json.dumps(state["current_date"], indent=2),
-                        week_dates=json.dumps(state["week_dates"], indent=2),
-                        competitions=json.dumps(state["competitions"], indent=2),
-                        planning_context=state["planning_context"],
-                        metrics_analysis=state.get("metrics_result", ""),
-                        activity_analysis=state.get("activity_result", ""),
-                        physiology_analysis=state.get("physiology_result", ""),
-                    )},
-                ],
+                llm_with_tools=ModelSelector.get_llm(AgentRole.WORKOUT).bind_tools(tools),
+                messages=messages,
                 tools=tools,
                 max_iterations=15,
             )
-    else:
-        async def call_weekly_planning():
-            response = await ModelSelector.get_llm(AgentRole.WORKOUT).ainvoke([
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": WEEKLY_PLANNER_USER_PROMPT.format(
-                    season_plan=state.get("season_plan", ""),
-                    athlete_name=state["athlete_name"],
-                    current_date=json.dumps(state["current_date"], indent=2),
-                    week_dates=json.dumps(state["week_dates"], indent=2),
-                    competitions=json.dumps(state["competitions"], indent=2),
-                    planning_context=state["planning_context"],
-                    metrics_analysis=state.get("metrics_result", ""),
-                    activity_analysis=state.get("activity_result", ""),
-                    physiology_analysis=state.get("physiology_result", ""),
-                )},
-            ])
-            return extract_text_content(response)
+        response = await ModelSelector.get_llm(AgentRole.WORKOUT).ainvoke(messages)
+        return extract_text_content(response)
 
     async def node_execution():
         weekly_plan = await retry_with_backoff(

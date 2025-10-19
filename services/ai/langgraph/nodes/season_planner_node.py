@@ -85,6 +85,16 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
     )
 
     system_prompt = SEASON_PLANNER_SYSTEM_PROMPT + get_workflow_context("season_planner")
+    
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": SEASON_PLANNER_USER_PROMPT.format(
+            output_context=get_output_context_note(for_other_agents=True),
+            athlete_name=state["athlete_name"],
+            current_date=json.dumps(state["current_date"], indent=2),
+            competitions=json.dumps(state["competitions"], indent=2),
+        )},
+    ]
 
     if hitl_enabled:
         llm_with_tools = ModelSelector.get_llm(AgentRole.SEASON_PLANNER).bind_tools(tools)
@@ -92,29 +102,13 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         async def call_season_planning():
             return await handle_tool_calling_in_node(
                 llm_with_tools=llm_with_tools,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": SEASON_PLANNER_USER_PROMPT.format(
-                        output_context=get_output_context_note(for_other_agents=True),
-                        athlete_name=state["athlete_name"],
-                        current_date=json.dumps(state["current_date"], indent=2),
-                        competitions=json.dumps(state["competitions"], indent=2),
-                    )},
-                ],
+                messages=messages,
                 tools=tools,
                 max_iterations=15,
             )
     else:
         async def call_season_planning():
-            response = await ModelSelector.get_llm(AgentRole.SEASON_PLANNER).ainvoke([
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": SEASON_PLANNER_USER_PROMPT.format(
-                    output_context=get_output_context_note(for_other_agents=True),
-                    athlete_name=state["athlete_name"],
-                    current_date=json.dumps(state["current_date"], indent=2),
-                    competitions=json.dumps(state["competitions"], indent=2),
-                )},
-            ])
+            response = await ModelSelector.get_llm(AgentRole.SEASON_PLANNER).ainvoke(messages)
             return extract_text_content(response)
 
     async def node_execution():

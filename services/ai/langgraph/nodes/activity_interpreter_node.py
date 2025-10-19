@@ -116,14 +116,16 @@ async def activity_interpreter_node(state: TrainingAnalysisState) -> dict[str, l
         hitl_enabled=hitl_enabled,
     )
 
-    system_prompt = ACTIVITY_INTERPRETER_SYSTEM_PROMPT_BASE + get_workflow_context("activity")
-    if plotting_enabled:
-        system_prompt += get_plotting_instructions("activity")
+    system_prompt = (
+        ACTIVITY_INTERPRETER_SYSTEM_PROMPT_BASE +
+        get_workflow_context("activity") +
+        (get_plotting_instructions("activity") if plotting_enabled else "")
+    )
 
-    if tools:
-        llm_with_tools = ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER).bind_tools(tools)
-    else:
-        llm_with_tools = ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER)
+    llm_with_tools = (
+        ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER).bind_tools(tools) if tools
+        else ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER)
+    )
 
     agent_start_time = datetime.now()
 

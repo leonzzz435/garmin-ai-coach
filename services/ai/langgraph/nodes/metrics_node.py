@@ -101,14 +101,16 @@ async def metrics_node(state: TrainingAnalysisState) -> dict[str, list | str | d
         hitl_enabled=hitl_enabled,
     )
 
-    system_prompt = METRICS_SYSTEM_PROMPT_BASE + get_workflow_context("metrics")
-    if plotting_enabled:
-        system_prompt += get_plotting_instructions("metrics")
+    system_prompt = (
+        METRICS_SYSTEM_PROMPT_BASE +
+        get_workflow_context("metrics") +
+        (get_plotting_instructions("metrics") if plotting_enabled else "")
+    )
 
-    if tools:
-        llm_with_tools = ModelSelector.get_llm(AgentRole.METRICS).bind_tools(tools)
-    else:
-        llm_with_tools = ModelSelector.get_llm(AgentRole.METRICS)
+    llm_with_tools = (
+        ModelSelector.get_llm(AgentRole.METRICS).bind_tools(tools) if tools
+        else ModelSelector.get_llm(AgentRole.METRICS)
+    )
 
     agent_start_time = datetime.now()
 

@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 
 
 class AskHumanInput(BaseModel):
-
     question: str = Field(
         ...,
         description="Clear, specific question to ask the human. Be concise and direct.",
@@ -16,7 +15,6 @@ class AskHumanInput(BaseModel):
 
 
 def create_ask_human_tool(agent_name: str = "Agent"):
-
     @tool("ask_human", args_schema=AskHumanInput)
     def ask_human_with_agent(question: str, context: str = "") -> str:
         """
@@ -38,13 +36,11 @@ def create_ask_human_tool(agent_name: str = "Agent"):
         Returns:
             The human's response as plain text
         """
-        payload = {
+        return interrupt({
             "type": "ask_human",
             "question": question,
             "context": context,
             "agent": agent_name,
-        }
-        reply = interrupt(payload)
-        return reply.get("content", "No response provided")
-    
+        }).get("content", "No response provided")
+
     return ask_human_with_agent

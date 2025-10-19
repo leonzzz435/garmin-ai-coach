@@ -21,33 +21,27 @@ class InterruptHandler:
         interrupts = []
         for intr in payload:
             interrupt_id = (
-                getattr(intr, "interrupt_id", None)
-                or getattr(intr, "id", None)
-                or (intr.get("id") if isinstance(intr, dict) else None)
+                getattr(intr, "interrupt_id", None) or
+                getattr(intr, "id", None) or
+                (intr.get("id") if isinstance(intr, dict) else None)
             )
-            
             value = getattr(intr, "value", intr)
-            
             if isinstance(value, dict):
                 interrupts.append((interrupt_id, value))
-            
         return interrupts
 
     @staticmethod
-    def format_question(payload: dict, index: int = None) -> str:
+    def format_question(payload: dict, index: int | None = None) -> str:
         question = payload.get("question", "Question not found")
         context = payload.get("context", "")
         agent = payload.get("agent", "Agent")
-        
-        agent_label = f"[{agent.upper()}]" if agent and agent != "Unknown Agent" else ""
-        
-        prefix = f"Question {index}" if index is not None else "AGENT QUESTION"
-        
-        header = f"{prefix} {agent_label}".strip()
-        
-        if context:
-            return f"{header}\n{context}\n\nQuestion: {question}"
-        return f"{header}\n{question}"
+
+        header = (
+            f"{'Question ' + str(index) if index is not None else 'AGENT QUESTION'} "
+            f"{f'[{agent.upper()}]' if agent and agent != 'Unknown Agent' else ''}"
+        ).strip()
+
+        return f"{header}\n{context}\n\nQuestion: {question}" if context else f"{header}\n{question}"
 
 
 async def run_workflow_with_hitl(
@@ -82,12 +76,12 @@ async def run_workflow_with_hitl(
                     
                 else:
                     logger.info(f"Handling {len(interrupts)} concurrent agent questions")
-                    
+
                     if progress_callback:
-                        progress_callback(f"\n{'='*70}")
+                        progress_callback(f"\n{'=' * 70}")
                         progress_callback(f"🤖 {len(interrupts)} AGENT QUESTIONS")
-                        progress_callback(f"{'='*70}\n")
-                    
+                        progress_callback(f"{'=' * 70}\n")
+
                     answers = {}
                     for idx, (interrupt_id, payload) in enumerate(interrupts, 1):
                         question = InterruptHandler.format_question(payload, index=idx)

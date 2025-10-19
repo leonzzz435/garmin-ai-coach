@@ -6,21 +6,9 @@ from functools import wraps
 from typing import Any
 
 import anthropic
+from langgraph.errors import GraphInterrupt
 
 logger = logging.getLogger(__name__)
-
-# Import GraphInterrupt exception class (not the interrupt function!)
-try:
-    from langgraph.errors import GraphInterrupt
-except ImportError:
-    try:
-        # Older versions may have NodeInterrupt
-        from langgraph.errors import NodeInterrupt as GraphInterrupt
-    except ImportError:
-        # Fallback if langgraph not available - create a real exception class
-        class GraphInterrupt(BaseException):  # type: ignore
-            """Placeholder exception for when LangGraph is not installed"""
-            pass
 
 
 class RetryableError(Exception):
@@ -54,13 +42,10 @@ class RetryConfig:
         }
 
     def calculate_delay(self, attempt: int) -> float:
-        delay = self.base_delay * (self.exponential_base**attempt)
-        delay = min(delay, self.max_delay)
-
+        delay = min(self.base_delay * (self.exponential_base**attempt), self.max_delay)
         if self.jitter:
-            jitter_range = delay * 0.1  # 10% jitter
+            jitter_range = delay * 0.1
             delay += random.uniform(-jitter_range, jitter_range)
-
         return max(delay, 0.1)
 
 
@@ -73,29 +58,24 @@ async def retry_with_backoff(
 
     last_exception = None
 
-    for attempt in range(config.max_retries + 1):  # +1 for initial attempt
+    for attempt in range(config.max_retries + 1):
         try:
             logger.debug(f"Attempting {context} (attempt {attempt + 1}/{config.max_retries + 1})")
             return await func()
 
         except GraphInterrupt:
-            # CRITICAL: Let LangGraph handle the pause/resume - do not wrap or retry
             raise
 
         except Exception as e:
             last_exception = e
 
-            is_retryable = False
-            for exc_type in config.retryable_exceptions:
-                if isinstance(e, exc_type):
-                    is_retryable = True
-                    break
+            is_retryable = any(isinstance(e, exc_type) for exc_type in config.retryable_exceptions)
 
             if isinstance(e, anthropic.APIStatusError):
                 error_type = (
-                    getattr(e.body, 'error', {}).get('type', '') if hasattr(e, 'body') else ''
+                    getattr(e.body, "error", {}).get("type", "") if hasattr(e, "body") else ""
                 )
-                if error_type in ['overloaded_error', 'rate_limit_error']:
+                if error_type in ["overloaded_error", "rate_limit_error"]:
                     is_retryable = True
                     logger.warning(f"{context} failed with {error_type}: {e}")
                 else:
@@ -122,7 +102,7 @@ def with_retry(config: RetryConfig = None, context: str = None):
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            func_context = context or f"{func.__name__}"
+            func_context = context or func.__name__
 
             async def call_func():
                 return await func(*args, **kwargs)
@@ -137,29 +117,30 @@ def with_retry(config: RetryConfig = None, context: str = None):
 DEFAULT_CONFIG = RetryConfig(max_retries=3, base_delay=1.0, max_delay=60.0)
 
 AI_ANALYSIS_CONFIG = RetryConfig(
-    max_retries=5,  # More retries for critical AI analysis
-    base_delay=2.0,  # Longer initial delay
-    max_delay=120.0,  # Allow longer waits for analysis
-    exponential_base=2.5,  # More aggressive backoff
+    max_retries=5,
+    base_delay=2.0,
+    max_delay=120.0,
+    exponential_base=2.5,
 )
 
 QUICK_RETRY_CONFIG = RetryConfig(max_retries=2, base_delay=0.5, max_delay=10.0)
 
 
 def is_anthropic_overload_error(exception: Exception) -> bool:
-    if isinstance(exception, anthropic.APIStatusError):
-        if hasattr(exception, 'body') and hasattr(exception.body, 'error'):
-            error_type = exception.body.error.get('type', '')
-            return error_type == 'overloaded_error'
-    return False
+    return (
+        isinstance(exception, anthropic.APIStatusError)
+        and hasattr(exception, "body")
+        and hasattr(exception.body, "error")
+        and exception.body.error.get("type", "") == "overloaded_error"
+    )
 
 
 def get_error_details(exception: Exception) -> str:
-    if isinstance(exception, anthropic.APIStatusError):
-        if hasattr(exception, 'body') and hasattr(exception.body, 'error'):
-            error_info = exception.body.error
-            error_type = error_info.get('type', 'unknown')
-            message = error_info.get('message', str(exception))
-            return f"{error_type}: {message}"
-
+    if (
+        isinstance(exception, anthropic.APIStatusError)
+        and hasattr(exception, "body")
+        and hasattr(exception.body, "error")
+    ):
+        error_info = exception.body.error
+        return f"{error_info.get('type', 'unknown')}: {error_info.get('message', str(exception))}"
     return str(exception)

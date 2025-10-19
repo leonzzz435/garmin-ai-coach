@@ -101,14 +101,16 @@ async def physiology_node(state: TrainingAnalysisState) -> dict[str, list | str 
         hitl_enabled=hitl_enabled,
     )
 
-    system_prompt = PHYSIOLOGY_SYSTEM_PROMPT_BASE + get_workflow_context("physiology")
-    if plotting_enabled:
-        system_prompt += get_plotting_instructions("physiology")
+    system_prompt = (
+        PHYSIOLOGY_SYSTEM_PROMPT_BASE +
+        get_workflow_context("physiology") +
+        (get_plotting_instructions("physiology") if plotting_enabled else "")
+    )
 
-    if tools:
-        llm_with_tools = ModelSelector.get_llm(AgentRole.PHYSIO).bind_tools(tools)
-    else:
-        llm_with_tools = ModelSelector.get_llm(AgentRole.PHYSIO)
+    llm_with_tools = (
+        ModelSelector.get_llm(AgentRole.PHYSIO).bind_tools(tools) if tools
+        else ModelSelector.get_llm(AgentRole.PHYSIO)
+    )
 
     recovery_indicators = state["garmin_data"].get("recovery_indicators", [])
     agent_start_time = datetime.now()

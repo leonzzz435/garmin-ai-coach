@@ -82,3 +82,18 @@ line-ending = "auto"
 [tool.isort]
 skip = [".pixi"]
 
+[tool.coverage.run]
+omit = [
+    ".pixi/*",
+    "*/.pixi/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
