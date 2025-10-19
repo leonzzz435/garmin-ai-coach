@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from langgraph.types import Command
 
@@ -71,9 +71,6 @@ async def run_workflow_with_hitl(
                     interrupt_id, payload = interrupts[0]
                     question = InterruptHandler.format_question(payload)
 
-                    if progress_callback:
-                        progress_callback(f"🤖 Agent Question: {question}")
-
                     user_response = prompt_callback(question)
 
                     if user_response.lower() in ["quit", "exit", "cancel"]:
@@ -87,16 +84,18 @@ async def run_workflow_with_hitl(
                     logger.info(f"Handling {len(interrupts)} concurrent agent questions")
                     
                     if progress_callback:
-                        progress_callback(f"\n{'='*70}\n🤖 MULTIPLE AGENT QUESTIONS ({len(interrupts)} total):\n{'='*70}")
+                        progress_callback(f"\n{'='*70}")
+                        progress_callback(f"🤖 {len(interrupts)} AGENT QUESTIONS")
+                        progress_callback(f"{'='*70}\n")
                     
                     answers = {}
                     for idx, (interrupt_id, payload) in enumerate(interrupts, 1):
                         question = InterruptHandler.format_question(payload, index=idx)
                         
                         if progress_callback:
-                            progress_callback(f"\n{question}")
+                            progress_callback(question)
                         
-                        user_response = prompt_callback(f"Answer {idx}: ")
+                        user_response = prompt_callback(f"\n👤 Answer {idx}: ")
                         
                         if user_response.lower() in ["quit", "exit", "cancel"]:
                             logger.info("Workflow cancelled by user during HITL interaction")

@@ -144,6 +144,7 @@ async def run_analysis_from_config(config_path: Path) -> None:
     os.environ['AI_MODE'] = extraction_settings.get('ai_mode', 'development')
     logger.info(f"AI Mode: {os.environ['AI_MODE']}")
 
+    from langsmith.run_helpers import trace
     from services.ai.langgraph.state.training_analysis_state import create_initial_state
     from services.ai.langgraph.workflows.interactive_runner import run_workflow_with_hitl
     from services.ai.langgraph.workflows.planning_workflow import (
@@ -187,38 +188,57 @@ async def run_analysis_from_config(config_path: Path) -> None:
         if hitl_enabled:
             def prompt_user(question: str) -> str:
                 print(f"\n{'='*70}")
-                print(f"🤖 AGENT QUESTION:")
+                print(f"🤖 {question}")
                 print(f"{'='*70}")
-                print(f"\n{question}\n")
-                response = input("👤 Your answer: ").strip()
+                response = input("\n👤 Your answer: ").strip()
                 return response
             
             def show_progress(message: str) -> None:
-                logger.info(message)
+                print(message)
             
             workflow = create_integrated_analysis_and_planning_workflow()
             execution_id = f"cli_user_{datetime.now().strftime('%Y%m%d_%H%M%S')}_complete"
             config = {"configurable": {"thread_id": execution_id}}
             
-            result = await run_workflow_with_hitl(
-                workflow_app=workflow,
-                initial_state=create_initial_state(
-                    user_id="cli_user",
-                    athlete_name=athlete_name,
-                    garmin_data=asdict(garmin_data),
-                    analysis_context=analysis_context,
-                    planning_context=planning_context,
-                    competitions=competitions,
-                    current_date=current_date,
-                    week_dates=week_dates,
-                    execution_id=execution_id,
-                    plotting_enabled=plotting_enabled,
-                    hitl_enabled=True,
-                ),
-                config=config,
-                prompt_callback=prompt_user,
-                progress_callback=show_progress,
-            )
+            async with trace(
+                name="Garmin HITL Session",
+                project_name="garmin_ai_coach_analysis",
+                inputs={
+                    "thread_id": execution_id,
+                    "athlete": athlete_name,
+                    "plotting_enabled": plotting_enabled,
+                    "hitl_enabled": True,
+                },
+                tags=[f"thread:{execution_id}", "garmin", "hitl", "cli"],
+            ) as run:
+                logger.info("Created parent LangSmith run for HITL session")
+                
+                result = await run_workflow_with_hitl(
+                    workflow_app=workflow,
+                    initial_state=create_initial_state(
+                        user_id="cli_user",
+                        athlete_name=athlete_name,
+                        garmin_data=asdict(garmin_data),
+                        analysis_context=analysis_context,
+                        planning_context=planning_context,
+                        competitions=competitions,
+                        current_date=current_date,
+                        week_dates=week_dates,
+                        execution_id=execution_id,
+                        plotting_enabled=plotting_enabled,
+                        hitl_enabled=True,
+                    ),
+                    config=config,
+                    prompt_callback=prompt_user,
+                    progress_callback=show_progress,
+                )
+                
+                run.end(outputs={
+                    "status": "completed",
+                    "execution_id": execution_id,
+                    "cancelled": result.get("cancelled", False),
+                })
+                logger.info("Parent LangSmith run completed successfully")
         else:
             result = await run_complete_analysis_and_planning(
                 user_id="cli_user",
