@@ -62,9 +62,9 @@ async def test_cli_e2e_smoke_with_mocks(tmp_path, monkeypatch):
         raising=True,
     )
 
-    out_dir = tmp_path / "out"
-    cfg_path = tmp_path / "config.yaml"
-    cfg_path.write_text(
+    output_directory = tmp_path / "out"
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
         f"""
 athlete:
   name: "Test A"
@@ -81,7 +81,7 @@ extraction:
   hitl_enabled: false
 
 output:
-  directory: "{out_dir.as_posix()}"
+  directory: "{output_directory.as_posix()}"
 
 credentials:
   password: "dummy"
@@ -89,11 +89,11 @@ credentials:
         encoding="utf-8",
     )
 
-    await run_analysis_from_config(cfg_path)
+    await run_analysis_from_config(config_path)
 
-    analysis_path = out_dir / "analysis.html"
-    planning_path = out_dir / "planning.html"
-    summary_path = out_dir / "summary.json"
+    analysis_path = output_directory / "analysis.html"
+    planning_path = output_directory / "planning.html"
+    summary_path = output_directory / "summary.json"
     assert analysis_path.exists()
     assert planning_path.exists()
     assert summary_path.exists()
@@ -172,9 +172,9 @@ async def test_cli_e2e_with_hitl_enabled(tmp_path, monkeypatch):
         raising=True,
     )
 
-    out_dir = tmp_path / "out_hitl"
-    cfg_path = tmp_path / "config_hitl.yaml"
-    cfg_path.write_text(
+    output_directory = tmp_path / "out_hitl"
+    config_path = tmp_path / "config_hitl.yaml"
+    config_path.write_text(
         f"""
 athlete:
   name: "Test Athlete HITL"
@@ -191,7 +191,7 @@ extraction:
   hitl_enabled: true
 
 output:
-  directory: "{out_dir.as_posix()}"
+  directory: "{output_directory.as_posix()}"
 
 credentials:
   password: "dummy"
@@ -214,11 +214,11 @@ credentials:
     
     monkeypatch.setattr("builtins.input", mock_input)
 
-    await run_analysis_from_config(cfg_path)
+    await run_analysis_from_config(config_path)
 
-    analysis_path = out_dir / "analysis.html"
-    planning_path = out_dir / "planning.html"
-    summary_path = out_dir / "summary.json"
+    analysis_path = output_directory / "analysis.html"
+    planning_path = output_directory / "planning.html"
+    summary_path = output_directory / "summary.json"
     
     assert analysis_path.exists()
     assert planning_path.exists()

@@ -47,9 +47,9 @@ fig.update_layout(title='Test Plot')
         llm = ModelSelector.get_llm(AgentRole.METRICS)
         llm_with_tools = llm.bind_tools([plotting_tool])
 
-        assert hasattr(llm_with_tools, 'kwargs') and 'tools' in llm_with_tools.kwargs
-        assert len(llm_with_tools.kwargs['tools']) == 1
-        assert plotting_tool.name == 'python_plotting_tool'
+        assert hasattr(llm_with_tools, "kwargs") and "tools" in llm_with_tools.kwargs
+        assert len(llm_with_tools.kwargs["tools"]) == 1
+        assert plotting_tool.name == "python_plotting_tool"
 
     def test_tools_condition_compatibility(self):
         from langchain_core.messages import AIMessage
@@ -89,8 +89,6 @@ fig.update_layout(title='Test Plot')
 
         workflow = StateGraph(TrainingAnalysisState)
         assert workflow is not None
-
-        assert True  # If we get here, all components are available
 
 
 if __name__ == "__main__":

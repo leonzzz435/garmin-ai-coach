@@ -108,48 +108,40 @@ class TestInterruptHandler:
         assert interrupts[0][0] == "fallback_id"
 
     def test_format_question_basic(self):
-        payload = {
+        formatted = InterruptHandler.format_question({
             "question": "What is your training goal?",
             "agent": "PlannerAgent"
-        }
-        formatted = InterruptHandler.format_question(payload)
+        })
         
         assert "AGENT QUESTION" in formatted
         assert "[PLANNERAGENT]" in formatted
         assert "What is your training goal?" in formatted
 
     def test_format_question_with_context(self):
-        payload = {
+        formatted = InterruptHandler.format_question({
             "question": "What is your target race?",
             "context": "Planning your season based on your fitness level",
             "agent": "SeasonPlanner"
-        }
-        formatted = InterruptHandler.format_question(payload)
+        })
         
         assert "[SEASONPLANNER]" in formatted
         assert "Planning your season" in formatted
         assert "What is your target race?" in formatted
 
     def test_format_question_with_index(self):
-        payload = {
-            "question": "Question text?",
-            "agent": "Agent1"
-        }
-        formatted = InterruptHandler.format_question(payload, index=2)
+        formatted = InterruptHandler.format_question({"question": "Question text?", "agent": "Agent1"}, index=2)
         
         assert "Question 2" in formatted
         assert "AGENT QUESTION" not in formatted
 
     def test_format_question_no_agent_label(self):
-        payload = {"question": "Generic question?", "agent": ""}
-        formatted = InterruptHandler.format_question(payload)
+        formatted = InterruptHandler.format_question({"question": "Generic question?", "agent": ""})
         
         assert "AGENT QUESTION" in formatted
         assert "Generic question?" in formatted
 
     def test_format_question_missing_question_field(self):
-        payload = {"agent": "TestAgent"}
-        formatted = InterruptHandler.format_question(payload)
+        formatted = InterruptHandler.format_question({"agent": "TestAgent"})
         
         assert "Question not found" in formatted
 
@@ -164,17 +156,11 @@ class TestRunWorkflowWithHITL:
             "analysis": "Complete"
         }
         
-        initial_state = {"user_input": "test"}
-        config = {"configurable": {"thread_id": "test_thread"}}
-        
-        def mock_prompt(question):
-            pytest.fail("Should not prompt user when no interrupts")
-        
         result = await run_workflow_with_hitl(
             workflow_app=mock_app,
-            initial_state=initial_state,
-            config=config,
-            prompt_callback=mock_prompt
+            initial_state={"user_input": "test"},
+            config={"configurable": {"thread_id": "test_thread"}},
+            prompt_callback=lambda question: pytest.fail("Should not prompt user when no interrupts")
         )
         
         assert result["result"] == "success"
@@ -197,29 +183,16 @@ class TestRunWorkflowWithHITL:
             {"result": "success", "analysis": "Complete"}
         ]
         
-        initial_state = {"user_input": "test"}
-        config = {"configurable": {"thread_id": "test_thread"}}
-        
-        user_responses = ["Marathon under 3 hours"]
-        response_index = [0]
-        
-        def mock_prompt(question):
-            response = user_responses[response_index[0]]
-            response_index[0] += 1
-            return response
-        
         result = await run_workflow_with_hitl(
             workflow_app=mock_app,
-            initial_state=initial_state,
-            config=config,
-            prompt_callback=mock_prompt
+            initial_state={"user_input": "test"},
+            config={"configurable": {"thread_id": "test_thread"}},
+            prompt_callback=lambda question: "Marathon under 3 hours"
         )
         
         assert result["result"] == "success"
         assert mock_app.ainvoke.call_count == 2
-        
-        second_call_args = mock_app.ainvoke.call_args_list[1][0]
-        assert isinstance(second_call_args[0], Command)
+        assert isinstance(mock_app.ainvoke.call_args_list[1][0][0], Command)
 
     @pytest.mark.asyncio
     async def test_workflow_with_multiple_concurrent_interrupts(self):
@@ -266,8 +239,7 @@ class TestRunWorkflowWithHITL:
         
         assert result["result"] == "success"
         assert mock_app.ainvoke.call_count == 2
-        
-        assert any("2 AGENT QUESTIONS" in msg for msg in progress_messages)
+        assert any("2 AGENT QUESTIONS" in message for message in progress_messages)
 
     @pytest.mark.asyncio
     async def test_workflow_user_cancels_with_quit(self):

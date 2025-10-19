@@ -60,7 +60,7 @@ async def test_metrics_node_basic(mock_retry, mock_plot_storage, mock_get_llm, s
 
     mock_response = Mock()
     mock_response.content = "Test analysis result"
-    mock_response.tool_calls = []  # No tool calls, so we get the direct response
+    mock_response.tool_calls = []
     mock_llm_with_tools.ainvoke = AsyncMock(return_value=mock_response)
 
     mock_llm.bind_tools.return_value = mock_llm_with_tools

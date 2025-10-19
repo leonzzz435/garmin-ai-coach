@@ -31,7 +31,7 @@ def test_all_nodes_importable():
     assert callable(formatter_node)
 
 
-@patch('services.ai.langgraph.config.langsmith_config.LangSmithConfig.setup_langsmith')
+@patch("services.ai.langgraph.config.langsmith_config.LangSmithConfig.setup_langsmith")
 def test_complete_workflow_creation(mock_langsmith):
     from services.ai.langgraph.workflows.analysis_workflow import create_analysis_workflow
 
@@ -46,19 +46,19 @@ def test_state_schema_completeness():
     )
 
     required_fields = [
-        'user_id',
-        'athlete_name',
-        'garmin_data',
-        'execution_id',
-        'metrics_result',
-        'activity_summary',
-        'activity_result',
-        'physiology_result',
-        'synthesis_result',
-        'analysis_html',
-        'plots',
-        'costs',
-        'errors',
+        "user_id",
+        "athlete_name",
+        "garmin_data",
+        "execution_id",
+        "metrics_result",
+        "activity_summary",
+        "activity_result",
+        "physiology_result",
+        "synthesis_result",
+        "analysis_html",
+        "plots",
+        "costs",
+        "errors",
     ]
 
     for field in required_fields:
@@ -66,7 +66,7 @@ def test_state_schema_completeness():
 
 
 @pytest.mark.asyncio
-@patch('services.ai.model_config.ModelSelector.get_llm')
+@patch("services.ai.model_config.ModelSelector.get_llm")
 async def test_node_basic_functionality(mock_get_llm, basic_test_state):
     from services.ai.langgraph.nodes.activity_data_node import activity_data_node
 
@@ -79,24 +79,22 @@ async def test_node_basic_functionality(mock_get_llm, basic_test_state):
     result = await activity_data_node(basic_test_state)
 
     assert isinstance(result, dict)
-    assert (
-        'costs' in result or 'errors' in result
-    )  # Either success with costs or failure with errors
+    assert "costs" in result or "errors" in result
 
-    if 'errors' not in result:
+    if "errors" not in result:
         mock_llm.ainvoke.assert_called_once()
         call_args = mock_llm.ainvoke.call_args[0][0]
 
         assert isinstance(call_args, list)
         for message in call_args:
             assert isinstance(message, dict)
-            assert 'role' in message
-            assert 'content' in message
+            assert "role" in message
+            assert "content" in message
 
 
 def test_workflow_structure_stability():
     try:
-        with patch('services.ai.langgraph.config.langsmith_config.LangSmithConfig.setup_langsmith'):
+        with patch("services.ai.langgraph.config.langsmith_config.LangSmithConfig.setup_langsmith"):
             from services.ai.langgraph.workflows.analysis_workflow import (
                 create_analysis_workflow,
                 create_simple_sequential_workflow,
@@ -108,5 +106,5 @@ def test_workflow_structure_stability():
             assert parallel_workflow is not None
             assert sequential_workflow is not None
 
-    except Exception as e:
-        pytest.fail(f"Workflow creation should be stable: {e}")
+    except Exception as exception:
+        pytest.fail(f"Workflow creation should be stable: {exception}")
