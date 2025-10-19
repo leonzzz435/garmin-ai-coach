@@ -47,6 +47,7 @@ flowchart TD
     subgraph TS ["Tool Systems"]
         PT[Plotting Tools<br/>Matplotlib/Plotly]
         PS[PlotStorage<br/>plot_id, metadata<br/>HTML content]
+        HT[HITL Tool<br/>ask_human<br/>GraphInterrupt]
         WS[Web Search Tool<br/>Max 3 per analysis]
     end
 
@@ -108,12 +109,18 @@ flowchart TD
 
     %% Tool Integration
     MN -.-> PT
+    MN -.-> HT
     PN -.-> PT
+    PN -.-> HT
     AIN -.-> PT
+    AIN -.-> HT
     SN -.-> WS
+    SPN -.-> HT
+    WPN -.-> HT
 
     PT --> PS
     PS --> PRN
+    HT -.-> UC
 
     %% State Management Integration
     TAS <--> MS

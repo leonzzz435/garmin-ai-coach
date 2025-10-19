@@ -29,6 +29,7 @@
 
 ## ✨ What Makes This Special
 
+* 💬 **Conversational AI agents** — Agents can ask clarifying questions during analysis and planning (HITL)
 * Parallel analysis across specialized agents (load, physiology, execution)
 * Interactive reports with evidence and actionable next steps
 * CLI-first, config-driven headless runs
@@ -310,6 +311,7 @@ extraction:
   activities_days: 7
   metrics_days: 14
   ai_mode: "development"   # or "standard" or "cost_effective"
+  hitl_enabled: true       # Enable conversational agents (default: true)
 
 competitions:
   - name: "Target Race"
@@ -369,6 +371,7 @@ extraction:
   activities_days: 21
   metrics_days: 56
   ai_mode: "standard"
+  hitl_enabled: true       # Enable human-in-the-loop interactions (default: true)
 
 competitions:
   - name: "Franklin Meilenlauf"
@@ -385,6 +388,20 @@ credentials:
 ```
 
 > Tip: The advanced details live inside the `context.planning` text; the system is instruction-following and will respect these constraints.
+
+### Human-in-the-Loop (HITL) Mode
+
+**What is HITL?**
+
+When enabled (default), AI agents can pause during analysis or planning to ask you clarifying questions. This ensures the coaching advice addresses your specific situation, preferences, and constraints that might not be captured in your config file.
+
+**Example Interaction:**
+
+```
+🤖 I noticed your last bike ran hot on HR compared to your norm. Any context I should know?
+
+👤 Your answer: Yeah, I had terrible nutrition beforehand and just wasn't in good form that day.
+```
 
 ---
 
@@ -405,6 +422,7 @@ START → [Metrics, Physiology, Activity Data] → Activity Interpreter
 
 **Key Benefits:**
 
+* ✅ **Conversational Agents** — AI can ask for clarification during analysis (HITL)
 * ✅ **Built-in Observability** — Professional LangSmith monitoring
 * ✅ **Parallel Execution** — Metrics + Physiology agents run simultaneously
 * ✅ **Automatic State Management** — Typed state with reducers

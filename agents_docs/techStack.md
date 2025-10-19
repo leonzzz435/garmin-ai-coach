@@ -1,242 +1,159 @@
 # Technology Stack
 
-## Backend (Existing)
+## Core Python Framework
 
-### Core Python Framework
-- **Python 3.10+** - Main programming language
+- **Python 3.13** - Main programming language
 - **Pixi** - Package management and environment handling
-- **Anthropic Claude** - AI model for analysis generation
+- **Pydantic v2** - Data validation and settings management
 
-### AI & Data Processing
-- **LangGraph** - State-based workflow orchestration framework ✅ **ACTIVE**
-- **LangSmith** - AI observability and cost tracking platform ✅ **ACTIVE**
-- ~~**LangChain Orchestration** - Legacy multi-agent orchestration~~ ❌ **DIRECTORY DELETED**
-- **Anthropic Web Search** - Built-in web search tool for Claude models (max 3 uses per analysis)
-- **Garmin Connect Client** - Custom data extraction from Garmin
-- **Matplotlib/Plotly** - Chart and visualization generation
-- **Pandas/NumPy** - Data processing and analysis
-- **Framework-Agnostic Tools** - Pydantic v2-based tools with Protocol interfaces
+## AI & LLM Providers
 
-### Security & Storage
-- **Local Configuration** - Credentials in config files
-- **Local File Storage** - Report caching and intermediate results
+### Supported Models
+- **Anthropic Claude** - claude-sonnet, claude-opus, claude-3-haiku
+- **OpenAI** - gpt-5, gpt-5-mini, gpt-4o, o1, o3, o4-mini
+- **OpenRouter/DeepSeek** - deepseek-chat, deepseek-reasoner
 
-## Backend API (New - Phase 1)
+### AI Orchestration & Observability
+- **LangGraph 1.0+** - State-based workflow orchestration ✅ **ACTIVE**
+- **LangSmith 0.4.37+** - AI observability and cost tracking ✅ **ACTIVE**
+- **LangChain 1.0+** - LLM framework and tool integrations
+- **LangChain-Anthropic 1.0+** - Anthropic Claude integration
+- **LangChain-OpenAI 1.0+** - OpenAI integration
+- **LangChain-Community 0.4+** - Community tools and integrations
 
-### API Framework
-- **FastAPI** - Modern Python web framework
-  - Chosen for: Auto-generated OpenAPI docs, type hints, async support
-  - Integrates well with existing Python codebase
-  - Built-in request validation and serialization
+## Core Dependencies
 
-### Authentication & Security
-- **JWT (JSON Web Tokens)** - Stateless authentication
-- **bcrypt** - Password hashing (if needed for user accounts)
-- **HTTPS/TLS** - Encrypted communication
-- **CORS middleware** - Cross-origin request handling
+### Data Processing
+- **garminconnect 0.2.30+** - Garmin Connect API client
+- **Pandas 2.3.3+** - Data manipulation and analysis
+- **NumPy 2.3.4+** - Numerical computing
 
-### API Documentation
-- **OpenAPI/Swagger** - Auto-generated API documentation
-- **Pydantic** - Request/response model validation
+### Visualization
+- **Plotly 6.3.1+** - Interactive charts and visualizations
 
-### Deployment
-- **Docker** - Containerization for consistent deployment
-- **Railway/Render/DigitalOcean** - Cloud hosting platforms
-- **Gunicorn/Uvicorn** - ASGI server for production
+### Configuration & Environment
+- **python-dotenv 1.1.1+** - Environment variable management
+- **pydantic-settings 2.0+** - Settings management
 
-## iOS App (New - Phase 2)
+## Development & Testing
 
-### Development Framework
-- **SwiftUI** - Modern declarative UI framework
-  - Chosen for: Native performance, modern syntax, Apple ecosystem integration
-  - Better than UIKit for rapid development
-  - Excellent for data-driven interfaces
-
-### Architecture Pattern
-- **MVVM (Model-View-ViewModel)** - Clean separation of concerns
-- **Combine** - Reactive programming for API communication
-- **SwiftUI Navigation** - Modern navigation paradigm
-
-### Core iOS Technologies
-- **URLSession** - HTTP networking with async/await
-- **WebKit (WKWebView)** - HTML report rendering
-- **Keychain Services** - Secure credential storage
-- **Charts Framework** - Native chart rendering (iOS 16+)
-- **Foundation** - Core iOS data types and utilities
-
-### Networking & Data
-- **Codable** - JSON serialization/deserialization
-- **Async/Await** - Modern concurrency
-- **Combine Publishers** - Reactive data flow
-
-### UI/UX
-- **SF Symbols** - Apple's icon system
-- **SwiftUI Animations** - Smooth transitions and feedback
-- **Adaptive Layout** - Support for different screen sizes
-
-## Data Flow Architecture
-
-### ~~Legacy LangChain Architecture~~ ❌ **DIRECTORY DELETED**
-```
-❌ OLD: Telegram Bot -> Sequential Orchestrators -> Garmin Connect -> AI Agents -> HTML Reports
-                       (services/ai/langchain/ - DELETED)
-```
-
-### ✅ **Current LangGraph Architecture (OPERATIONAL)**
-```
-✅ NOW: CLI -> StateGraph Workflow -> Garmin Connect -> AI Nodes -> HTML Reports
-              (services/ai/langgraph/ - ACTIVE)
-```
-
-### Future Hybrid Architecture (Post-Migration)
-```
-iOS App -> FastAPI -> LangGraph StateGraph -> Garmin Connect -> AI Nodes -> JSON/HTML -> iOS App
-```
-
-## Development Tools
-
-### Backend Development
-- **VS Code** - Primary IDE
-- **Postman/Insomnia** - API testing
-- **Docker Desktop** - Local containerization
-- **Git** - Version control
-
-### iOS Development
-- **Xcode** - Apple's IDE (required for iOS development)
-- **iOS Simulator** - Testing on virtual devices
-- **TestFlight** - Beta testing platform
-- **Instruments** - Performance profiling
-
-### Code Quality & Tooling
-- **Ruff** — linting and import sorting
+### Code Quality
+- **Ruff 0.14.1+** - Fast Python linter
   - Lint: `pixi run lint-ruff`
   - Auto-fix: `pixi run ruff-fix`
-- **Black + isort** — code formatting
-  - Format: `pixi run format`
-- **Maintenance Utility** — repo housekeeping script
-  - [`scripts/cleanup_repo.py`](scripts/cleanup_repo.py)
-  - Dry-run: `python scripts/cleanup_repo.py --dry-run`
-  - Apply: `python scripts/cleanup_repo.py --apply`
+- **Black 25.9.0+** - Code formatter
+- **isort 7.0.0+** - Import sorting
+- **MyPy 1.18.2+** - Static type checking
+  - Type check: `pixi run type-check`
 
-## Key Architectural Decisions
+### Testing
+- **pytest 8.4.2+** - Testing framework
+  - Run tests: `pixi run test`
+- **pytest-cov 7.0.0+** - Coverage reporting
+  - Coverage: `pixi run test-cov`
+- **pytest-asyncio 1.2.0+** - Async test support
 
-### 1. Hybrid Approach
-- **Decision**: Keep Python backend, add FastAPI layer
-- **Rationale**: Preserve existing AI capabilities, avoid rewriting complex logic
-- **Alternative Considered**: Full iOS rewrite (rejected due to complexity)
+### Code Analysis
+- **Vulture 2.14+** - Dead code detection
+  - Detect: `pixi run dead-code`
+- **Flake8 7.3.0+** - Style guide enforcement
 
-### 2. FastAPI for Backend API
-- **Decision**: Use FastAPI over Flask/Django
-- **Rationale**: Better async support, auto-documentation, type safety
-- **Integration**: Minimal changes to existing codebase
+## Current Architecture
 
-### 3. SwiftUI for iOS
-- **Decision**: SwiftUI over UIKit
-- **Rationale**: Modern approach, faster development, better data binding
-- **Consideration**: Requires iOS 14+ (acceptable for 2025 app)
-
-### 4. JWT Authentication
-- **Decision**: Stateless JWT tokens
-- **Rationale**: Scalable, works well with mobile apps, no server session storage
-- **Security**: Short expiration, secure storage in iOS Keychain
-
-### 5. WebKit for Reports
-- **Decision**: Render HTML reports in WKWebView
-- **Rationale**: Preserve existing rich formatting, faster than native reimplementation
-- **Enhancement**: Could add native charts later for better performance
-
-## Dependencies & Versions
-
-### Backend API Dependencies (New)
-```toml
-# pyproject.toml additions
-fastapi = "^0.104.0"
-uvicorn = "^0.24.0"
-python-jose = "^3.3.0"
-python-multipart = "^0.0.6"
+### Data Flow
+```
+CLI -> StateGraph Workflow -> Garmin Connect -> AI Nodes -> HTML Reports
+      (services/ai/langgraph/ - ACTIVE)
 ```
 
-### iOS Dependencies (New)
-- **Minimum iOS Version**: iOS 15.0
-- **Target iOS Version**: iOS 17.0
-- **Xcode Version**: 15.0+
-- **Swift Version**: 5.9+
+### LangGraph Workflow System
 
-## Future Technology Considerations
+**State-based orchestration with typed schemas:**
 
-### Web Search Integration (New)
-- **Supported Models**: Claude Opus 4.1, Claude Sonnet 4, Claude 3.7 Sonnet, Claude 3.5 Sonnet/Haiku
-- **Implementation**: LangChain built-in web search tool via `bind_tools()`
-- **Cost Tracking**: Web search requests tracked at $10 per 1,000 searches
-- **Usage Limits**: Maximum 3 web searches per analysis for cost control
-
-## ✅ LangGraph Migration (**FULLY COMPLETE + LEGACY CLEANUP!**)
-
-### Migration Results ✅
-- **From**: LangChain sequential orchestrators (800+ lines) ❌ **DIRECTORY DELETED**
-- **To**: LangGraph StateGraph workflows (300 lines, 67% reduction) ✅ **OPERATIONAL**
-- **Bot Integration**: Successfully updated to use LangGraph workflows ✅ **COMPLETE**
-- **Legacy Cleanup**: services/ai/langchain/ directory completely removed ✅ **DELETED**
-- **Benefits**: Built-in observability, parallel execution, simplified code, **ZERO ORCHESTRATION DEPENDENCIES**
-
-### New LangGraph Stack
-- **LangGraph ^0.2.0** - State-based workflow orchestration
-- **LangSmith** - Professional AI observability and cost tracking
-- **StateGraph API** - Explicit state management with typed schemas
-- **Checkpointers** - Built-in persistence replacing custom storage
-- **Streaming API** - Real-time progress updates
-
-### Architecture Changes
-
-#### State Management
 ```python
-# Typed state schema replacing implicit context
 class TrainingAnalysisState(TypedDict):
     user_id: str
     athlete_name: str
     garmin_data: Dict[str, Any]
-
-    # Agent results with reducers for parallel execution
+    hitl_enabled: bool
+    
     metrics_result: Optional[str]
     physiology_result: Optional[str]
     plots: Annotated[List[Dict], lambda x, y: x + y]
 ```
 
-#### Workflow Definition
-```python
-# Explicit graph replacing sequential orchestration
-workflow = StateGraph(TrainingAnalysisState)
-workflow.add_node("metrics", metrics_node)
-workflow.add_node("physiology", physiology_node)
-workflow.add_edge("metrics", "synthesis")
-workflow.add_edge("physiology", "synthesis")
+**Parallel Execution:**
+- Metrics + Physiology + activity_data agents run simultaneously
+- Activity Data → Interpreter (sequential dependency)
+- State reducers handle automatic result aggregation
+
+## Key Features
+
+### Human-in-the-Loop (HITL) ✅ **NEW**
+- **Mechanism**: LangGraph GraphInterrupt with ask_human_tool
+- **Coverage**: All analysis and planning nodes
+- **Configuration**: `hitl_enabled: true` (default) or `false` for automation
+- **Implementation**: Terminal-based prompts, structured workflow interrupts
+
+### Plotting System
+- **Secure Execution**: Sandboxed Python code execution
+- **Storage**: Plot metadata and HTML content
+- **Reference System**: `[PLOT:plot_id]` for embedding in reports
+
+### Cost Tracking
+- **LangSmith Integration**: Automatic token and cost tracking
+- **Per-workflow Monitoring**: Detailed cost breakdowns
+- **Transparent Reporting**: Cost summaries in output
+
+### Security & Privacy
+- **Local Credentials**: Configuration file storage
+- **Local Data**: No cloud persistence of personal data
+- **Direct API Calls**: Secure LLM provider communication
+
+## Observability
+
+- **LangSmith Dashboards**: Professional workflow monitoring
+- **Graph Visualization**: LangGraph Studio debugging
+- **Streaming Updates**: Real-time progress tracking
+- **Cost Analytics**: Per-agent and per-workflow cost analysis
+
+## CLI Interface
+
+```bash
+# Initialize config
+pixi run coach-init my_training_config.yaml
+
+# Run analysis
+pixi run coach-cli --config my_training_config.yaml
 ```
 
-#### Parallel Execution
-- **Metrics + Physiology**: Independent analysis in parallel
-- **Activity Data → Interpreter**: Sequential dependency maintained
-- **State Reducers**: Automatic result aggregation
+## Development Commands
 
-### Infrastructure Replacement
+```bash
+# Code Quality
+pixi run lint-ruff      # Lint with Ruff
+pixi run ruff-fix       # Auto-fix issues
+pixi run format         # Format with Black + isort
+pixi run type-check     # Type check with MyPy
 
-| Component | Current (LangChain) | New (LangGraph) | Code Reduction |
-|-----------|-------------------|----------------|----------------|
-| Cost Tracking | Custom CostTracker | LangSmith built-in | 150 lines → 10 lines |
-| Progress Updates | Custom callbacks | Streaming API | 100 lines → Built-in |
-| Persistence | File-based storage | Checkpointers | 200 lines → Built-in |
-| Error Handling | Custom retry logic | Node-level handling | 75 lines → 20 lines |
-| State Management | Manual coordination | Typed state + reducers | 275 lines → 50 lines |
+# Testing
+pixi run test           # Run test suite
+pixi run test-cov       # Run with coverage
 
-### Observability Improvements
-- **LangSmith Dashboards**: Professional monitoring replacing custom tracking
-- **Graph Visualization**: Workflow debugging in LangGraph Studio
-- **Streaming Updates**: Real-time progress without custom implementations
-- **Cost Analytics**: Automatic token and request cost tracking per workflow
+# Analysis
+pixi run dead-code      # Detect unused code
+```
 
-### Future Enhancements (Post-Migration Complete)
-- **WebSocket** - Real-time progress updates for mobile clients
-- **Apple Watch SDK** - Watch app extension
-- **Core Data** - Local data persistence
-- **Push Notifications** - Analysis completion alerts
-- **Siri Shortcuts** - Voice integration
-- **OpenAI Tool Calling** - Ready for direct model tool invocation via framework-agnostic tools
+## Package Management
+
+All dependencies managed via Pixi (see [`pixi.toml`](../pixi.toml)):
+- Consistent environments across platforms
+- Automatic dependency resolution
+- Fast installation and caching
+
+## Security Practices
+
+- **Encrypted Storage**: Local credential encryption
+- **Secure Communication**: HTTPS for all API calls
+- **No Cloud Storage**: Personal data stays local
+- **API Key Management**: Environment-based configuration
