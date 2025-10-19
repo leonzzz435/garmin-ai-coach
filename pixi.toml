@@ -7,7 +7,7 @@ channels = ["conda-forge"]
 platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
 
 [dependencies]
-python = ">=3.14.0,<3.15"
+python = ">=3.13.0,<3.14"
 pip = ">=25.2,<26"
 pre-commit = ">=4.3.0,<5"
 
@@ -16,6 +16,8 @@ pre-commit = ">=4.3.0,<5"
 garmin-ai-coach = { path = ".", editable = true }
 garminconnect = ">=0.2.30, <0.3"
 anthropic = ">=0.71.0, <0.72"
+pydantic = ">=2.12, <3"
+pydantic-settings = ">=2.0, <3"
 langchain = ">=1.0.0, <2"
 langchain-openai = ">=1.0.0, <2"
 langchain-anthropic = ">=1.0.0, <2"
