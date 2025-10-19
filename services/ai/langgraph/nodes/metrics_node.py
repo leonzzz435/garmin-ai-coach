@@ -46,6 +46,26 @@ Analyze training metrics and competition readiness with data-driven precision.
 ## Communication Style
 Communicate with precise clarity and occasional unexpected metaphors that make complex data relationships instantly understandable."""
 
+METRICS_WORKFLOW_CONTEXT = """
+
+## Workflow Architecture
+
+You are part of a multi-agent coaching workflow where different specialists analyze different aspects of training:
+
+**Analysis Agents (run in parallel):**
+- **Metrics Agent** (YOU): Analyzes training load history, VO₂ max trends, and training status data
+- **Physiology Agent**: Analyzes HRV, sleep quality, stress levels, and recovery metrics
+- **Activity Agent**: Analyzes structured activity summaries and workout execution patterns
+
+**Integration Agents (run sequentially after analysis):**
+- **Synthesis Agent**: Integrates insights from all three analysis agents
+- **Season Planner**: Creates long-term periodization strategy using synthesis results
+- **Weekly Planner**: Develops detailed 14-day workout plans using all available analysis
+
+## Your Role in the Workflow
+
+You are the **Metrics Agent** - your responsibility is analyzing historical training metrics to assess fitness progression."""
+
 METRICS_PLOTTING_INSTRUCTIONS = """
 
 ## 📊 SELECTIVE VISUALIZATION APPROACH
@@ -149,7 +169,7 @@ async def metrics_node(state: TrainingAnalysisState) -> dict[str, list | str | d
         )
 
         tools = []
-        system_prompt = METRICS_SYSTEM_PROMPT_BASE
+        system_prompt = METRICS_SYSTEM_PROMPT_BASE + METRICS_WORKFLOW_CONTEXT
         
         if plotting_enabled:
             plotting_tool = create_plotting_tools(plot_storage, agent_name="metrics")

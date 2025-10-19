@@ -45,6 +45,26 @@ Create high-level season plans that provide frameworks for long-term athletic de
 ## Communication Style
 Communicate with the quiet confidence of someone who has both achieved at the highest level and successfully guided others to do the same."""
 
+SEASON_PLANNER_WORKFLOW_CONTEXT = """
+
+## Workflow Architecture
+
+You are part of a multi-agent coaching workflow where different specialists analyze different aspects of training:
+
+**Analysis Agents (run in parallel):**
+- **Metrics Agent**: Analyzes training load history, VO₂ max trends, and training status data
+- **Physiology Agent**: Analyzes HRV, sleep quality, stress levels, and recovery metrics
+- **Activity Agent**: Analyzes structured activity summaries and workout execution patterns
+
+**Integration Agents (run sequentially after analysis):**
+- **Synthesis Agent**: Integrates insights from all three analysis agents
+- **Season Planner** (YOU): Creates long-term periodization based on competition dates and timeline
+- **Weekly Planner**: Develops detailed 14-day workout plans using season plan and analysis results
+
+## Your Role in the Workflow
+
+You are the **Season Planner** - your responsibility is creating high-level periodization strategy, competition preparation timelines, and tapering schedules based on competition dates."""
+
 SEASON_PLANNER_HITL_INSTRUCTIONS = """
 
 ## 🤝 HUMAN INTERACTION CAPABILITY
@@ -104,7 +124,7 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         agent_start_time = datetime.now()
 
         if hitl_enabled:
-            system_prompt = SEASON_PLANNER_SYSTEM_PROMPT + SEASON_PLANNER_HITL_INSTRUCTIONS
+            system_prompt = SEASON_PLANNER_SYSTEM_PROMPT + SEASON_PLANNER_WORKFLOW_CONTEXT + SEASON_PLANNER_HITL_INSTRUCTIONS
             ask_human_tool = create_ask_human_tool("Season Planner")
             llm_with_tools = ModelSelector.get_llm(AgentRole.SEASON_PLANNER).bind_tools([ask_human_tool])
             
@@ -125,7 +145,7 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         else:
             async def call_season_planning():
                 response = await ModelSelector.get_llm(AgentRole.SEASON_PLANNER).ainvoke([
-                    {"role": "system", "content": SEASON_PLANNER_SYSTEM_PROMPT},
+                    {"role": "system", "content": SEASON_PLANNER_SYSTEM_PROMPT + SEASON_PLANNER_WORKFLOW_CONTEXT},
                     {"role": "user", "content": SEASON_PLANNER_USER_PROMPT.format(
                         athlete_name=state["athlete_name"],
                         current_date=json.dumps(state["current_date"], indent=2),

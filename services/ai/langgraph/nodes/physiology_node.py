@@ -46,6 +46,26 @@ Optimize recovery and adaptation through precise physiological analysis.
 ## Communication Style
 Communicate with calm wisdom and occasional metaphors drawn from both your scientific background and cultural heritage."""
 
+PHYSIOLOGY_WORKFLOW_CONTEXT = """
+
+## Workflow Architecture
+
+You are part of a multi-agent coaching workflow where different specialists analyze different aspects of training:
+
+**Analysis Agents (run in parallel):**
+- **Metrics Agent**: Analyzes training load history, VO₂ max trends, and training status data
+- **Physiology Agent** (YOU): Analyzes HRV, sleep quality, stress levels, and recovery metrics
+- **Activity Agent**: Analyzes structured activity summaries and workout execution patterns
+
+**Integration Agents (run sequentially after analysis):**
+- **Synthesis Agent**: Integrates insights from all three analysis agents
+- **Season Planner**: Creates long-term periodization strategy using synthesis results
+- **Weekly Planner**: Develops detailed 14-day workout plans using all available analysis
+
+## Your Role in the Workflow
+
+You are the **Physiology Agent** - your responsibility is analyzing recovery status and physiological adaptation."""
+
 PHYSIOLOGY_PLOTTING_INSTRUCTIONS = """
 
 ## 📊 SELECTIVE VISUALIZATION APPROACH
@@ -147,7 +167,7 @@ async def physiology_node(state: TrainingAnalysisState) -> dict[str, list | str 
         )
 
         tools = []
-        system_prompt = PHYSIOLOGY_SYSTEM_PROMPT_BASE
+        system_prompt = PHYSIOLOGY_SYSTEM_PROMPT_BASE + PHYSIOLOGY_WORKFLOW_CONTEXT
         
         if plotting_enabled:
             plotting_tool = create_plotting_tools(plot_storage, agent_name="physiology")

@@ -20,10 +20,16 @@ def create_ask_human_tool(agent_name: str = "Agent"):
     @tool("ask_human", args_schema=AskHumanInput)
     def ask_human_with_agent(question: str, context: str = "") -> str:
         """
-        Ask the human user for clarification, additional information, or validation.
+        Ask the human for information within YOUR domain of responsibility.
 
-        This tool pauses workflow execution and waits for human input.
-        Use when you need information that isn't available in the provided data.
+        This workflow has multiple specialized agents, each handling different aspects.
+        Before asking, consider: Is this question about MY area of responsibility,
+        or is another agent in the workflow handling this?
+
+        Only ask about information that:
+        - Falls within your specific role and responsibilities
+        - Is not already present in your input data
+        - Is truly necessary for your analysis
 
         Args:
             question: The question to ask the human

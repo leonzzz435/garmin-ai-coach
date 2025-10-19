@@ -45,6 +45,26 @@ Create detailed, practical training plans that athletes can execute with confide
 ## Communication Style
 Communicate with the quiet confidence of someone who has both achieved at the highest level and successfully guided others to do the same."""
 
+WEEKLY_PLANNER_WORKFLOW_CONTEXT = """
+
+## Workflow Architecture
+
+You are part of a multi-agent coaching workflow where different specialists analyze different aspects of training:
+
+**Analysis Agents (run in parallel):**
+- **Metrics Agent**: Analyzes training load history, VO₂ max trends, and training status data
+- **Physiology Agent**: Analyzes HRV, sleep quality, stress levels, and recovery metrics
+- **Activity Agent**: Analyzes structured activity summaries and workout execution patterns
+
+**Integration Agents (run sequentially after analysis):**
+- **Synthesis Agent**: Integrates insights from all three analysis agents
+- **Season Planner**: Creates long-term periodization strategy using synthesis results
+- **Weekly Planner** (YOU): Develops detailed 14-day workout plans using all available analysis
+
+## Your Role in the Workflow
+
+You are the **Weekly Planner** - your responsibility is creating detailed, executable 14-day workout plans. You receive analysis from Metrics, Physiology, and Activity agents, plus strategic direction from the Season Planner."""
+
 WEEKLY_PLANNER_HITL_INSTRUCTIONS = """
 
 ## 🤝 HUMAN INTERACTION CAPABILITY
@@ -141,7 +161,7 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         agent_start_time = datetime.now()
 
         if hitl_enabled:
-            system_prompt = WEEKLY_PLANNER_SYSTEM_PROMPT + WEEKLY_PLANNER_HITL_INSTRUCTIONS
+            system_prompt = WEEKLY_PLANNER_SYSTEM_PROMPT + WEEKLY_PLANNER_WORKFLOW_CONTEXT + WEEKLY_PLANNER_HITL_INSTRUCTIONS
             ask_human_tool = create_ask_human_tool("Weekly Planner")
             llm_with_tools = ModelSelector.get_llm(AgentRole.WORKOUT).bind_tools([ask_human_tool])
             
@@ -168,7 +188,7 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         else:
             async def call_weekly_planning():
                 response = await ModelSelector.get_llm(AgentRole.WORKOUT).ainvoke([
-                    {"role": "system", "content": WEEKLY_PLANNER_SYSTEM_PROMPT},
+                    {"role": "system", "content": WEEKLY_PLANNER_SYSTEM_PROMPT + WEEKLY_PLANNER_WORKFLOW_CONTEXT},
                     {"role": "user", "content": WEEKLY_PLANNER_USER_PROMPT.format(
                         season_plan=state.get("season_plan", ""),
                         athlete_name=state["athlete_name"],
