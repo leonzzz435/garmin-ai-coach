@@ -4,25 +4,21 @@ from datetime import datetime
 
 from services.ai.ai_settings import AgentRole
 from services.ai.model_config import ModelSelector
-from services.ai.tools.hitl import create_ask_human_tool
-from services.ai.tools.plotting import PlotStorage, create_plotting_tools
+from services.ai.tools.plotting import PlotStorage
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
+from .node_base import (
+    configure_node_tools,
+    create_cost_entry,
+    create_plot_entries,
+    execute_node_with_error_handling,
+    log_node_completion,
+)
+from .prompt_components import get_output_context_note, get_plotting_instructions, get_workflow_context
 from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
-
-# Import GraphInterrupt exception class (not the interrupt function!)
-try:
-    from langgraph.errors import GraphInterrupt
-except ImportError:
-    try:
-        from langgraph.errors import NodeInterrupt as GraphInterrupt
-    except ImportError:
-        class GraphInterrupt(BaseException):  # type: ignore
-            """Placeholder exception for when LangGraph is not installed"""
-            pass
 
 PHYSIOLOGY_SYSTEM_PROMPT_BASE = """You are Dr. Kwame Osei, a pioneering physiologist whose "Adaptive Recovery Protocol" has transformed how elite athletes approach training recovery.
 
@@ -46,76 +42,9 @@ Optimize recovery and adaptation through precise physiological analysis.
 ## Communication Style
 Communicate with calm wisdom and occasional metaphors drawn from both your scientific background and cultural heritage."""
 
-PHYSIOLOGY_WORKFLOW_CONTEXT = """
-
-## Workflow Architecture
-
-You are part of a multi-agent coaching workflow where different specialists analyze different aspects of training:
-
-**Analysis Agents (run in parallel):**
-- **Metrics Agent**: Analyzes training load history, VO₂ max trends, and training status data
-- **Physiology Agent** (YOU): Analyzes HRV, sleep quality, stress levels, and recovery metrics
-- **Activity Agent**: Analyzes structured activity summaries and workout execution patterns
-
-**Integration Agents (run sequentially after analysis):**
-- **Synthesis Agent**: Integrates insights from all three analysis agents
-- **Season Planner**: Creates long-term periodization strategy using synthesis results
-- **Weekly Planner**: Develops detailed 14-day workout plans using all available analysis
-
-## Your Role in the Workflow
-
-You are the **Physiology Agent** - your responsibility is analyzing recovery status and physiological adaptation."""
-
-PHYSIOLOGY_PLOTTING_INSTRUCTIONS = """
-
-## 📊 SELECTIVE VISUALIZATION APPROACH
-
-⚠️ **CRITICAL CONSTRAINT**: Create plots ONLY for insights that provide unique value beyond what's already available in the Garmin app.
-
-**Before creating any plot, ask yourself:**
-- Does this reveal physiological patterns NOT visible in Garmin's recovery or stress reports?
-- Would this help coaches understand adaptation or recovery insights unavailable elsewhere?
-- Is this analysis complex enough to warrant a custom visualization?
-
-**LIMIT: Maximum 2 plots per agent.** Focus on truly unique physiological insights.
-
-Use python_plotting_tool only when absolutely necessary for insights beyond standard Garmin reports.
-
-## 🔗 CRITICAL: Plot Reference Usage - SINGLE REFERENCE RULE
-
-**MANDATORY SINGLE REFERENCE RULE**: Each plot you create MUST be referenced EXACTLY ONCE in your analysis. Never repeat the same plot reference multiple times.
-
-**Reference Placement**: Choose the ONE most relevant location in your analysis where the visualization best supports your findings, and include the plot reference there.
-
-**Example workflow:**
-1. Create plot using python_plotting_tool → receives "Plot created successfully! Reference as [PLOT:physiology_1234567890_001]"
-2. Include in your analysis EXACTLY ONCE: "The HRV patterns reveal concerning recovery deficits [PLOT:physiology_1234567890_001] indicating the need for extended recovery periods."
-3. DO NOT repeat this reference elsewhere in your analysis
-
-**Your plot references will be automatically converted to interactive charts in the final report.**"""
-
-PHYSIOLOGY_HITL_INSTRUCTIONS = """
-
-## 🤝 HUMAN INTERACTION CAPABILITY
-
-You have access to the `ask_human` tool to request clarification or additional information from the user.
-
-**How to use ask_human:**
-- Ask ONE clear, specific question at a time
-- Provide brief context about why you're asking
-- Keep questions focused and actionable
-- Don't ask questions if the answer is already in the provided data
-
-**Response handling:**
-- Incorporate the human's answer into your analysis
-- If the answer raises new questions, you can ask follow-up questions
-- Acknowledge the information provided in your final analysis
-"""
-
 PHYSIOLOGY_USER_PROMPT = """Analyze the athlete's physiological data to assess recovery status and adaptation state.
 
-## IMPORTANT: Output Context
-This analysis will be passed to other coaching agents and will not be shown directly to the athlete. Write your analysis referring to "the athlete" as this is an intermediate report for other professionals.
+{output_context}
 
 ## Input Data
 ```json
@@ -156,102 +85,80 @@ Analyze only the data that is actually present in the input. If analysis context
 async def physiology_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
     logger.info("Starting physiology analysis node")
 
-    try:
-        plot_storage = PlotStorage(state["execution_id"])
-        plotting_enabled = state.get("plotting_enabled", False)
-        hitl_enabled = state.get("hitl_enabled", True)
-        
-        logger.info(
-            f"Physiology node: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
-            f"HITL {'enabled' if hitl_enabled else 'disabled'}"
+    plot_storage = PlotStorage(state["execution_id"])
+    plotting_enabled = state.get("plotting_enabled", False)
+    hitl_enabled = state.get("hitl_enabled", True)
+    
+    logger.info(
+        f"Physiology node: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
+        f"HITL {'enabled' if hitl_enabled else 'disabled'}"
+    )
+
+    tools = configure_node_tools(
+        agent_name="physiology",
+        plot_storage=plot_storage,
+        plotting_enabled=plotting_enabled,
+        hitl_enabled=hitl_enabled,
+    )
+
+    system_prompt = PHYSIOLOGY_SYSTEM_PROMPT_BASE + get_workflow_context("physiology")
+    if plotting_enabled:
+        system_prompt += get_plotting_instructions("physiology")
+
+    if tools:
+        llm_with_tools = ModelSelector.get_llm(AgentRole.PHYSIO).bind_tools(tools)
+    else:
+        llm_with_tools = ModelSelector.get_llm(AgentRole.PHYSIO)
+
+    recovery_indicators = state["garmin_data"].get("recovery_indicators", [])
+    agent_start_time = datetime.now()
+
+    async def call_physiology_analysis():
+        return await handle_tool_calling_in_node(
+            llm_with_tools=llm_with_tools,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": PHYSIOLOGY_USER_PROMPT.format(
+                    output_context=get_output_context_note(for_other_agents=True),
+                    data=json.dumps({
+                        "hrv_data": state["garmin_data"].get("physiological_markers", {}).get("hrv", {}),
+                        "sleep_data": [ind["sleep"] for ind in recovery_indicators if ind.get("sleep")],
+                        "stress_data": [ind["stress"] for ind in recovery_indicators if ind.get("stress")],
+                        "recovery_metrics": {
+                            "physiological_markers": state["garmin_data"].get("physiological_markers", {}),
+                            "body_metrics": state["garmin_data"].get("body_metrics", {}),
+                            "recovery_indicators": recovery_indicators,
+                        },
+                    }, indent=2),
+                    competitions=json.dumps(state["competitions"], indent=2),
+                    current_date=json.dumps(state["current_date"], indent=2),
+                    analysis_context=state["analysis_context"],
+                )},
+            ],
+            tools=tools,
+            max_iterations=15,
         )
 
-        tools = []
-        system_prompt = PHYSIOLOGY_SYSTEM_PROMPT_BASE + PHYSIOLOGY_WORKFLOW_CONTEXT
-        
-        if plotting_enabled:
-            plotting_tool = create_plotting_tools(plot_storage, agent_name="physiology")
-            tools.append(plotting_tool)
-            system_prompt += PHYSIOLOGY_PLOTTING_INSTRUCTIONS
-        
-        if hitl_enabled:
-            tools.append(create_ask_human_tool("Physiology"))
-            system_prompt += PHYSIOLOGY_HITL_INSTRUCTIONS
-        
-        if tools:
-            llm_with_tools = ModelSelector.get_llm(AgentRole.PHYSIO).bind_tools(tools)
-        else:
-            llm_with_tools = ModelSelector.get_llm(AgentRole.PHYSIO)
-
-        recovery_indicators = state["garmin_data"].get("recovery_indicators", [])
-        agent_start_time = datetime.now()
-
-        async def call_physiology_analysis():
-            return await handle_tool_calling_in_node(
-                llm_with_tools=llm_with_tools,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": PHYSIOLOGY_USER_PROMPT.format(
-                        data=json.dumps({
-                            "hrv_data": state["garmin_data"].get("physiological_markers", {}).get("hrv", {}),
-                            "sleep_data": [ind["sleep"] for ind in recovery_indicators if ind.get("sleep")],
-                            "stress_data": [ind["stress"] for ind in recovery_indicators if ind.get("stress")],
-                            "recovery_metrics": {
-                                "physiological_markers": state["garmin_data"].get("physiological_markers", {}),
-                                "body_metrics": state["garmin_data"].get("body_metrics", {}),
-                                "recovery_indicators": recovery_indicators,
-                            },
-                        }, indent=2),
-                        competitions=json.dumps(state["competitions"], indent=2),
-                        current_date=json.dumps(state["current_date"], indent=2),
-                        analysis_context=state["analysis_context"],
-                    )},
-                ],
-                tools=tools,
-                max_iterations=15,
-            )
-
+    async def node_execution():
         physiology_result = await retry_with_backoff(
             call_physiology_analysis, AI_ANALYSIS_CONFIG, "Physiology Analysis with Tools"
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-        all_plots = plot_storage.get_all_plots()
-        timestamp_iso = datetime.now().isoformat()
-
-        logger.info(
-            f"Physiology analysis completed in {execution_time:.2f}s with {len(all_plots)} plots"
-        )
+        plots, plot_storage_data, available_plots = create_plot_entries("physiology", plot_storage)
+        
+        log_node_completion("Physiology analysis", execution_time, len(available_plots))
 
         return {
             "physiology_result": physiology_result,
-            "plots": [
-                {"agent": "physiology", "plot_id": plot_id, "timestamp": timestamp_iso}
-                for plot_id in all_plots
-            ],
-            "plot_storage_data": {
-                plot_id: {
-                    "plot_id": metadata.plot_id,
-                    "description": metadata.description,
-                    "agent_name": metadata.agent_name,
-                    "created_at": metadata.created_at.isoformat(),
-                    "html_content": metadata.html_content,
-                    "data_summary": metadata.data_summary,
-                }
-                for plot_id, metadata in all_plots.items()
-            },
-            "costs": [{
-                "agent": "physiology",
-                "execution_time": execution_time,
-                "timestamp": timestamp_iso,
-            }],
-            "available_plots": list(all_plots.keys()),
+            "plots": plots,
+            "plot_storage_data": plot_storage_data,
+            "costs": [create_cost_entry("physiology", execution_time)],
+            "available_plots": available_plots,
         }
 
-    except GraphInterrupt:
-        # CRITICAL: Let LangGraph handle the pause/resume - do not wrap or catch
-        raise
-    
-    except Exception as e:
-        logger.error(f"Physiology analysis node failed: {e}")
-        return {"errors": [f"Physiology analysis failed: {str(e)}"]}
+    return await execute_node_with_error_handling(
+        node_name="Physiology analysis",
+        node_function=node_execution,
+        error_message_prefix="Physiology analysis failed",
+    )

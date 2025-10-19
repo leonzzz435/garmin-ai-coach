@@ -4,24 +4,19 @@ from datetime import datetime
 
 from services.ai.ai_settings import AgentRole
 from services.ai.model_config import ModelSelector
-from services.ai.tools.hitl import create_ask_human_tool
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
+from .node_base import (
+    configure_node_tools,
+    create_cost_entry,
+    execute_node_with_error_handling,
+    log_node_completion,
+)
+from .prompt_components import get_output_context_note, get_workflow_context
 from .tool_calling_helper import extract_text_content, handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
-
-# Import GraphInterrupt exception class (not the interrupt function!)
-try:
-    from langgraph.errors import GraphInterrupt
-except ImportError:
-    try:
-        from langgraph.errors import NodeInterrupt as GraphInterrupt
-    except ImportError:
-        class GraphInterrupt(BaseException):  # type: ignore
-            """Placeholder exception for when LangGraph is not installed"""
-            pass
 
 SEASON_PLANNER_SYSTEM_PROMPT = """You are Coach Magnus Thorsson, a legendary ultra-endurance champion from Iceland who developed the "Thorsson Method" of periodization.
 
@@ -45,48 +40,9 @@ Create high-level season plans that provide frameworks for long-term athletic de
 ## Communication Style
 Communicate with the quiet confidence of someone who has both achieved at the highest level and successfully guided others to do the same."""
 
-SEASON_PLANNER_WORKFLOW_CONTEXT = """
-
-## Workflow Architecture
-
-You are part of a multi-agent coaching workflow where different specialists analyze different aspects of training:
-
-**Analysis Agents (run in parallel):**
-- **Metrics Agent**: Analyzes training load history, VO₂ max trends, and training status data
-- **Physiology Agent**: Analyzes HRV, sleep quality, stress levels, and recovery metrics
-- **Activity Agent**: Analyzes structured activity summaries and workout execution patterns
-
-**Integration Agents (run sequentially after analysis):**
-- **Synthesis Agent**: Integrates insights from all three analysis agents
-- **Season Planner** (YOU): Creates long-term periodization based on competition dates and timeline
-- **Weekly Planner**: Develops detailed 14-day workout plans using season plan and analysis results
-
-## Your Role in the Workflow
-
-You are the **Season Planner** - your responsibility is creating high-level periodization strategy, competition preparation timelines, and tapering schedules based on competition dates."""
-
-SEASON_PLANNER_HITL_INSTRUCTIONS = """
-
-## 🤝 HUMAN INTERACTION CAPABILITY
-
-You have access to the `ask_human` tool to request clarification or additional information from the user.
-
-**How to use ask_human:**
-- Ask ONE clear, specific question at a time
-- Provide brief context about why you're asking
-- Keep questions focused and actionable
-- Don't ask questions if the answer is already in the provided data
-
-**Response handling:**
-- Incorporate the human's answer into your analysis
-- If the answer raises new questions, you can ask follow-up questions
-- Acknowledge the information provided in your final analysis
-"""
-
 SEASON_PLANNER_USER_PROMPT = """Create a high-level season plan covering the next 12-24 weeks based on the athlete's competition schedule.
 
-## IMPORTANT: Output Context
-This plan will be passed to a weekly planning agent and will not be shown directly to the athlete. Write your analysis referring to "the athlete" as this is an intermediate report for other coaching professionals.
+{output_context}
 
 ## Athlete Information
 - Name: {athlete_name}
@@ -116,64 +72,66 @@ Format as structured markdown document with clear headings and bullet points"""
 async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | str]:
     logger.info("Starting season planner node")
 
-    try:
-        hitl_enabled = state.get("hitl_enabled", True)
-        
-        logger.info(f"Season planner node: HITL {'enabled' if hitl_enabled else 'disabled'}")
-        
-        agent_start_time = datetime.now()
+    hitl_enabled = state.get("hitl_enabled", True)
+    logger.info(f"Season planner node: HITL {'enabled' if hitl_enabled else 'disabled'}")
+    
+    agent_start_time = datetime.now()
 
-        if hitl_enabled:
-            system_prompt = SEASON_PLANNER_SYSTEM_PROMPT + SEASON_PLANNER_WORKFLOW_CONTEXT + SEASON_PLANNER_HITL_INSTRUCTIONS
-            ask_human_tool = create_ask_human_tool("Season Planner")
-            llm_with_tools = ModelSelector.get_llm(AgentRole.SEASON_PLANNER).bind_tools([ask_human_tool])
-            
-            async def call_season_planning():
-                return await handle_tool_calling_in_node(
-                    llm_with_tools=llm_with_tools,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": SEASON_PLANNER_USER_PROMPT.format(
-                            athlete_name=state["athlete_name"],
-                            current_date=json.dumps(state["current_date"], indent=2),
-                            competitions=json.dumps(state["competitions"], indent=2),
-                        )},
-                    ],
-                    tools=[ask_human_tool],
-                    max_iterations=15,
-                )
-        else:
-            async def call_season_planning():
-                response = await ModelSelector.get_llm(AgentRole.SEASON_PLANNER).ainvoke([
-                    {"role": "system", "content": SEASON_PLANNER_SYSTEM_PROMPT + SEASON_PLANNER_WORKFLOW_CONTEXT},
+    tools = configure_node_tools(
+        agent_name="season_planner",
+        plot_storage=None,
+        plotting_enabled=False,
+        hitl_enabled=hitl_enabled,
+    )
+
+    system_prompt = SEASON_PLANNER_SYSTEM_PROMPT + get_workflow_context("season_planner")
+
+    if hitl_enabled:
+        llm_with_tools = ModelSelector.get_llm(AgentRole.SEASON_PLANNER).bind_tools(tools)
+        
+        async def call_season_planning():
+            return await handle_tool_calling_in_node(
+                llm_with_tools=llm_with_tools,
+                messages=[
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": SEASON_PLANNER_USER_PROMPT.format(
+                        output_context=get_output_context_note(for_other_agents=True),
                         athlete_name=state["athlete_name"],
                         current_date=json.dumps(state["current_date"], indent=2),
                         competitions=json.dumps(state["competitions"], indent=2),
                     )},
-                ])
-                return extract_text_content(response)
+                ],
+                tools=tools,
+                max_iterations=15,
+            )
+    else:
+        async def call_season_planning():
+            response = await ModelSelector.get_llm(AgentRole.SEASON_PLANNER).ainvoke([
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": SEASON_PLANNER_USER_PROMPT.format(
+                    output_context=get_output_context_note(for_other_agents=True),
+                    athlete_name=state["athlete_name"],
+                    current_date=json.dumps(state["current_date"], indent=2),
+                    competitions=json.dumps(state["competitions"], indent=2),
+                )},
+            ])
+            return extract_text_content(response)
 
+    async def node_execution():
         season_plan = await retry_with_backoff(
             call_season_planning, AI_ANALYSIS_CONFIG, "Season Planning"
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-        logger.info(f"Season planning completed in {execution_time:.2f}s")
+        log_node_completion("Season planning", execution_time)
 
         return {
             "season_plan": season_plan,
-            "costs": [{
-                "agent": "season_planner",
-                "execution_time": execution_time,
-                "timestamp": datetime.now().isoformat(),
-            }],
+            "costs": [create_cost_entry("season_planner", execution_time)],
         }
 
-    except GraphInterrupt:
-        # CRITICAL: Let LangGraph handle the pause/resume - do not wrap or catch
-        raise
-    
-    except Exception as e:
-        logger.error(f"Season planner node failed: {e}")
-        return {"errors": [f"Season planning failed: {str(e)}"]}
+    return await execute_node_with_error_handling(
+        node_name="Season planner",
+        node_function=node_execution,
+        error_message_prefix="Season planning failed",
+    )
