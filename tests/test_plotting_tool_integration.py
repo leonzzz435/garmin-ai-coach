@@ -17,7 +17,6 @@ class TestPlottingToolIntegration:
 
     @pytest.mark.asyncio
     async def test_tool_invocation(self):
-        """Test that tools can be invoked directly."""
         plot_storage = PlotStorage("test_execution")
         plotting_tool = create_plotting_tools(plot_storage, agent_name="test")
 

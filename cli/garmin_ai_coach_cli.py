@@ -20,7 +20,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
@@ -35,39 +35,34 @@ class ConfigParser:
         if not self.config_path.exists():
             raise FileNotFoundError(f"Config file not found: {self.config_path}")
 
-        content = self.config_path.read_text(encoding='utf-8')
+        content = self.config_path.read_text(encoding="utf-8")
 
-        if self.config_path.suffix in ['.yaml', '.yml']:
+        if self.config_path.suffix in [".yaml", ".yml"]:
             return yaml.safe_load(content)
-        elif self.config_path.suffix == '.json':
+        elif self.config_path.suffix == ".json":
             return json.loads(content)
         else:
             raise ValueError(f"Unsupported config format: {self.config_path.suffix}")
 
     def get_athlete_info(self) -> tuple[str, str]:
-        athlete = self.config.get('athlete', {})
-        name = athlete.get('name', 'Athlete')
-        email = athlete.get('email')
-
-        if not email:
+        if not (email := self.config.get("athlete", {}).get("email")):
             raise ValueError("Athlete email is required in config file")
 
-        return name, email
+        return self.config.get("athlete", {}).get("name", "Athlete"), email
 
     def get_contexts(self) -> tuple[str, str]:
-        context = self.config.get('context', {})
-        analysis_context = context.get('analysis', '').strip()
-        planning_context = context.get('planning', '').strip()
-        return analysis_context, planning_context
+        return (
+            self.config.get("context", {}).get("analysis", "").strip(),
+            self.config.get("context", {}).get("planning", "").strip()
+        )
 
     def get_extraction_config(self) -> dict[str, Any]:
-        extraction = self.config.get('extraction', {})
         return {
-            'activities_days': extraction.get('activities_days', 7),
-            'metrics_days': extraction.get('metrics_days', 14),
-            'ai_mode': extraction.get('ai_mode', 'development'),
-            'enable_plotting': extraction.get('enable_plotting', False),
-            'hitl_enabled': extraction.get('hitl_enabled', True),
+            "activities_days": self.config.get("extraction", {}).get("activities_days", 7),
+            "metrics_days": self.config.get("extraction", {}).get("metrics_days", 14),
+            "ai_mode": self.config.get("extraction", {}).get("ai_mode", "development"),
+            "enable_plotting": self.config.get("extraction", {}).get("enable_plotting", False),
+            "hitl_enabled": self.config.get("extraction", {}).get("hitl_enabled", True),
         }
 
     def get_competitions(self) -> list[dict[str, Any]]:
@@ -84,40 +79,33 @@ class ConfigParser:
         ]
 
     def get_output_directory(self) -> Path:
-        output = self.config.get('output', {})
-        output_dir = output.get('directory', './data')
-        return Path(output_dir)
+        return Path(self.config.get("output", {}).get("directory", "./data"))
 
     def get_password(self) -> str:
-        credentials = self.config.get('credentials', {})
-        password = credentials.get('password', '')
-
-        if not password:
-            password = getpass.getpass("Enter Garmin Connect password: ")
-
-        return password
+        return (
+            self.config.get("credentials", {}).get("password", "") or
+            getpass.getpass("Enter Garmin Connect password: ")
+        )
 
 
 def fetch_outside_competitions_from_config(config: dict[str, Any]) -> list[dict[str, Any]]:
-    outside_cfg = config.get("outside")
     client = OutsideApiGraphQlClient()
 
-    if isinstance(outside_cfg, dict) and any(isinstance(v, list) for v in outside_cfg.values()):
+    if isinstance(outside_cfg := config.get("outside"), dict) and any(
+        isinstance(value, list) for value in outside_cfg.values()
+    ):
         return client.get_competitions(outside_cfg)
 
     aggregate: list[dict[str, Any]] = []
 
-    legacy_bikereg = config.get("bikereg", [])
-    if isinstance(legacy_bikereg, list) and legacy_bikereg:
+    if isinstance(legacy_bikereg := config.get("bikereg", []), list) and legacy_bikereg:
         aggregate.extend(client.get_competitions(legacy_bikereg))
 
-    legacy_all = {}
-    for k in ("runreg", "trireg", "skireg"):
-        entries = config.get(k, [])
-        if isinstance(entries, list) and entries:
-            legacy_all[k] = entries
-
-    if legacy_all:
+    if legacy_all := {
+        key: entries
+        for key in ("runreg", "trireg", "skireg")
+        if isinstance(entries := config.get(key, []), list) and entries
+    }:
         aggregate.extend(client.get_competitions(legacy_all))
 
     return aggregate
@@ -141,7 +129,7 @@ async def run_analysis_from_config(config_path: Path) -> None:
 
     password = config_parser.get_password()
 
-    os.environ['AI_MODE'] = extraction_settings.get('ai_mode', 'development')
+    os.environ["AI_MODE"] = extraction_settings.get("ai_mode", "development")
     logger.info(f"AI Mode: {os.environ['AI_MODE']}")
 
     from langsmith.run_helpers import trace
@@ -161,8 +149,8 @@ async def run_analysis_from_config(config_path: Path) -> None:
         extractor = TriathlonCoachDataExtractor(email, password)
 
         extraction_config = ExtractionConfig(
-            activities_range=extraction_settings['activities_days'],
-            metrics_range=extraction_settings['metrics_days'],
+            activities_range=extraction_settings["activities_days"],
+            metrics_range=extraction_settings["metrics_days"],
             include_detailed_activities=True,
             include_metrics=True,
         )
@@ -171,17 +159,17 @@ async def run_analysis_from_config(config_path: Path) -> None:
         logger.info("Data extraction completed")
 
         now = datetime.now()
-        plotting_enabled = extraction_settings.get('enable_plotting', False)
-        hitl_enabled = extraction_settings.get('hitl_enabled', True)
+        plotting_enabled = extraction_settings.get("enable_plotting", False)
+        hitl_enabled = extraction_settings.get("hitl_enabled", True)
         
         logger.info(f"Plotting enabled: {plotting_enabled}")
         logger.info(f"HITL enabled: {hitl_enabled}")
         
-        current_date = {'date': now.strftime('%Y-%m-%d'), 'day_name': now.strftime('%A')}
+        current_date = {"date": now.strftime("%Y-%m-%d"), "day_name": now.strftime("%A")}
         week_dates = [
-            {'date': (now + timedelta(days=i)).strftime('%Y-%m-%d'),
-             'day_name': (now + timedelta(days=i)).strftime('%A')}
-            for i in range(14)
+            {"date": (now + timedelta(days=offset)).strftime("%Y-%m-%d"),
+             "day_name": (now + timedelta(days=offset)).strftime("%A")}
+            for offset in range(14)
         ]
         
         logger.info("Running AI analysis and planning...")
@@ -259,45 +247,41 @@ async def run_analysis_from_config(config_path: Path) -> None:
         files_generated: list[str] = []
         
         for filename, key in [
-            ('analysis.html', 'analysis_html'),
-            ('planning.html', 'planning_html'),
-            ('metrics_result.md', 'metrics_result'),
-            ('activity_result.md', 'activity_result'),
-            ('physiology_result.md', 'physiology_result'),
-            ('season_plan.md', 'season_plan'),
+            ("analysis.html", "analysis_html"),
+            ("planning.html", "planning_html"),
+            ("metrics_result.md", "metrics_result"),
+            ("activity_result.md", "activity_result"),
+            ("physiology_result.md", "physiology_result"),
+            ("season_plan.md", "season_plan"),
         ]:
-            content = result.get(key)
-            if content:
-                (output_dir / filename).write_text(content, encoding='utf-8')
+            if content := result.get(key):
+                (output_dir / filename).write_text(content, encoding="utf-8")
                 files_generated.append(filename)
                 logger.info(f"Saved: {output_dir}/{filename}")
 
-        cost_summary = result.get('cost_summary', {})
-        execution_metadata = result.get('execution_metadata', {})
-        
         cost_total = float(
-            cost_summary.get('total_cost_usd', 0.0) or
-            execution_metadata.get('total_cost_usd', 0.0) or
-            sum(cost.get('total_cost', 0) for cost in result.get('costs', []))
+            result.get("cost_summary", {}).get("total_cost_usd", 0.0) or
+            result.get("execution_metadata", {}).get("total_cost_usd", 0.0) or
+            sum(cost.get("total_cost", 0) for cost in result.get("costs", []))
         )
         total_tokens = int(
-            cost_summary.get('total_tokens', 0) or
-            execution_metadata.get('total_tokens', 0)
+            result.get("cost_summary", {}).get("total_tokens", 0) or
+            result.get("execution_metadata", {}).get("total_tokens", 0)
         )
 
-        (output_dir / 'summary.json').write_text(
+        (output_dir / "summary.json").write_text(
             json.dumps({
-                'athlete': athlete_name,
-                'analysis_date': datetime.now().isoformat(),
-                'competitions': competitions,
-                'total_cost_usd': cost_total,
-                'total_tokens': total_tokens,
-                'execution_id': result.get('execution_id', ''),
-                'trace_id': execution_metadata.get('trace_id', ''),
-                'root_run_id': execution_metadata.get('root_run_id', ''),
-                'files_generated': files_generated,
+                "athlete": athlete_name,
+                "analysis_date": datetime.now().isoformat(),
+                "competitions": competitions,
+                "total_cost_usd": cost_total,
+                "total_tokens": total_tokens,
+                "execution_id": result.get("execution_id", ""),
+                "trace_id": result.get("execution_metadata", {}).get("trace_id", ""),
+                "root_run_id": result.get("execution_metadata", {}).get("root_run_id", ""),
+                "files_generated": files_generated,
             }, indent=2, ensure_ascii=False),
-            encoding='utf-8'
+            encoding="utf-8"
         )
 
         logger.info("✅ Analysis completed successfully!")
@@ -311,10 +295,10 @@ async def run_analysis_from_config(config_path: Path) -> None:
 
 
 def create_config_template(output_path: Path) -> None:
-    template_path = Path(__file__).parent / 'coach_config_template.yaml'
+    template_path = Path(__file__).parent / "coach_config_template.yaml"
 
     if template_path.exists():
-        output_path.write_text(template_path.read_text(encoding='utf-8'), encoding='utf-8')
+        output_path.write_text(template_path.read_text(encoding="utf-8"), encoding="utf-8")
         logger.info(f"✅ Config template created: {output_path}")
         logger.info("Edit this file with your settings and run analysis with --config")
     else:
@@ -328,10 +312,10 @@ def main():
     )
 
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--config', type=Path, help='Path to configuration file (YAML or JSON)')
-    group.add_argument('--init-config', type=Path, help='Create a configuration template file')
+    group.add_argument("--config", type=Path, help="Path to configuration file (YAML or JSON)")
+    group.add_argument("--init-config", type=Path, help="Create a configuration template file")
 
-    parser.add_argument('--output-dir', type=Path, help='Override output directory from config')
+    parser.add_argument("--output-dir", type=Path, help="Override output directory from config")
 
     args = parser.parse_args()
 
