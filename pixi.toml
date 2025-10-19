@@ -7,39 +7,36 @@ channels = ["conda-forge"]
 platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
 
 [dependencies]
-python = ">=3.10,<3.13"
-pip = "*"
+python = ">=3.14.0,<3.15"
+pip = ">=25.2,<26"
 pre-commit = ">=4.3.0,<5"
 
 [pypi-dependencies]
 # Install the project itself in editable mode
 garmin-ai-coach = { path = ".", editable = true }
-
-# All dependencies managed by pip to avoid conda conflicts
-garminconnect = "==0.2.25"
-anthropic = ">=0.45.0"
-langchain = ">=0.2.0"
-langchain-openai = ">=0.1.0"
-langchain-anthropic = ">=0.1.0"
-langchain-community = ">=0.0.20"
-langchain-core = ">=0.1.0"
-langgraph = ">=0.1.0"
-langsmith = ">=0.1.0"
-litellm = ">=1.60.0"
-numpy = ">=1.24.0"
-pandas = ">=2.0.0"
-plotly = ">=5.15.0"
-python-dotenv = ">=1.0.0"
-setuptools = ">=75.0.0"
-pytest = ">=7.0.0"
-pytest-cov = ">=4.0.0"
-pytest-asyncio = ">=0.21.0"
-black = ">=23.0.0"
-isort = ">=5.12.0"
-flake8 = ">=6.0.0"
-mypy = ">=1.5.0"
-ruff = ">=0.5.0"
-vulture = ">=2.14.0"
+garminconnect = ">=0.2.30, <0.3"
+anthropic = ">=0.71.0, <0.72"
+langchain = ">=1.0.0, <2"
+langchain-openai = ">=1.0.0, <2"
+langchain-anthropic = ">=1.0.0, <2"
+langchain-community = ">=0.4, <0.5"
+langchain-core = ">=1.0.0, <2"
+langgraph = ">=1.0.0, <2"
+langsmith = ">=0.4.37, <0.5"
+numpy = ">=2.3.4, <3"
+pandas = ">=2.3.3, <3"
+plotly = ">=6.3.1, <7"
+python-dotenv = ">=1.1.1, <2"
+setuptools = "*"
+pytest = ">=8.4.2, <9"
+pytest-cov = ">=7.0.0, <8"
+pytest-asyncio = ">=1.2.0, <2"
+black = ">=25.9.0, <26"
+isort = ">=7.0.0, <8"
+flake8 = ">=7.3.0, <8"
+mypy = ">=1.18.2, <2"
+ruff = ">=0.14.1, <0.15"
+vulture = ">=2.14, <3"
 
 [tasks]
 # Development tasks
