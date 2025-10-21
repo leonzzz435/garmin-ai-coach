@@ -222,6 +222,10 @@ class TriathlonCoachDataExtractor(DataExtractor):
         sleep_hours = self.get_latest_sleep_duration(date_obj)
         sleep_seconds = _to_int((sleep_hours or 0) * 3600) if sleep_hours is not None else None
 
+        avg_stress_source = raw_data.get("averageStressLevel")
+        if avg_stress_source is None:
+            avg_stress_source = raw_data.get("avgWakingRespirationValue")
+
         return DailyStats(
             date=raw_data.get("calendarDate") or date_obj.isoformat(),
             total_steps=_to_int(raw_data.get("totalSteps")),
@@ -237,9 +241,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             min_heart_rate=_to_int(raw_data.get("minHeartRate")),
             max_heart_rate=_to_int(raw_data.get("maxHeartRate")),
             resting_heart_rate=_to_int(raw_data.get("restingHeartRate")),
-            average_stress_level=_to_int(raw_data.get("avgWakingRespirationValue"))  # kept original mapping
-            if raw_data.get("averageStressLevel") is None
-            else _to_int(raw_data.get("averageStressLevel")),
+            average_stress_level=_to_int(avg_stress_source),
             max_stress_level=_to_int(raw_data.get("maxStressLevel")),
             stress_duration_seconds=_to_int(raw_data.get("stressDuration")),
             sleeping_seconds=sleep_seconds,
@@ -605,6 +607,19 @@ class TriathlonCoachDataExtractor(DataExtractor):
         norm_power = s.get("normPower") or s.get("normalizedPower")
         tss = s.get("trainingStressScore")
         if_factor = s.get("intensityFactor")
+        avg_cadence = s.get("avgCadence")
+        max_cadence = s.get("maxCadence")
+        gct = s.get("avgGroundContactTime")
+        vertical_oscillation = s.get("avgVerticalOscillation")
+        stride_length = s.get("avgStrideLength")
+        running_economy = s.get("runningEconomyScore")
+
+        eff_ratio = None
+        if s.get("averageSpeed") and s.get("avgCadence"):
+            avg_speed_val = _to_float(s.get("averageSpeed"))
+            avg_cadence_val = _to_float(s.get("avgCadence"))
+            if avg_speed_val and avg_cadence_val:
+                eff_ratio = avg_speed_val / avg_cadence_val * 60
 
         return ActivitySummary(
             distance=_to_float(distance),
@@ -622,7 +637,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
             moderate_intensity_minutes=_to_int(mod_min),
             vigorous_intensity_minutes=_to_int(vig_min),
             recovery_heart_rate=_to_int(rec_hr),
-            # Respiration
             avg_respiration_rate=_to_float(avg_resp),
             min_respiration_rate=_to_float(min_resp),
             max_respiration_rate=_to_float(max_resp),
@@ -638,6 +652,13 @@ class TriathlonCoachDataExtractor(DataExtractor):
             normalized_power=_to_float(norm_power),
             training_stress_score=_to_float(tss),
             intensity_factor=_to_float(if_factor),
+            avg_cadence=_to_int(avg_cadence),
+            max_cadence=_to_int(max_cadence),
+            avg_ground_contact_time=_to_float(gct),
+            avg_vertical_oscillation=_to_float(vertical_oscillation),
+            avg_stride_length=_to_float(stride_length),
+            running_economy_score=_to_float(running_economy),
+            efficiency_ratio=_to_float(eff_ratio),
         )
 
     def _extract_weather_data(self, weather: dict[str, Any] | None) -> WeatherData:
@@ -762,7 +783,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             processed_weight_data.append(
                 {
                     "date": entry.get("calendarDate"),
-                    "weight": _round((weight or 0) / 1000.0, 2) if weight is not None else None,  # kg
+                    "weight": _round((weight or 0) / 1000.0, 2) if weight is not None else None,
                     "source": entry.get("sourceType"),
                 }
             )

@@ -94,6 +94,13 @@ class ActivitySummary:
     normalized_power: float | None = None
     training_stress_score: float | None = None
     intensity_factor: float | None = None
+    avg_cadence: int | None = None  # Steps per minute
+    max_cadence: int | None = None
+    avg_ground_contact_time: float | None = None  # Milliseconds
+    avg_vertical_oscillation: float | None = None  # Centimeters
+    avg_stride_length: float | None = None  # Meters
+    running_economy_score: float | None = None  # 0-100 scale
+    efficiency_ratio: float | None = None  # Speed/cadence ratio for efficiency
 
 
 @dataclass

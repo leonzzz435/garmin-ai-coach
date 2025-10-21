@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 import requests
 
@@ -179,6 +181,35 @@ def test_connect_reauths_after_session_ping_failure(monkeypatch, tmp_path):
     assert client.client is not None
     assert client.client.login_attempts == 2
     assert client.client.ping_attempts == 1
+
+
+def test_connect_creates_token_directory(monkeypatch, tmp_path):
+    mkdir_calls = []
+
+    def fake_mkdir(self, parents: bool = False, exist_ok: bool = False) -> None:
+        mkdir_calls.append((self, parents, exist_ok))
+
+    monkeypatch.setattr(Path, "mkdir", fake_mkdir)
+    monkeypatch.setattr(garmin_client_module.garth, "resume", lambda path: None)
+    monkeypatch.setattr(garmin_client_module.garth, "login", lambda *args, **kwargs: None)
+    monkeypatch.setattr(garmin_client_module.garth, "save", lambda path: None)
+
+    class StubGarmin:
+        def __init__(self):
+            self.login_attempts = 0
+
+        def login(self, tokenstore: str) -> None:
+            self.login_attempts += 1
+
+        def get_full_name(self) -> str:
+            return "Test User"
+
+    monkeypatch.setattr(garmin_client_module, "Garmin", StubGarmin)
+
+    client = GarminConnectClient(token_dir=tmp_path / "tokens")
+    client.connect("user@example.com", "secret")
+
+    assert mkdir_calls == [(client._token_dir, True, True)]
 
 
 def test_connect_handles_legacy_garth_signature(monkeypatch, tmp_path):
