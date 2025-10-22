@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 class AskHumanInput(BaseModel):
     question: str = Field(
         ...,
-        description="Clear, specific question to ask the human. Be concise and direct.",
+        description="Question to ask the human.",
     )
     context: str = Field(
         default="",
@@ -18,16 +18,14 @@ def create_ask_human_tool(agent_name: str = "Agent"):
     @tool("ask_human", args_schema=AskHumanInput)
     def ask_human_with_agent(question: str, context: str = "") -> str:
         """
-        Ask the human for information within YOUR domain of responsibility.
+        Ask the human for information.
 
         This workflow has multiple specialized agents, each handling different aspects.
-        Before asking, consider: Is this question about MY area of responsibility,
-        or is another agent in the workflow handling this?
+        Consider whether this question relates to your area of responsibility.
 
-        Only ask about information that:
-        - Falls within your specific role and responsibilities
+        You can ask about information that:
         - Is not already present in your input data
-        - Is truly necessary for your analysis
+        - Would help your analysis
 
         Args:
             question: The question to ask the human
