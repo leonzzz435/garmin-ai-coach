@@ -7,7 +7,14 @@ from services.ai.model_config import ModelSelector
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
-from .tool_calling_helper import extract_text_content
+from .node_base import (
+    configure_node_tools,
+    create_cost_entry,
+    execute_node_with_error_handling,
+    log_node_completion,
+)
+from .prompt_components import get_workflow_context
+from .tool_calling_helper import extract_text_content, handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
@@ -103,42 +110,60 @@ For each day of the two-week period, provide:
 async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | str]:
     logger.info("Starting weekly planner node")
 
-    try:
-        agent_start_time = datetime.now()
+    hitl_enabled = state.get("hitl_enabled", True)
+    logger.info(f"Weekly planner node: HITL {'enabled' if hitl_enabled else 'disabled'}")
+    
+    agent_start_time = datetime.now()
 
-        async def call_weekly_planning():
-            response = await ModelSelector.get_llm(AgentRole.WORKOUT).ainvoke([
-                {"role": "system", "content": WEEKLY_PLANNER_SYSTEM_PROMPT},
-                {"role": "user", "content": WEEKLY_PLANNER_USER_PROMPT.format(
-                    season_plan=state.get("season_plan", ""),
-                    athlete_name=state["athlete_name"],
-                    current_date=json.dumps(state["current_date"], indent=2),
-                    week_dates=json.dumps(state["week_dates"], indent=2),
-                    competitions=json.dumps(state["competitions"], indent=2),
-                    planning_context=state["planning_context"],
-                    metrics_analysis=state.get("metrics_result", ""),
-                    activity_analysis=state.get("activity_result", ""),
-                    physiology_analysis=state.get("physiology_result", ""),
-                )},
-            ])
-            return extract_text_content(response)
+    tools = configure_node_tools(
+        agent_name="weekly_planner",
+        plot_storage=None,
+        plotting_enabled=False,
+        hitl_enabled=hitl_enabled,
+    )
 
+    system_prompt = WEEKLY_PLANNER_SYSTEM_PROMPT + get_workflow_context("weekly_planner")
+    
+    user_message = {"role": "user", "content": WEEKLY_PLANNER_USER_PROMPT.format(
+        season_plan=state.get("season_plan", ""),
+        athlete_name=state["athlete_name"],
+        current_date=json.dumps(state["current_date"], indent=2),
+        week_dates=json.dumps(state["week_dates"], indent=2),
+        competitions=json.dumps(state["competitions"], indent=2),
+        planning_context=state["planning_context"],
+        metrics_analysis=state.get("metrics_result", ""),
+        activity_analysis=state.get("activity_result", ""),
+        physiology_analysis=state.get("physiology_result", ""),
+    )}
+    
+    messages = [{"role": "system", "content": system_prompt}, user_message]
+
+    async def call_weekly_planning():
+        if hitl_enabled:
+            return await handle_tool_calling_in_node(
+                llm_with_tools=ModelSelector.get_llm(AgentRole.WORKOUT).bind_tools(tools),
+                messages=messages,
+                tools=tools,
+                max_iterations=15,
+            )
+        response = await ModelSelector.get_llm(AgentRole.WORKOUT).ainvoke(messages)
+        return extract_text_content(response)
+
+    async def node_execution():
         weekly_plan = await retry_with_backoff(
             call_weekly_planning, AI_ANALYSIS_CONFIG, "Weekly Planning"
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-        logger.info(f"Weekly planning completed in {execution_time:.2f}s")
+        log_node_completion("Weekly planning", execution_time)
 
         return {
             "weekly_plan": weekly_plan,
-            "costs": [{
-                "agent": "weekly_planner",
-                "execution_time": execution_time,
-                "timestamp": datetime.now().isoformat(),
-            }],
+            "costs": [create_cost_entry("weekly_planner", execution_time)],
         }
 
-    except Exception as e:
-        logger.error(f"Weekly planner node failed: {e}")
-        return {"errors": [f"Weekly planning failed: {str(e)}"]}
+    return await execute_node_with_error_handling(
+        node_name="Weekly planner",
+        node_function=node_execution,
+        error_message_prefix="Weekly planning failed",
+    )

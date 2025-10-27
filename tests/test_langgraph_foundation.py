@@ -32,8 +32,7 @@ class TestLangGraphFoundation:
 
     @patch.dict(os.environ, {"LANGSMITH_API_KEY": "test_key"}, clear=True)
     def test_langsmith_config(self):
-        result = LangSmithConfig.setup_langsmith("test_project")
-        assert result is True
+        assert LangSmithConfig.setup_langsmith("test_project") is True
         assert os.getenv("LANGSMITH_PROJECT") == "test_project"
 
     def test_module_imports(self):

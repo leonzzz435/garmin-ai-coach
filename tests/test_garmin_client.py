@@ -28,11 +28,8 @@ def test_connect_reuses_existing_tokens_without_login(monkeypatch, tmp_path):
         garmin_client_module.garth, "save", lambda path: garth_save_calls.append(path)
     )
 
-    created = {}
-
     class StubGarmin:
         def __init__(self):
-            created["instance"] = self
             self.login_attempts = 0
 
         def login(self, tokenstore: str) -> None:
@@ -49,7 +46,7 @@ def test_connect_reuses_existing_tokens_without_login(monkeypatch, tmp_path):
     assert resume_calls == [str(tmp_path)]
     assert garth_login_calls == []
     assert garth_save_calls == []
-    assert created["instance"].login_attempts == 1
+    assert client.client.login_attempts == 1
 
 
 def test_connect_performs_fresh_login_when_resume_fails(monkeypatch, tmp_path):
@@ -70,11 +67,8 @@ def test_connect_performs_fresh_login_when_resume_fails(monkeypatch, tmp_path):
         garmin_client_module.garth, "save", lambda path: garth_save_calls.append(path)
     )
 
-    created = {}
-
     class StubGarmin:
         def __init__(self):
-            created["instance"] = self
             self.login_attempts = 0
 
         def login(self, tokenstore: str) -> None:
@@ -85,9 +79,8 @@ def test_connect_performs_fresh_login_when_resume_fails(monkeypatch, tmp_path):
 
     monkeypatch.setattr(garmin_client_module, "Garmin", StubGarmin)
 
-    codes = iter(["123456"])
     client = GarminConnectClient(token_dir=tmp_path)
-    client.connect("user@example.com", "secret", mfa_callback=lambda: next(codes))
+    client.connect("user@example.com", "secret", mfa_callback=lambda: next(iter(["123456"])))
 
     assert len(garth_login_calls) == 1
     email, password, kwargs = garth_login_calls[0]
@@ -95,7 +88,7 @@ def test_connect_performs_fresh_login_when_resume_fails(monkeypatch, tmp_path):
     assert password == "secret"
     assert kwargs == {"otp": "123456"}
     assert garth_save_calls == [str(tmp_path)]
-    assert created["instance"].login_attempts == 1
+    assert client.client.login_attempts == 1
 
 
 def test_connect_reauths_after_garmin_login_rejection(monkeypatch, tmp_path):
@@ -169,9 +162,8 @@ def test_connect_reauths_after_session_ping_failure(monkeypatch, tmp_path):
 
     monkeypatch.setattr(garmin_client_module, "Garmin", PingFailGarmin)
 
-    codes = iter(["777777"])
     client = GarminConnectClient(token_dir=tmp_path)
-    client.connect("user@example.com", "secret", mfa_callback=lambda: next(codes))
+    client.connect("user@example.com", "secret", mfa_callback=lambda: next(iter(["777777"])))
 
     assert len(garth_login_kwargs) == 1
     assert garth_login_kwargs[0] == {"otp": "777777"}
@@ -213,9 +205,8 @@ def test_connect_handles_legacy_garth_signature(monkeypatch, tmp_path):
 
     monkeypatch.setattr(garmin_client_module, "Garmin", StubGarmin)
 
-    codes = iter(["888888"])
     client = GarminConnectClient(token_dir=tmp_path)
-    client.connect("user@example.com", "secret", mfa_callback=lambda: next(codes))
+    client.connect("user@example.com", "secret", mfa_callback=lambda: next(iter(["888888"])))
 
     assert len(garth_login_kwargs) == 2
     assert garth_login_kwargs[0] == {"otp": "888888"}
@@ -315,9 +306,7 @@ def test_connect_without_mfa_callback(monkeypatch, tmp_path):
 def test_disconnect_clears_client():
     client = GarminConnectClient()
     client._client = "mock_client"
-    
     client.disconnect()
-    
     assert client._client is None
 
 
@@ -325,16 +314,14 @@ def test_context_manager():
     client = GarminConnectClient()
     client._client = "mock_client"
     
-    with client as ctx_client:
-        assert ctx_client is client
-        assert ctx_client._client == "mock_client"
+    with client as context_client:
+        assert context_client is client
+        assert context_client._client == "mock_client"
     
     assert client._client is None
 
 
 def test_client_property():
     client = GarminConnectClient()
-    mock_client = "mock_client"
-    client._client = mock_client
-    
-    assert client.client is mock_client
+    client._client = "mock_client"
+    assert client.client == "mock_client"

@@ -17,7 +17,6 @@ class TestPlottingToolIntegration:
 
     @pytest.mark.asyncio
     async def test_tool_invocation(self):
-        """Test that tools can be invoked directly."""
         plot_storage = PlotStorage("test_execution")
         plotting_tool = create_plotting_tools(plot_storage, agent_name="test")
 
@@ -32,8 +31,10 @@ fig.update_layout(title='Test Plot')
             {"python_code": test_code, "description": "Test plot for integration"}
         )
 
-        assert "Plot created successfully" in result
-        assert "[PLOT:" in result
+        assert result["ok"] is True
+        assert "Plot created successfully" in result["message"]
+        assert "[PLOT:" in result["message"]
+        assert "plot_id" in result
 
     @pytest.mark.asyncio
     async def test_model_tool_binding(self):
@@ -46,9 +47,9 @@ fig.update_layout(title='Test Plot')
         llm = ModelSelector.get_llm(AgentRole.METRICS)
         llm_with_tools = llm.bind_tools([plotting_tool])
 
-        assert hasattr(llm_with_tools, 'kwargs') and 'tools' in llm_with_tools.kwargs
-        assert len(llm_with_tools.kwargs['tools']) == 1
-        assert plotting_tool.name == 'python_plotting_tool'
+        assert hasattr(llm_with_tools, "kwargs") and "tools" in llm_with_tools.kwargs
+        assert len(llm_with_tools.kwargs["tools"]) == 1
+        assert plotting_tool.name == "python_plotting_tool"
 
     def test_tools_condition_compatibility(self):
         from langchain_core.messages import AIMessage
@@ -88,8 +89,6 @@ fig.update_layout(title='Test Plot')
 
         workflow = StateGraph(TrainingAnalysisState)
         assert workflow is not None
-
-        assert True  # If we get here, all components are available
 
 
 if __name__ == "__main__":

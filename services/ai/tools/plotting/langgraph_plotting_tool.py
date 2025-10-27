@@ -16,13 +16,15 @@ class LangGraphPlottingTool:
         logger.info(f"Initialized LangGraph plotting tool for agent: {agent_name}")
 
     def _count_agent_plots(self, agent_name: str) -> int:
-        plots = self.plot_storage.list_available_plots()
-        return len([plot for plot in plots if plot.get('agent_name') == agent_name])
+        return sum(
+            1 for plot in self.plot_storage.list_available_plots()
+            if plot.get("agent_name") == agent_name
+        )
 
     def create_plotting_tool(self):
 
         @tool("python_plotting_tool", return_direct=False)
-        def python_plotting_tool(python_code: str, description: str) -> str:
+        def python_plotting_tool(python_code: str, description: str) -> dict:
             """
             Execute complete Python code to create interactive Plotly visualizations.
 
@@ -39,94 +41,54 @@ class LangGraphPlottingTool:
             numpy, datetime, math, statistics, json, collections, re
 
             RETURNS:
-            - Success: Returns a plot_id that can be referenced in text as [PLOT:plot_id]
-            - Error: Returns detailed error message with guidance for fixing issues
+            - Success: {"ok": True, "plot_id": "...", "message": "..."}
+            - Error: {"ok": False, "error": "...", "hint": "..."}
 
-            If you receive an error message, review the guidance and try again with corrected code.
+            If you receive an error, review the hint and try again with corrected code.
             """
             try:
                 agent_plot_count = self._count_agent_plots(self.agent_name)
                 if agent_plot_count >= 2:
-                    return f"""Plot limit reached: Agent '{self.agent_name}' has already created {agent_plot_count} plots (maximum: 2).
-
-⚠️ IMPORTANT: Create plots only for insights that provide unique value beyond what's available in the Garmin app.
-
-Consider whether this visualization is truly necessary or if you can:
-1. Reference existing plots using [PLOT:plot_id] syntax
-2. Incorporate insights into your text analysis instead
-3. Combine multiple insights into a single, comprehensive visualization."""
+                    return {
+                        "ok": False,
+                        "error": f"Plot limit reached for agent '{self.agent_name}' ({agent_plot_count}/2 plots created)",
+                        "hint": "Consider: 1) Referencing existing plots using [PLOT:plot_id], 2) Incorporating insights into text, or 3) Combining insights into one comprehensive visualization."
+                    }
 
                 if not python_code or not python_code.strip():
-                    return """Error: Missing required parameter 'python_code'.
-
-Please provide complete Python code including imports, data handling, and plotting that creates a 'fig' variable.
-
-Example format:
-```python
-import plotly.graph_objects as go
-import pandas as pd
-
-training_data = [{'date': '2025-01-01', 'load': 100}, {'date': '2025-01-02', 'load': 120}]
-
-fig = go.Figure()
-fig.add_trace(go.Scatter(
-    x=[d['date'] for d in training_data],
-    y=[d['load'] for d in training_data],
-    name='Training Load'
-))
-fig.update_layout(title='Training Load Over Time')
-```
-
-Please try again with complete Python code."""
+                    return {
+                        "ok": False,
+                        "error": "Missing required parameter 'python_code'",
+                        "hint": "Provide complete Python code with imports and a 'fig' variable. Example: import plotly.graph_objects as go; fig = go.Figure(); fig.add_trace(...)"
+                    }
 
                 if not description or not description.strip():
-                    return """Error: Missing required parameter 'description'.
-
-Please provide a brief description of what the plot shows.
-
-Example: 'Training load analysis over time showing weekly progression'
-
-Please try again with both python_code and description parameters."""
+                    return {
+                        "ok": False,
+                        "error": "Missing required parameter 'description'",
+                        "hint": "Provide a brief description of what the plot shows (e.g., 'Training load analysis over time showing weekly progression')"
+                    }
 
                 logger.info(f"Agent {self.agent_name} executing plotting code")
                 result = run_plot_code_get_html(python_code)
 
                 if not result["ok"]:
                     logger.error(f"Agent {self.agent_name} plotting failed: {result['error']}")
-                    return f"""Error executing plotting code: {result['error']}
-
-Please fix the following issues and try again:
-1. Check for syntax errors in your Python code
-2. Ensure all required libraries are imported (import plotly.graph_objects as go, import pandas as pd, etc.)
-3. Verify that your code creates a 'fig' variable with a valid Plotly figure
-4. Make sure date handling uses proper datetime operations
-5. Check that all data references are correctly defined
-
-Your code must create a variable named 'fig' containing the Plotly figure object.
-
-Please review your code and try again with the corrections."""
+                    return {
+                        "ok": False,
+                        "error": result['error'],
+                        "hint": "Check: 1) Syntax errors, 2) Import statements (import plotly.graph_objects as go), 3) 'fig' variable creation, 4) Date handling with datetime, 5) Data references"
+                    }
 
                 html_content = result["html"]
 
                 if not html_content:
-                    logger.error(
-                        f"Agent {self.agent_name} plot HTML conversion failed - no HTML content generated"
-                    )
-                    return """Error: Failed to convert plot to HTML.
-
-This usually means the 'fig' variable was not created properly. Please ensure:
-1. Your code creates a variable named 'fig'
-2. The 'fig' variable contains a valid Plotly figure object
-3. Use plotly.graph_objects or plotly.express to create the figure
-
-Example:
-```python
-import plotly.graph_objects as go
-fig = go.Figure()
-# ... add traces and layout ...
-```
-
-Please try again with a properly created 'fig' variable."""
+                    logger.error(f"Agent {self.agent_name} plot HTML conversion failed - no HTML content")
+                    return {
+                        "ok": False,
+                        "error": "Failed to convert plot to HTML",
+                        "hint": "Ensure your code creates a 'fig' variable with a valid Plotly figure (use plotly.graph_objects or plotly.express)"
+                    }
 
                 plot_id = self.plot_storage.store_plot(
                     html_content=html_content,
@@ -135,20 +97,24 @@ Please try again with a properly created 'fig' variable."""
                     data_summary="Custom plotting code",
                 )
 
-                success_msg = f"Plot created successfully! Reference as [PLOT:{plot_id}]"
                 logger.info(f"Agent {self.agent_name} created plot {plot_id}")
-
-                return success_msg
+                return {
+                    "ok": True,
+                    "plot_id": plot_id,
+                    "message": f"Plot created successfully! Reference as [PLOT:{plot_id}]"
+                }
 
             except Exception as e:
                 import traceback
-
-                full_traceback = traceback.format_exc()
-                error_msg = f"Plotting tool error: {str(e)}. Please check your input and try again."
                 logger.error(
-                    f"Agent {self.agent_name} plotting failed: {e}\n\nFull traceback:\n{full_traceback}"
+                    f"Agent {self.agent_name} plotting failed: {e}\n\n"
+                    f"Full traceback:\n{traceback.format_exc()}"
                 )
-                return error_msg
+                return {
+                    "ok": False,
+                    "error": str(e),
+                    "hint": "Runtime exception occurred. Check your code for errors and try again."
+                }
 
         return python_plotting_tool
 

@@ -4,10 +4,18 @@ from datetime import datetime
 
 from services.ai.ai_settings import AgentRole
 from services.ai.model_config import ModelSelector
-from services.ai.tools.plotting import PlotStorage, create_plotting_tools
+from services.ai.tools.plotting import PlotStorage
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
+from .node_base import (
+    configure_node_tools,
+    create_cost_entry,
+    create_plot_entries,
+    execute_node_with_error_handling,
+    log_node_completion,
+)
+from .prompt_components import get_output_context_note, get_plotting_instructions, get_workflow_context
 from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
@@ -34,40 +42,9 @@ Analyze training metrics and competition readiness with data-driven precision.
 ## Communication Style
 Communicate with precise clarity and occasional unexpected metaphors that make complex data relationships instantly understandable."""
 
-METRICS_PLOTTING_INSTRUCTIONS = """
-
-## 📊 SELECTIVE VISUALIZATION APPROACH
-
-⚠️ **CRITICAL CONSTRAINT**: Create plots ONLY for insights that provide unique value beyond what's already available in the Garmin app.
-
-**Before creating any plot, ask yourself:**
-- Does this visualization reveal patterns or insights NOT visible in standard Garmin reports?
-- Would this analysis help coaches make decisions they couldn't make with basic Garmin data?
-- Is this insight complex enough to warrant a custom visualization?
-
-**LIMIT: Maximum 2 plots per agent.** Use plotting sparingly for truly valuable insights.
-
-Use python_plotting_tool only when absolutely necessary:
-- **python_code**: Complete Python script with imports, data creation, and plotting
-- **description**: Brief description of the UNIQUE insight this plot provides
-
-## 🔗 CRITICAL: Plot Reference Usage - SINGLE REFERENCE RULE
-
-**MANDATORY SINGLE REFERENCE RULE**: Each plot you create MUST be referenced EXACTLY ONCE in your analysis. Never repeat the same plot reference multiple times.
-
-**Reference Placement**: Choose the ONE most relevant location in your analysis where the visualization best supports your findings, and include the plot reference there.
-
-**Example workflow:**
-1. Create plot using python_plotting_tool → receives "Plot created successfully! Reference as [PLOT:metrics_1234567890_001]"
-2. Include in your analysis EXACTLY ONCE: "The training load progression shows concerning patterns [PLOT:metrics_1234567890_001] that indicate potential overreaching."
-3. DO NOT repeat this reference elsewhere in your analysis
-
-**Your plot references will be automatically converted to interactive charts in the final report.**"""
-
 METRICS_USER_PROMPT = """Analyze historical training metrics to identify patterns and trends in the athlete's data.
 
-## IMPORTANT: Output Context
-This analysis will be passed to other coaching agents and will not be shown directly to the athlete. Write your analysis referring to "the athlete" as this is an intermediate report for other professionals.
+{output_context}
 
 ## Input Data
 ```json
@@ -108,84 +85,78 @@ Analyze only the data that is actually present in the input. If analysis context
 async def metrics_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
     logger.info("Starting metrics analysis node")
 
-    try:
-        plot_storage = PlotStorage(state["execution_id"])
-        plotting_enabled = state.get("plotting_enabled", False)
-        
-        logger.info(
-            f"Metrics node: Plotting {'enabled - binding plotting tools' if plotting_enabled else 'disabled - no plotting tools bound'}"
+    plot_storage = PlotStorage(state["execution_id"])
+    plotting_enabled = state.get("plotting_enabled", False)
+    hitl_enabled = state.get("hitl_enabled", True)
+    
+    logger.info(
+        f"Metrics node: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
+        f"HITL {'enabled' if hitl_enabled else 'disabled'}"
+    )
+
+    tools = configure_node_tools(
+        agent_name="metrics",
+        plot_storage=plot_storage,
+        plotting_enabled=plotting_enabled,
+        hitl_enabled=hitl_enabled,
+    )
+
+    system_prompt = (
+        METRICS_SYSTEM_PROMPT_BASE +
+        get_workflow_context("metrics") +
+        (get_plotting_instructions("metrics") if plotting_enabled else "")
+    )
+
+    llm_with_tools = (
+        ModelSelector.get_llm(AgentRole.METRICS).bind_tools(tools) if tools
+        else ModelSelector.get_llm(AgentRole.METRICS)
+    )
+
+    agent_start_time = datetime.now()
+
+    async def call_metrics_with_tools():
+        return await handle_tool_calling_in_node(
+            llm_with_tools=llm_with_tools,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": METRICS_USER_PROMPT.format(
+                    output_context=get_output_context_note(for_other_agents=True),
+                    data=json.dumps({
+                        "training_load_history": state["garmin_data"].get("training_load_history", []),
+                        "vo2_max_history": state["garmin_data"].get("vo2_max_history", []),
+                        "training_status": state["garmin_data"].get("training_status", {}),
+                    }, indent=2),
+                    competitions=json.dumps(state["competitions"], indent=2),
+                    current_date=json.dumps(state["current_date"], indent=2),
+                    analysis_context=state["analysis_context"],
+                )},
+            ],
+            tools=tools,
+            max_iterations=15,
         )
 
-        if plotting_enabled:
-            plotting_tool = create_plotting_tools(plot_storage, agent_name="metrics")
-            llm_with_tools = ModelSelector.get_llm(AgentRole.METRICS).bind_tools([plotting_tool])
-            tools = [plotting_tool]
-            system_prompt = METRICS_SYSTEM_PROMPT_BASE + METRICS_PLOTTING_INSTRUCTIONS
-        else:
-            llm_with_tools = ModelSelector.get_llm(AgentRole.METRICS)
-            tools = []
-            system_prompt = METRICS_SYSTEM_PROMPT_BASE
-
-        agent_start_time = datetime.now()
-
-        async def call_metrics_with_tools():
-            return await handle_tool_calling_in_node(
-                llm_with_tools=llm_with_tools,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": METRICS_USER_PROMPT.format(
-                        data=json.dumps({
-                            "training_load_history": state["garmin_data"].get("training_load_history", []),
-                            "vo2_max_history": state["garmin_data"].get("vo2_max_history", []),
-                            "training_status": state["garmin_data"].get("training_status", {}),
-                        }, indent=2),
-                        competitions=json.dumps(state["competitions"], indent=2),
-                        current_date=json.dumps(state["current_date"], indent=2),
-                        analysis_context=state["analysis_context"],
-                    )},
-                ],
-                tools=tools,
-                max_iterations=15,
-            )
-
+    async def node_execution():
         metrics_result = await retry_with_backoff(
             call_metrics_with_tools, AI_ANALYSIS_CONFIG, "Metrics Agent with Tools"
         )
         logger.info("Metrics node completed analysis")
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-        all_plots = plot_storage.get_all_plots()
-        available_plots = list(all_plots.keys())
-
-        logger.info(
-            f"Metrics analysis completed in {execution_time:.2f}s with {len(available_plots)} plots"
-        )
+        
+        plots, plot_storage_data, available_plots = create_plot_entries("metrics", plot_storage)
+        
+        log_node_completion("Metrics analysis", execution_time, len(available_plots))
 
         return {
             "metrics_result": metrics_result,
-            "plots": [
-                {"agent": "metrics", "plot_id": plot_id, "timestamp": datetime.now().isoformat()}
-                for plot_id in available_plots
-            ],
-            "plot_storage_data": {
-                plot_id: {
-                    "plot_id": plot_metadata.plot_id,
-                    "description": plot_metadata.description,
-                    "agent_name": plot_metadata.agent_name,
-                    "created_at": plot_metadata.created_at.isoformat(),
-                    "html_content": plot_metadata.html_content,
-                    "data_summary": plot_metadata.data_summary,
-                }
-                for plot_id, plot_metadata in all_plots.items()
-            },
-            "costs": [{
-                "agent": "metrics",
-                "execution_time": execution_time,
-                "timestamp": datetime.now().isoformat(),
-            }],
+            "plots": plots,
+            "plot_storage_data": plot_storage_data,
+            "costs": [create_cost_entry("metrics", execution_time)],
             "available_plots": available_plots,
         }
 
-    except Exception as e:
-        logger.error(f"Metrics analysis node failed: {e}")
-        return {"errors": [f"Metrics analysis failed: {str(e)}"]}
+    return await execute_node_with_error_handling(
+        node_name="Metrics analysis",
+        node_function=node_execution,
+        error_message_prefix="Metrics analysis failed",
+    )

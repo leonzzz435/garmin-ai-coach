@@ -24,15 +24,6 @@ def mock_progress_manager():
 class TestWorkflowCostSummary:
 
     def test_workflow_cost_summary_creation(self):
-        node_costs = [
-            NodeCostSummary(
-                "metrics_node", "run1", "claude-3-5-sonnet-20241022", 0.002, 150, 100, 50
-            ),
-            NodeCostSummary(
-                "physiology_node", "run2", "claude-3-5-sonnet-20241022", 0.003, 200, 140, 60
-            ),
-        ]
-
         summary = WorkflowCostSummary(
             trace_id="trace_123",
             root_run_id="root_123",
@@ -41,7 +32,14 @@ class TestWorkflowCostSummary:
             total_input_tokens=240,
             total_output_tokens=110,
             total_web_searches=0,
-            node_costs=node_costs,
+            node_costs=[
+                NodeCostSummary(
+                    "metrics_node", "run1", "claude-3-5-sonnet-20241022", 0.002, 150, 100, 50
+                ),
+                NodeCostSummary(
+                    "physiology_node", "run2", "claude-3-5-sonnet-20241022", 0.003, 200, 140, 60
+                ),
+            ],
             execution_time_seconds=45.0,
         )
 
@@ -49,10 +47,8 @@ class TestWorkflowCostSummary:
         assert summary.total_cost_usd == 0.005
         assert summary.total_tokens == 350
         assert len(summary.node_costs) == 2
-
-        metrics_node = next(n for n in summary.node_costs if n.name == "metrics_node")
-        assert metrics_node.cost_usd == 0.002
-        assert metrics_node.tokens == 150
+        assert next(node for node in summary.node_costs if node.name == "metrics_node").cost_usd == 0.002
+        assert next(node for node in summary.node_costs if node.name == "metrics_node").tokens == 150
 
     def test_node_cost_summary_attributes(self):
         node = NodeCostSummary(
@@ -101,17 +97,17 @@ class TestWorkflowCostTracker:
 
         legacy_summary = tracker.get_legacy_cost_summary(mock_execution)
 
-        assert legacy_summary['total_cost_usd'] == 0.005
-        assert legacy_summary['total_tokens'] == 350
-        assert legacy_summary['agent_count'] == 2
-        assert len(legacy_summary['agents']) == 2
-        assert 'claude-3-5-sonnet-20241022' in legacy_summary['model_breakdown']
+        assert legacy_summary["total_cost_usd"] == 0.005
+        assert legacy_summary["total_tokens"] == 350
+        assert legacy_summary["agent_count"] == 2
+        assert len(legacy_summary["agents"]) == 2
+        assert "claude-3-5-sonnet-20241022" in legacy_summary["model_breakdown"]
 
-        model_data = legacy_summary['model_breakdown']['claude-3-5-sonnet-20241022']
-        assert model_data['cost_usd'] == 0.005  # 0.002 + 0.003
-        assert model_data['tokens'] == 350  # 150 + 200
-        assert model_data['input_tokens'] == 240  # 100 + 140
-        assert model_data['output_tokens'] == 110  # 50 + 60
+        model_data = legacy_summary["model_breakdown"]["claude-3-5-sonnet-20241022"]
+        assert model_data["cost_usd"] == 0.005
+        assert model_data["tokens"] == 350
+        assert model_data["input_tokens"] == 240
+        assert model_data["output_tokens"] == 110
 
     def test_get_legacy_cost_summary_empty(self):
         tracker = WorkflowCostTracker()
@@ -121,10 +117,10 @@ class TestWorkflowCostTracker:
 
         legacy_summary = tracker.get_legacy_cost_summary(mock_execution)
 
-        assert legacy_summary['total_cost_usd'] == 0.0
-        assert legacy_summary['total_tokens'] == 0
-        assert legacy_summary['agents'] == []
-        assert legacy_summary['model_breakdown'] == {}
+        assert legacy_summary["total_cost_usd"] == 0.0
+        assert legacy_summary["total_tokens"] == 0
+        assert legacy_summary["agents"] == []
+        assert legacy_summary["model_breakdown"] == {}
 
 
 class TestLangSmithCostExtractorFallback:
@@ -134,9 +130,9 @@ class TestLangSmithCostExtractorFallback:
 
         from services.ai.langgraph.utils.langsmith_cost_extractor import LangSmithCostExtractor
 
-        original_key = os.environ.get('LANGSMITH_API_KEY')
-        if 'LANGSMITH_API_KEY' in os.environ:
-            del os.environ['LANGSMITH_API_KEY']
+        original_key = os.environ.get("LANGSMITH_API_KEY")
+        if "LANGSMITH_API_KEY" in os.environ:
+            del os.environ["LANGSMITH_API_KEY"]
 
         try:
             extractor = LangSmithCostExtractor()
@@ -148,7 +144,7 @@ class TestLangSmithCostExtractorFallback:
             assert result.trace_id == "test_trace"
         finally:
             if original_key:
-                os.environ['LANGSMITH_API_KEY'] = original_key
+                os.environ["LANGSMITH_API_KEY"] = original_key
 
 
 if __name__ == "__main__":

@@ -57,13 +57,12 @@ class TestDataExtractorCharacterization:
         assert result is None
         
     def test_get_date_ranges_calculation(self):
-        config = ExtractionConfig(activities_range=21, metrics_range=56)
-        ranges = DataExtractor.get_date_ranges(config)
+        ranges = DataExtractor.get_date_ranges(ExtractionConfig(activities_range=21, metrics_range=56))
         
-        assert 'activities' in ranges
-        assert 'metrics' in ranges
-        assert isinstance(ranges['activities']['start'], date)
-        assert isinstance(ranges['activities']['end'], date)
+        assert "activities" in ranges
+        assert "metrics" in ranges
+        assert isinstance(ranges["activities"]["start"], date)
+        assert isinstance(ranges["activities"]["end"], date)
 
 
 class TestTriathlonCoachDataExtractorCharacterization:
@@ -78,48 +77,43 @@ class TestTriathlonCoachDataExtractorCharacterization:
         mock_client.assert_called_once()
         mock_instance.connect.assert_called_once_with("test@example.com", "password")
         
-    @patch('services.garmin.data_extractor.GarminConnectClient')
+    @patch("services.garmin.data_extractor.GarminConnectClient")
     def test_extract_data_base_data_always_included(self, mock_client):
         mock_instance = Mock()
         mock_client.return_value = mock_instance
         extractor = TriathlonCoachDataExtractor("test@example.com", "password")
         
         mock_instance.client.get_user_profile.return_value = {
-            'userData': {'gender': 'male', 'weight': 70000},
-            'userSleep': {'sleepTime': '22:00'}
+            "userData": {"gender": "male", "weight": 70000},
+            "userSleep": {"sleepTime": "22:00"}
         }
         mock_instance.client.get_stats.return_value = {
-            'calendarDate': '2025-01-01',
-            'totalSteps': 10000
+            "calendarDate": "2025-01-01",
+            "totalSteps": 10000
         }
         mock_instance.client.get_sleep_data.return_value = {
-            'dailySleepDTO': {'sleepTimeSeconds': 28800}
+            "dailySleepDTO": {"sleepTimeSeconds": 28800}
         }
         
-        config = ExtractionConfig(include_detailed_activities=False, include_metrics=False)
-        result = extractor.extract_data(config)
+        result = extractor.extract_data(ExtractionConfig(include_detailed_activities=False, include_metrics=False))
         
-        assert hasattr(result, 'user_profile')
-        assert hasattr(result, 'daily_stats')
-        assert result.user_profile.gender == 'male'
+        assert hasattr(result, "user_profile")
+        assert hasattr(result, "daily_stats")
+        assert result.user_profile.gender == "male"
         assert result.daily_stats.total_steps == 10000
         
     def test_activity_summary_extraction_structure(self):
-        extractor = TriathlonCoachDataExtractor.__new__(TriathlonCoachDataExtractor)
-        
-        summary_data = {
-            'distance': 10000.0,
-            'duration': 3600,
-            'averageSpeed': 2.78,
-            'maxSpeed': 5.0,
-            'calories': 400,
-            'averageHR': 150,
-            'maxHR': 180,
-            'avgPower': 250,
-            'maxPower': 400
-        }
-        
-        result = extractor._extract_activity_summary(summary_data)
+        result = TriathlonCoachDataExtractor.__new__(TriathlonCoachDataExtractor)._extract_activity_summary({
+            "distance": 10000.0,
+            "duration": 3600,
+            "averageSpeed": 2.78,
+            "maxSpeed": 5.0,
+            "calories": 400,
+            "averageHR": 150,
+            "maxHR": 180,
+            "avgPower": 250,
+            "maxPower": 400
+        })
         
         assert isinstance(result, ActivitySummary)
         assert result.distance == 10000.0
@@ -141,76 +135,45 @@ class TestTriathlonCoachDataExtractorCharacterization:
 
 @pytest.fixture
 def mock_garmin_client():
-    with patch('services.garmin.data_extractor.GarminConnectClient') as mock:
-        client_instance = Mock()
-        mock.return_value = client_instance
-        yield client_instance
+    with patch("services.garmin.data_extractor.GarminConnectClient") as mock:
+        mock_instance = Mock()
+        mock.return_value = mock_instance
+        yield mock_instance
 
 
 class TestDataExtractorIntegrationBehavior:
     
     def test_multisport_activity_processing_structure(self, mock_garmin_client):
-        extractor = TriathlonCoachDataExtractor("test@example.com", "password")
-        
-        mock_activity = {
-            'activityId': 12345,
-            'activityName': 'Morning Triathlon',
-            'isMultiSportParent': True,
-            'summaryDTO': {
-                'distance': 15000.0,
-                'duration': 5400
-            },
-            'metadataDTO': {
-                'childIds': [12346, 12347, 12348],
-                'childActivityTypes': ['swimming', 'cycling', 'running']
-            }
-        }
-        
-        mock_child_swim = {
-            'activityId': 12346,
-            'activityName': 'Swim Leg',
-            'summaryDTO': {'distance': 1500.0, 'duration': 1800}
-        }
-        mock_child_bike = {
-            'activityId': 12347,
-            'activityName': 'Bike Leg',
-            'summaryDTO': {'distance': 40000.0, 'duration': 3600, 'avgPower': 200}
-        }
-        mock_child_run = {
-            'activityId': 12348,
-            'activityName': 'Run Leg',
-            'summaryDTO': {'distance': 10000.0, 'duration': 2400}
-        }
-        
         mock_garmin_client.client.get_activity.side_effect = [
-            mock_child_swim, mock_child_bike, mock_child_run
+            {"activityId": 12346, "activityName": "Swim Leg", "summaryDTO": {"distance": 1500.0, "duration": 1800}},
+            {"activityId": 12347, "activityName": "Bike Leg", "summaryDTO": {"distance": 40000.0, "duration": 3600, "avgPower": 200}},
+            {"activityId": 12348, "activityName": "Run Leg", "summaryDTO": {"distance": 10000.0, "duration": 2400}}
         ]
         mock_garmin_client.client.get_activity_details.return_value = {}
         mock_garmin_client.client.get_activity_weather.return_value = None
         
-        result = extractor._process_multisport_activity(mock_activity)
+        result = TriathlonCoachDataExtractor("test@example.com", "password")._process_multisport_activity({
+            "activityId": 12345,
+            "activityName": "Morning Triathlon",
+            "isMultiSportParent": True,
+            "summaryDTO": {"distance": 15000.0, "duration": 5400},
+            "metadataDTO": {"childIds": [12346, 12347, 12348], "childActivityTypes": ["swimming", "cycling", "running"]}
+        })
         
         assert isinstance(result, Activity)
-        assert result.activity_type == 'multisport'
-        assert len(result.laps) == 3  # Three child activities stored in laps
-        assert result.laps[0]['activityType'] == 'swimming'
-        assert result.laps[1]['activityType'] == 'cycling'
-        assert result.laps[2]['activityType'] == 'running'
+        assert result.activity_type == "multisport"
+        assert len(result.laps) == 3
+        assert result.laps[0]["activityType"] == "swimming"
+        assert result.laps[1]["activityType"] == "cycling"
+        assert result.laps[2]["activityType"] == "running"
         
     def test_cycling_power_data_extraction_priority(self):
-        extractor = TriathlonCoachDataExtractor.__new__(TriathlonCoachDataExtractor)
+        result = TriathlonCoachDataExtractor.__new__(TriathlonCoachDataExtractor)._process_single_sport_activity({
+            "activityId": 123,
+            "summaryDTO": {"avgPower": 250, "normPower": 260},
+            "averagePower": 240,
+            "normalizedPower": 250
+        })
         
-        detailed_activity = {
-            'activityId': 123,
-            'summaryDTO': {
-                'avgPower': 250,
-                'normPower': 260
-            },
-            'averagePower': 240,  # Should be ignored if summaryDTO has avgPower
-            'normalizedPower': 250  # Should be ignored if summaryDTO has normPower
-        }
-        
-        result = extractor._process_single_sport_activity(detailed_activity)
-        
-        assert result.summary.avg_power == 250  # From summaryDTO
-        assert result.summary.normalized_power == 260  # From summaryDTO
+        assert result.summary.avg_power == 250
+        assert result.summary.normalized_power == 260
