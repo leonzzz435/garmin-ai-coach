@@ -8,36 +8,42 @@ from services.ai.langgraph.workflows.interactive_runner import (
     InterruptHandler,
     run_workflow_with_hitl,
 )
-from services.ai.tools.hitl import AskHumanInput, create_ask_human_tool
+from services.ai.tools.hitl import CommunicateWithHumanInput, create_communicate_with_human_tool
 
 
-class TestAskHumanTool:
+class TestCommunicateWithHumanTool:
 
-    def test_create_ask_human_tool_default_agent_name(self):
-        tool = create_ask_human_tool()
-        assert tool.name == "ask_human"
-        assert "ask the human" in tool.description.lower()
+    def test_create_communicate_with_human_tool_default_agent_name(self):
+        tool = create_communicate_with_human_tool()
+        assert tool.name == "communicate_with_human"
+        assert "communicate" in tool.description.lower()
 
-    def test_create_ask_human_tool_custom_agent_name(self):
-        tool = create_ask_human_tool(agent_name="MetricsAnalyzer")
-        assert tool.name == "ask_human"
+    def test_create_communicate_with_human_tool_custom_agent_name(self):
+        tool = create_communicate_with_human_tool(agent_name="MetricsAnalyzer")
+        assert tool.name == "communicate_with_human"
 
-    def test_ask_human_input_schema_required_fields(self):
-        valid_input = AskHumanInput(question="What is your target heart rate?")
-        assert valid_input.question == "What is your target heart rate?"
+    def test_communicate_with_human_input_schema_required_fields(self):
+        valid_input = CommunicateWithHumanInput(
+            message="What is your target heart rate?",
+            message_type="question"
+        )
+        assert valid_input.message == "What is your target heart rate?"
+        assert valid_input.message_type == "question"
         assert valid_input.context == ""
 
-    def test_ask_human_input_schema_with_context(self):
-        input_with_context = AskHumanInput(
-            question="What is your target heart rate?",
+    def test_communicate_with_human_input_schema_with_context(self):
+        input_with_context = CommunicateWithHumanInput(
+            message="What is your target heart rate?",
+            message_type="question",
             context="Analyzing your recent training data"
         )
-        assert input_with_context.question == "What is your target heart rate?"
+        assert input_with_context.message == "What is your target heart rate?"
+        assert input_with_context.message_type == "question"
         assert input_with_context.context == "Analyzing your recent training data"
 
-    def test_ask_human_input_schema_missing_question_raises_error(self):
+    def test_communicate_with_human_input_schema_missing_required_fields_raises_error(self):
         with pytest.raises(ValidationError):
-            AskHumanInput()
+            CommunicateWithHumanInput(message="test message")  # Missing message_type
 
 
 class TestInterruptHandler:
@@ -52,8 +58,8 @@ class TestInterruptHandler:
             "__interrupt__": [{
                 "id": "int_1",
                 "value": {
-                    "type": "ask_human",
-                    "question": "Test question?",
+                    "type": "communicate_with_human",
+                    "message": "Test question?",
                     "context": "Test context",
                     "agent": "TestAgent"
                 }
@@ -62,8 +68,8 @@ class TestInterruptHandler:
         interrupts = InterruptHandler.extract_all_interrupts(result)
         assert len(interrupts) == 1
         assert interrupts[0][0] == "int_1"
-        assert interrupts[0][1]["value"]["type"] == "ask_human"
-        assert interrupts[0][1]["value"]["question"] == "Test question?"
+        assert interrupts[0][1]["value"]["type"] == "communicate_with_human"
+        assert interrupts[0][1]["value"]["message"] == "Test question?"
 
     def test_extract_all_interrupts_multiple_interrupts(self):
         result = {
@@ -86,20 +92,20 @@ class TestInterruptHandler:
     def test_extract_all_interrupts_object_with_attributes(self):
         mock_interrupt = MagicMock()
         mock_interrupt.interrupt_id = "int_obj_1"
-        mock_interrupt.value = {"question": "Object question?", "agent": "ObjAgent"}
+        mock_interrupt.value = {"message": "Object question?", "message_type": "question", "agent": "ObjAgent"}
         
         result = {"__interrupt__": [mock_interrupt]}
         interrupts = InterruptHandler.extract_all_interrupts(result)
         
         assert len(interrupts) == 1
         assert interrupts[0][0] == "int_obj_1"
-        assert interrupts[0][1]["question"] == "Object question?"
+        assert interrupts[0][1]["message"] == "Object question?"
 
     def test_extract_all_interrupts_with_id_fallback(self):
         mock_interrupt = MagicMock()
         mock_interrupt.interrupt_id = None
         mock_interrupt.id = "fallback_id"
-        mock_interrupt.value = {"question": "Fallback question?"}
+        mock_interrupt.value = {"message": "Fallback question?", "message_type": "question"}
         
         result = {"__interrupt__": [mock_interrupt]}
         interrupts = InterruptHandler.extract_all_interrupts(result)
@@ -109,17 +115,19 @@ class TestInterruptHandler:
 
     def test_format_question_basic(self):
         formatted = InterruptHandler.format_question({
-            "question": "What is your training goal?",
+            "message": "What is your training goal?",
+            "message_type": "question",
             "agent": "PlannerAgent"
         })
         
-        assert "AGENT QUESTION" in formatted
+        assert "AGENT COMMUNICATION" in formatted
         assert "[PLANNERAGENT]" in formatted
         assert "What is your training goal?" in formatted
 
     def test_format_question_with_context(self):
         formatted = InterruptHandler.format_question({
-            "question": "What is your target race?",
+            "message": "What is your target race?",
+            "message_type": "question",
             "context": "Planning your season based on your fitness level",
             "agent": "SeasonPlanner"
         })
@@ -129,21 +137,39 @@ class TestInterruptHandler:
         assert "What is your target race?" in formatted
 
     def test_format_question_with_index(self):
-        formatted = InterruptHandler.format_question({"question": "Question text?", "agent": "Agent1"}, index=2)
+        formatted = InterruptHandler.format_question({
+            "message": "Question text?",
+            "message_type": "question",
+            "agent": "Agent1"
+        }, index=2)
         
         assert "Question 2" in formatted
-        assert "AGENT QUESTION" not in formatted
+        assert "AGENT COMMUNICATION" not in formatted
 
     def test_format_question_no_agent_label(self):
-        formatted = InterruptHandler.format_question({"question": "Generic question?", "agent": ""})
+        formatted = InterruptHandler.format_question({
+            "message": "Generic question?",
+            "message_type": "question",
+            "agent": ""
+        })
         
-        assert "AGENT QUESTION" in formatted
+        assert "AGENT COMMUNICATION" in formatted
         assert "Generic question?" in formatted
 
-    def test_format_question_missing_question_field(self):
+    def test_format_question_missing_message_field(self):
         formatted = InterruptHandler.format_question({"agent": "TestAgent"})
         
-        assert "Question not found" in formatted
+        assert "Message not found" in formatted
+    
+    def test_format_question_with_message_type(self):
+        formatted = InterruptHandler.format_question({
+            "message": "I think we should add more recovery",
+            "message_type": "suggestion",
+            "agent": "MetricsAgent"
+        })
+        
+        assert "[SUGGESTION]" in formatted
+        assert "I think we should add more recovery" in formatted
 
 
 class TestRunWorkflowWithHITL:
@@ -175,7 +201,8 @@ class TestRunWorkflowWithHITL:
                 "__interrupt__": [{
                     "id": "int_1",
                     "value": {
-                        "question": "What is your goal?",
+                        "message": "What is your goal?",
+                        "message_type": "question",
                         "agent": "TestAgent"
                     }
                 }]
@@ -203,11 +230,11 @@ class TestRunWorkflowWithHITL:
                 "__interrupt__": [
                     {
                         "id": "int_1",
-                        "value": {"question": "Question 1?", "agent": "Agent1"}
+                        "value": {"message": "Question 1?", "message_type": "question", "agent": "Agent1"}
                     },
                     {
                         "id": "int_2",
-                        "value": {"question": "Question 2?", "agent": "Agent2"}
+                        "value": {"message": "Question 2?", "message_type": "question", "agent": "Agent2"}
                     }
                 ]
             },
@@ -248,7 +275,7 @@ class TestRunWorkflowWithHITL:
         mock_app.ainvoke.return_value = {
             "__interrupt__": [{
                 "id": "int_1",
-                "value": {"question": "Continue?", "agent": "TestAgent"}
+                "value": {"message": "Continue?", "message_type": "question", "agent": "TestAgent"}
             }]
         }
         
@@ -275,7 +302,7 @@ class TestRunWorkflowWithHITL:
         mock_app.ainvoke.return_value = {
             "__interrupt__": [{
                 "id": "int_1",
-                "value": {"question": "Continue?", "agent": "TestAgent"}
+                "value": {"message": "Continue?", "message_type": "question", "agent": "TestAgent"}
             }]
         }
         
@@ -297,8 +324,8 @@ class TestRunWorkflowWithHITL:
         
         mock_app.ainvoke.return_value = {
             "__interrupt__": [
-                {"id": "int_1", "value": {"question": "Q1?", "agent": "A1"}},
-                {"id": "int_2", "value": {"question": "Q2?", "agent": "A2"}}
+                {"id": "int_1", "value": {"message": "Q1?", "message_type": "question", "agent": "A1"}},
+                {"id": "int_2", "value": {"message": "Q2?", "message_type": "question", "agent": "A2"}}
             ]
         }
         
@@ -374,7 +401,7 @@ class TestRunWorkflowWithHITL:
             {
                 "__interrupt__": [{
                     "id": "test_interrupt_id",
-                    "value": {"question": "Test?", "agent": "TestAgent"}
+                    "value": {"message": "Test?", "message_type": "question", "agent": "TestAgent"}
                 }]
             },
             {"result": "success"}

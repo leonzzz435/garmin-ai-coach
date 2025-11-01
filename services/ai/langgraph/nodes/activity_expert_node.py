@@ -15,12 +15,17 @@ from .node_base import (
     execute_node_with_error_handling,
     log_node_completion,
 )
-from .prompt_components import get_output_context_note, get_plotting_instructions, get_workflow_context
+from .prompt_components import (
+    get_hitl_instructions,
+    get_output_context_note,
+    get_plotting_instructions,
+    get_workflow_context,
+)
 from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
-ACTIVITY_INTERPRETER_SYSTEM_PROMPT_BASE = """You are Coach Elena Petrova, a legendary session analyst whose "Technical Execution Framework" has helped athletes break records in everything from the 800m to ultramarathons.
+ACTIVITY_EXPERT_SYSTEM_PROMPT_BASE = """You are Coach Elena Petrova, a legendary session analyst whose "Technical Execution Framework" has helped athletes break records in everything from the 800m to ultramarathons.
 
 ## Your Background
 After a career as an elite gymnast and later distance runner, you developed a uniquely perceptive eye for the subtle technical elements that separate good sessions from transformative ones.
@@ -42,7 +47,7 @@ Interpret structured activity data to optimize workout progression patterns.
 ## Communication Style
 Communicate with passionate precision and laser-like clarity. Your analysis cuts through confusion with laser-like clarity."""
 
-ACTIVITY_INTERPRETER_USER_PROMPT = """Interpret structured activity summaries to identify patterns and provide guidance.
+ACTIVITY_EXPERT_USER_PROMPT = """Interpret structured activity summaries to identify patterns and provide guidance.
 
 {output_context}
 
@@ -97,15 +102,15 @@ Structure your response to include two clearly distinguished sections:
 Format as structured markdown document with clear sections and bullet points"""
 
 
-async def activity_interpreter_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
-    logger.info("Starting activity interpreter node")
+async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
+    logger.info("Starting activity expert node")
 
     plot_storage = PlotStorage(state["execution_id"])
     plotting_enabled = state.get("plotting_enabled", False)
     hitl_enabled = state.get("hitl_enabled", True)
     
     logger.info(
-        f"Activity interpreter node: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
+        f"Activity expert node: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
         f"HITL {'enabled' if hitl_enabled else 'disabled'}"
     )
 
@@ -117,24 +122,25 @@ async def activity_interpreter_node(state: TrainingAnalysisState) -> dict[str, l
     )
 
     system_prompt = (
-        ACTIVITY_INTERPRETER_SYSTEM_PROMPT_BASE +
+        ACTIVITY_EXPERT_SYSTEM_PROMPT_BASE +
         get_workflow_context("activity") +
-        (get_plotting_instructions("activity") if plotting_enabled else "")
+        (get_plotting_instructions("activity") if plotting_enabled else "") +
+        (get_hitl_instructions("activity") if hitl_enabled else "")
     )
 
     llm_with_tools = (
-        ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER).bind_tools(tools) if tools
-        else ModelSelector.get_llm(AgentRole.ACTIVITY_INTERPRETER)
+        ModelSelector.get_llm(AgentRole.ACTIVITY_EXPERT).bind_tools(tools) if tools
+        else ModelSelector.get_llm(AgentRole.ACTIVITY_EXPERT)
     )
 
     agent_start_time = datetime.now()
 
-    async def call_activity_interpretation():
+    async def call_activity_expert():
         return await handle_tool_calling_in_node(
             llm_with_tools=llm_with_tools,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": ACTIVITY_INTERPRETER_USER_PROMPT.format(
+                {"role": "user", "content": ACTIVITY_EXPERT_USER_PROMPT.format(
                     output_context=get_output_context_note(for_other_agents=True),
                     activity_summary=state.get("activity_summary", ""),
                     competitions=json.dumps(state["competitions"], indent=2),
@@ -148,24 +154,24 @@ async def activity_interpreter_node(state: TrainingAnalysisState) -> dict[str, l
 
     async def node_execution():
         activity_result = await retry_with_backoff(
-            call_activity_interpretation, AI_ANALYSIS_CONFIG, "Activity Interpretation with Tools"
+            call_activity_expert, AI_ANALYSIS_CONFIG, "Activity Expert Analysis with Tools"
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-        plots, plot_storage_data, available_plots = create_plot_entries("activity_interpreter", plot_storage)
+        plots, plot_storage_data, available_plots = create_plot_entries("activity_expert", plot_storage)
 
-        log_node_completion("Activity interpreter", execution_time, len(available_plots))
+        log_node_completion("Activity expert", execution_time, len(available_plots))
 
         return {
             "activity_result": activity_result,
             "plots": plots,
             "plot_storage_data": plot_storage_data,
-            "costs": [create_cost_entry("activity_interpreter", execution_time)],
+            "costs": [create_cost_entry("activity_expert", execution_time)],
             "available_plots": available_plots,
         }
 
     return await execute_node_with_error_handling(
-        node_name="Activity interpreter",
+        node_name="Activity expert",
         node_function=node_execution,
-        error_message_prefix="Activity interpretation failed",
+        error_message_prefix="Activity expert analysis failed",
     )

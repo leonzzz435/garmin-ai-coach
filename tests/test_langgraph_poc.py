@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from services.ai.langgraph.nodes.metrics_node import metrics_node
+from services.ai.langgraph.nodes.metrics_expert_node import metrics_expert_node
 from services.ai.langgraph.state.training_analysis_state import create_initial_state
 from services.ai.langgraph.workflows.analysis_workflow import create_analysis_workflow
 
@@ -53,8 +53,8 @@ def test_workflow_creation(mock_langsmith):
 @pytest.mark.asyncio
 @patch("services.ai.model_config.ModelSelector.get_llm")
 @patch("services.ai.tools.plotting.PlotStorage")
-@patch("services.ai.langgraph.nodes.metrics_node.retry_with_backoff", new_callable=AsyncMock)
-async def test_metrics_node_basic(mock_retry, mock_plot_storage, mock_get_llm, sample_state):
+@patch("services.ai.langgraph.nodes.metrics_expert_node.retry_with_backoff", new_callable=AsyncMock)
+async def test_metrics_expert_node_basic(mock_retry, mock_plot_storage, mock_get_llm, sample_state):
     mock_llm = Mock()
     mock_llm_with_tools = Mock()
 
@@ -71,8 +71,10 @@ async def test_metrics_node_basic(mock_retry, mock_plot_storage, mock_get_llm, s
     mock_storage = Mock()
     mock_storage.get_all_plots.return_value = {}
     mock_plot_storage.return_value = mock_storage
+    
+    sample_state["metrics_summary"] = "Test metrics summary"
 
-    result = await metrics_node(sample_state)
+    result = await metrics_expert_node(sample_state)
 
     assert "metrics_result" in result
     assert "plots" in result

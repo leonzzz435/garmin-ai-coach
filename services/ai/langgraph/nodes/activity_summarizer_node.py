@@ -11,7 +11,7 @@ from .tool_calling_helper import extract_text_content
 
 logger = logging.getLogger(__name__)
 
-ACTIVITY_DATA_SYSTEM_PROMPT = """You are Dr. Marcus Chen, a data organization specialist who revolutionized how athletic data is processed and structured.
+ACTIVITY_SUMMARIZER_SYSTEM_PROMPT = """You are Dr. Marcus Chen, a data organization specialist who revolutionized how athletic data is processed and structured.
 
 ## Your Background
 With a PhD in Computer Science specializing in data representation and a background as a competitive cyclist, you bridged the gap between raw sports data and meaningful, structured information.
@@ -33,7 +33,7 @@ Extract and structure training activity data with factual precision.
 ## Communication Style
 Communicate with calculated precision and complete objectivity. Athletes and coaches appreciate your ability to transform overwhelming data into clear, factual summaries that serve as a reliable foundation for subsequent analysis and interpretation."""
 
-ACTIVITY_DATA_USER_PROMPT = """Your task is to objectively describe the athlete's recent training activities, transforming raw data into structured, factual summaries.
+ACTIVITY_SUMMARIZER_USER_PROMPT = """Your task is to objectively describe the athlete's recent training activities, transforming raw data into structured, factual summaries.
 
 Input Data:
 ```json
@@ -81,37 +81,37 @@ Format each activity using this template:
 Repeat this format for each activity, organizing them chronologically from newest to oldest."""
 
 
-async def activity_data_node(state: TrainingAnalysisState) -> dict[str, list | str]:
-    logger.info("Starting activity data extraction node")
+async def activity_summarizer_node(state: TrainingAnalysisState) -> dict[str, list | str]:
+    logger.info("Starting activity summarizer node")
 
     try:
         agent_start_time = datetime.now()
 
         async def call_llm():
-            response = await ModelSelector.get_llm(AgentRole.ACTIVITY_DATA).ainvoke([
-                {"role": "system", "content": ACTIVITY_DATA_SYSTEM_PROMPT},
-                {"role": "user", "content": ACTIVITY_DATA_USER_PROMPT.format(
+            response = await ModelSelector.get_llm(AgentRole.SUMMARIZER).ainvoke([
+                {"role": "system", "content": ACTIVITY_SUMMARIZER_SYSTEM_PROMPT},
+                {"role": "user", "content": ACTIVITY_SUMMARIZER_USER_PROMPT.format(
                     data=json.dumps(state["garmin_data"].get("recent_activities", []), indent=2)
                 )},
             ])
             return extract_text_content(response)
 
         activity_summary = await retry_with_backoff(
-            call_llm, AI_ANALYSIS_CONFIG, "Activity Data Extraction"
+            call_llm, AI_ANALYSIS_CONFIG, "Activity Summarization"
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-        logger.info(f"Activity data extraction completed in {execution_time:.2f}s")
+        logger.info(f"Activity summarization completed in {execution_time:.2f}s")
 
         return {
             "activity_summary": activity_summary,
             "costs": [{
-                "agent": "activity_data",
+                "agent": "activity_summarizer",
                 "execution_time": execution_time,
                 "timestamp": datetime.now().isoformat(),
             }],
         }
 
     except Exception as e:
-        logger.error(f"Activity data node failed: {e}")
-        return {"errors": [f"Activity data extraction failed: {str(e)}"]}
+        logger.error(f"Activity summarizer node failed: {e}")
+        return {"errors": [f"Activity summarization failed: {str(e)}"]}
