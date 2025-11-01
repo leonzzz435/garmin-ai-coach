@@ -5,8 +5,8 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 
 from ..config.langsmith_config import LangSmithConfig
-from ..nodes.activity_data_node import activity_data_node
-from ..nodes.activity_interpreter_node import activity_interpreter_node
+from ..nodes.activity_expert_node import activity_expert_node
+from ..nodes.activity_summarizer_node import activity_summarizer_node
 from ..nodes.data_integration_node import data_integration_node
 from ..nodes.formatter_node import formatter_node
 from ..nodes.metrics_expert_node import metrics_expert_node
@@ -89,18 +89,18 @@ async def run_weekly_planning(
     return final_state
 
 
-def create_integrated_analysis_and_planning_workflow(debug_mode: bool = False):
+def create_integrated_analysis_and_planning_workflow():
     LangSmithConfig.setup_langsmith()
 
     workflow = StateGraph(TrainingAnalysisState)
 
     workflow.add_node("metrics_summarizer", metrics_summarizer_node)
     workflow.add_node("physiology_summarizer", physiology_summarizer_node)
-    workflow.add_node("activity_data", activity_data_node)
-    
+    workflow.add_node("activity_summarizer", activity_summarizer_node)
+
     workflow.add_node("metrics_expert", metrics_expert_node)
     workflow.add_node("physiology_expert", physiology_expert_node)
-    workflow.add_node("activity_interpreter", activity_interpreter_node)
+    workflow.add_node("activity_expert", activity_expert_node)
     
     workflow.add_node("synthesis", synthesis_node)
     workflow.add_node("formatter", formatter_node)
@@ -110,37 +110,36 @@ def create_integrated_analysis_and_planning_workflow(debug_mode: bool = False):
     workflow.add_node("data_integration", data_integration_node)
     workflow.add_node("weekly_planner", weekly_planner_node)
     workflow.add_node("plan_formatter", plan_formatter_node)
+    
+    workflow.add_node("finalize", lambda state: state, defer=True)
 
     workflow.add_edge(START, "metrics_summarizer")
     workflow.add_edge(START, "physiology_summarizer")
-    workflow.add_edge(START, "activity_data")
+    workflow.add_edge(START, "activity_summarizer")
 
     workflow.add_edge("metrics_summarizer", "metrics_expert")
     workflow.add_edge("physiology_summarizer", "physiology_expert")
-    workflow.add_edge("activity_data", "activity_interpreter")
+    workflow.add_edge("activity_summarizer", "activity_expert")
 
-    workflow.add_edge(["metrics_expert", "physiology_expert", "activity_interpreter"], "synthesis")
-
+    workflow.add_edge(["metrics_expert", "physiology_expert", "activity_expert"], "synthesis")
     workflow.add_edge("synthesis", "formatter")
     workflow.add_edge("formatter", "plot_resolution")
-    workflow.add_edge("plot_resolution", "season_planner")
 
+    workflow.add_edge(["metrics_expert", "physiology_expert", "activity_expert"], "season_planner")
     workflow.add_edge("season_planner", "data_integration")
     workflow.add_edge("data_integration", "weekly_planner")
     workflow.add_edge("weekly_planner", "plan_formatter")
-    workflow.add_edge("plan_formatter", END)
+    
+    workflow.add_edge("plot_resolution", "finalize")
+    workflow.add_edge("plan_formatter", "finalize")
+    workflow.add_edge("finalize", END)
 
     checkpointer = MemorySaver()
-    
-    if debug_mode:
-        app = workflow.compile(
-            checkpointer=checkpointer,
-            interrupt_before=["metrics_expert", "physiology_expert", "activity_interpreter"]
-        )
-        logger.info("Created integrated workflow with BREAKPOINT after summarization nodes")
-    else:
-        app = workflow.compile(checkpointer=checkpointer)
-        logger.info("Created integrated analysis + planning workflow with 2-stage architecture (3 summarizers + 3 experts + synthesis + planning)")
+    app = workflow.compile(checkpointer=checkpointer)
+    logger.info(
+        "Created integrated analysis + planning workflow with parallel architecture: "
+        "3 summarizers → 3 experts → [analysis branch (synthesis/formatter/plots) || planning branch (season/data_integration/weekly/plan_formatter)] → finalize"
+    )
     
     return app
 
@@ -157,13 +156,12 @@ async def run_complete_analysis_and_planning(
     progress_manager=None,
     plotting_enabled: bool = False,
     hitl_enabled: bool = True,
-    debug_mode: bool = False,
 ) -> dict:
     execution_id = f"{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_complete"
     cost_tracker = ProgressIntegratedCostTracker(f"garmin_ai_coach_{user_id}", progress_manager)
 
     final_state, execution = await cost_tracker.run_workflow_with_progress(
-        create_integrated_analysis_and_planning_workflow(debug_mode=debug_mode),
+        create_integrated_analysis_and_planning_workflow(),
         create_initial_state(
             user_id=user_id,
             athlete_name=athlete_name,

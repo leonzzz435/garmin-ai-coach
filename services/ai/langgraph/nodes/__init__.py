@@ -1,5 +1,5 @@
-from .activity_data_node import activity_data_node
-from .activity_interpreter_node import activity_interpreter_node
+from .activity_expert_node import activity_expert_node
+from .activity_summarizer_node import activity_summarizer_node
 from .data_integration_node import data_integration_node
 from .formatter_node import formatter_node
 from .metrics_expert_node import metrics_expert_node
@@ -16,8 +16,8 @@ __all__ = [
     "metrics_expert_node",
     "physiology_summarizer_node",
     "physiology_expert_node",
-    "activity_data_node",
-    "activity_interpreter_node",
+    "activity_summarizer_node",
+    "activity_expert_node",
     "synthesis_node",
     "formatter_node",
     "season_planner_node",

@@ -23,7 +23,6 @@ extraction:
   ai_mode: "standard"      # Overrides .env AI_MODE for coach-cli runs; one of: "development", "standard", "cost_effective"
   enable_plotting: false   # Enable AI-generated plots (default: false to save costs). Set to true for visual insights.
   hitl_enabled: true       # Enable Human-in-the-Loop interactions - agents can ask questions during analysis (default: true)
-  debug_mode: false        # Enable breakpoint after data summarization nodes (default: false). Use for testing new summarization nodes.
 
 # Upcoming Competitions
 competitions:

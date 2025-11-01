@@ -111,15 +111,19 @@ flowchart TD
     SN --> FN
     FN --> PRN
 
-    %% Planning Workflow Flow
-    PRN --> SPN
+    MEN --> SPN
+    PEN --> SPN
+    AIN --> SPN
+    
     SPN --> DIN
     DIN --> WPN
-    %% Weekly planner uses the three expert results
+    %% Weekly planner uses the three expert results directly
     MEN --> WPN
     AIN --> WPN
     PEN --> WPN
     WPN --> PFN
+    
+    %% Both branches converge at deferred finalizer (not shown, implicit END join)
 
     %% Tool Integration (Only Experts have tools)
     MEN -.-> PT

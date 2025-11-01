@@ -5,8 +5,8 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 
 from ..config.langsmith_config import LangSmithConfig
-from ..nodes.activity_data_node import activity_data_node
-from ..nodes.activity_interpreter_node import activity_interpreter_node
+from ..nodes.activity_expert_node import activity_expert_node
+from ..nodes.activity_summarizer_node import activity_summarizer_node
 from ..nodes.formatter_node import formatter_node
 from ..nodes.metrics_expert_node import metrics_expert_node
 from ..nodes.metrics_summarizer_node import metrics_summarizer_node
@@ -19,18 +19,18 @@ from ..state.training_analysis_state import TrainingAnalysisState, create_initia
 logger = logging.getLogger(__name__)
 
 
-def create_analysis_workflow(debug_mode: bool = False):
+def create_analysis_workflow():
     LangSmithConfig.setup_langsmith()
 
     workflow = StateGraph(TrainingAnalysisState)
 
     workflow.add_node("metrics_summarizer", metrics_summarizer_node)
     workflow.add_node("physiology_summarizer", physiology_summarizer_node)
-    workflow.add_node("activity_data", activity_data_node)
+    workflow.add_node("activity_summarizer", activity_summarizer_node)
     
     workflow.add_node("metrics_expert", metrics_expert_node)
     workflow.add_node("physiology_expert", physiology_expert_node)
-    workflow.add_node("activity_interpreter", activity_interpreter_node)
+    workflow.add_node("activity_expert", activity_expert_node)
     
     workflow.add_node("synthesis", synthesis_node)
     workflow.add_node("formatter", formatter_node)
@@ -38,30 +38,22 @@ def create_analysis_workflow(debug_mode: bool = False):
 
     workflow.add_edge(START, "metrics_summarizer")
     workflow.add_edge(START, "physiology_summarizer")
-    workflow.add_edge(START, "activity_data")
+    workflow.add_edge(START, "activity_summarizer")
 
     workflow.add_edge("metrics_summarizer", "metrics_expert")
     workflow.add_edge("physiology_summarizer", "physiology_expert")
-    workflow.add_edge("activity_data", "activity_interpreter")
+    workflow.add_edge("activity_summarizer", "activity_expert")
 
     workflow.add_edge("metrics_expert", "synthesis")
     workflow.add_edge("physiology_expert", "synthesis")
-    workflow.add_edge("activity_interpreter", "synthesis")
+    workflow.add_edge("activity_expert", "synthesis")
     workflow.add_edge("synthesis", "formatter")
     workflow.add_edge("formatter", "plot_resolution")
     workflow.add_edge("plot_resolution", END)
 
     checkpointer = MemorySaver()
-    
-    if debug_mode:
-        app = workflow.compile(
-            checkpointer=checkpointer,
-            interrupt_before=["metrics_expert", "physiology_expert", "activity_interpreter"]
-        )
-        logger.info("Created LangGraph analysis workflow with BREAKPOINT after summarization nodes")
-    else:
-        app = workflow.compile(checkpointer=checkpointer)
-        logger.info("Created complete LangGraph analysis workflow with 2-stage architecture (3 summarizers + 3 experts + synthesis + formatting)")
+    app = workflow.compile(checkpointer=checkpointer)
+    logger.info("Created complete LangGraph analysis workflow with 2-stage architecture (3 summarizers + 3 experts + synthesis + formatting)")
     
     return app
 
@@ -74,12 +66,11 @@ async def run_training_analysis(
     competitions: list | None = None,
     current_date: dict | None = None,
     plotting_enabled: bool = False,
-    debug_mode: bool = False,
 ) -> dict:
     execution_id = f"{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     config = {"configurable": {"thread_id": execution_id}}
     
-    async for chunk in create_analysis_workflow(debug_mode=debug_mode).astream(
+    async for chunk in create_analysis_workflow().astream(
         create_initial_state(
             user_id=user_id,
             athlete_name=athlete_name,
@@ -104,11 +95,11 @@ def create_simple_sequential_workflow():
 
     workflow.add_node("metrics_summarizer", metrics_summarizer_node)
     workflow.add_node("physiology_summarizer", physiology_summarizer_node)
-    workflow.add_node("activity_data", activity_data_node)
+    workflow.add_node("activity_summarizer", activity_summarizer_node)
     
     workflow.add_node("metrics_expert", metrics_expert_node)
     workflow.add_node("physiology_expert", physiology_expert_node)
-    workflow.add_node("activity_interpreter", activity_interpreter_node)
+    workflow.add_node("activity_expert", activity_expert_node)
     
     workflow.add_node("synthesis", synthesis_node)
     workflow.add_node("formatter", formatter_node)
@@ -118,9 +109,9 @@ def create_simple_sequential_workflow():
     workflow.add_edge("metrics_summarizer", "metrics_expert")
     workflow.add_edge("metrics_expert", "physiology_summarizer")
     workflow.add_edge("physiology_summarizer", "physiology_expert")
-    workflow.add_edge("physiology_expert", "activity_data")
-    workflow.add_edge("activity_data", "activity_interpreter")
-    workflow.add_edge("activity_interpreter", "synthesis")
+    workflow.add_edge("physiology_expert", "activity_summarizer")
+    workflow.add_edge("activity_summarizer", "activity_expert")
+    workflow.add_edge("activity_expert", "synthesis")
     workflow.add_edge("synthesis", "formatter")
     workflow.add_edge("formatter", "plot_resolution")
     workflow.add_edge("plot_resolution", END)

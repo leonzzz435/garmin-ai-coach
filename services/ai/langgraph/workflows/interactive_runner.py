@@ -32,16 +32,20 @@ class InterruptHandler:
 
     @staticmethod
     def format_question(payload: dict, index: int | None = None) -> str:
-        question = payload.get("question", "Question not found")
+        message = payload.get("message", "Message not found")
+        message_type = payload.get("message_type", "question")
         context = payload.get("context", "")
         agent = payload.get("agent", "Agent")
 
+        type_indicator = f"[{message_type.upper()}]" if message_type != "question" else ""
+        
         header = (
-            f"{'Question ' + str(index) if index is not None else 'AGENT QUESTION'} "
-            f"{f'[{agent.upper()}]' if agent and agent != 'Unknown Agent' else ''}"
+            f"{'Question ' + str(index) if index is not None else 'AGENT COMMUNICATION'} "
+            f"{f'[{agent.upper()}]' if agent and agent != 'Unknown Agent' else ''} "
+            f"{type_indicator}"
         ).strip()
 
-        return f"{header}\n{context}\n\nQuestion: {question}" if context else f"{header}\n{question}"
+        return f"{header}\n{context}\n\n{message}" if context else f"{header}\n\n{message}"
 
 
 async def run_workflow_with_hitl(

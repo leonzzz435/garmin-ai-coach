@@ -19,8 +19,9 @@ The system uses a **role-based model assignment strategy** that optimizes model 
 
 **STANDARD Mode (Production):**
 - **Data Summarization Nodes**: `claude-4-thinking` - Uses extended thinking for complex data structuring
-  - Metrics Summarizer (`AgentRole.ACTIVITY_DATA`)
-  - Physiology Summarizer (`AgentRole.ACTIVITY_DATA`)
+  - Metrics Summarizer (`AgentRole.ACTIVITY_SUMMARIZER`)
+  - Physiology Summarizer (`AgentRole.ACTIVITY_SUMMARIZER`)
+  - Activity Summarizer (`AgentRole.ACTIVITY_SUMMARIZER`)
 - **HTML Formatters**: `claude-4` - Fast, clean HTML generation without thinking overhead
   - Analysis Formatter (`AgentRole.FORMATTER`)
   - Planning Formatter (`AgentRole.FORMATTER`)
@@ -106,8 +107,8 @@ class TrainingAnalysisState(TypedDict):
 ```
 
 **Parallel Execution:**
-- Metrics + Physiology + activity_data agents run simultaneously
-- Activity Data → Interpreter (sequential dependency)
+- Metrics + Physiology + Activity summarizers run simultaneously
+- Each Summarizer → Expert (sequential dependency for each domain)
 - State reducers handle automatic result aggregation
 
 ## Key Features

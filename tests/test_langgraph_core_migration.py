@@ -16,8 +16,8 @@ def basic_test_state():
 
 
 def test_all_nodes_importable():
-    from services.ai.langgraph.nodes.activity_data_node import activity_data_node
-    from services.ai.langgraph.nodes.activity_interpreter_node import activity_interpreter_node
+    from services.ai.langgraph.nodes.activity_expert_node import activity_expert_node
+    from services.ai.langgraph.nodes.activity_summarizer_node import activity_summarizer_node
     from services.ai.langgraph.nodes.formatter_node import formatter_node
     from services.ai.langgraph.nodes.metrics_expert_node import metrics_expert_node
     from services.ai.langgraph.nodes.metrics_summarizer_node import metrics_summarizer_node
@@ -29,8 +29,8 @@ def test_all_nodes_importable():
     assert callable(metrics_expert_node)
     assert callable(physiology_summarizer_node)
     assert callable(physiology_expert_node)
-    assert callable(activity_data_node)
-    assert callable(activity_interpreter_node)
+    assert callable(activity_summarizer_node)
+    assert callable(activity_expert_node)
     assert callable(synthesis_node)
     assert callable(formatter_node)
 
@@ -74,7 +74,7 @@ def test_state_schema_completeness():
 @pytest.mark.asyncio
 @patch("services.ai.model_config.ModelSelector.get_llm")
 async def test_node_basic_functionality(mock_get_llm, basic_test_state):
-    from services.ai.langgraph.nodes.activity_data_node import activity_data_node
+    from services.ai.langgraph.nodes.activity_summarizer_node import activity_summarizer_node
 
     mock_llm = AsyncMock()
     mock_response = Mock()
@@ -82,7 +82,7 @@ async def test_node_basic_functionality(mock_get_llm, basic_test_state):
     mock_llm.ainvoke = AsyncMock(return_value=mock_response)
     mock_get_llm.return_value = mock_llm
 
-    result = await activity_data_node(basic_test_state)
+    result = await activity_summarizer_node(basic_test_state)
 
     assert isinstance(result, dict)
     assert "costs" in result or "errors" in result

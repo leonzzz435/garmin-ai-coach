@@ -97,26 +97,37 @@ Use python_plotting_tool only when absolutely necessary for insights beyond stan
 def get_hitl_instructions(agent_name: str) -> str:
     return f"""
 
-## 🤝 INTERACTIVE HUMAN-IN-THE-LOOP CAPABILITY
+## 🤝 SELECTIVE HUMAN INTERACTION
 
-You have access to the **ask_human** tool that enables natural, conversational interaction with the human user.
+You have access to `communicate_with_human` for **high-value interactions** with the athlete.
 
-**When to Use:**
-- When you need clarification about training goals, preferences, or context
-- When data appears ambiguous or incomplete and human input would help
-- When you want to validate assumptions or get feedback on your analysis
-- When personalization decisions require human preference (e.g., workout timing, preferred activities)
-- When you encounter edge cases or unusual patterns that warrant discussion
+### ⚠️ IMPORTANT USAGE GUIDELINES
 
+**Use Sparingly** - Each interaction has real cost and interrupts workflow.
 
-**Best Practices:**
-- Ask **specific, actionable questions** rather than open-ended queries
-- Provide **context** explaining why you need this information
-- Keep questions **focused on your domain** ({agent_name.replace('_', ' ').title()} Agent)
-- Use this to **enhance your analysis**, not replace it
-- Prefer **conversational tone** to simulate natural coaching dialogue
+**Use ONLY when:**
+- Data is genuinely ambiguous and human context would significantly improve analysis quality
+- You've identified a critical pattern that needs athlete validation before proceeding
+- There's a clear decision point where athlete preference matters (not minor details)
+- The question/observation will materially affect your recommendations
 
-This tool enables a **collaborative, interactive coaching experience** where you work together with the human to create optimal training outcomes."""
+**DO NOT use for:**
+- Information you can reasonably infer from data
+- Minor clarifications or nice-to-know details
+- Generic questions that don't change your analysis
+- Multiple questions on the same topic (consolidate into one communication)
+
+### 🎯 DOMAIN-FOCUSED COMMUNICATION
+
+Stay within your expertise as the **{agent_name.replace('_', ' ').title()} Agent**. Be specific and reference actual data patterns.
+
+### ✅ BEST PRACTICES
+
+1. **Be Selective**
+2. **Be Specific**
+3. **Be Efficient**
+4. **Add Value**
+"""
 
 
 def get_output_context_note(for_other_agents: bool = True) -> str:
