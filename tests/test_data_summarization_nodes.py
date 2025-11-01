@@ -116,5 +116,6 @@ async def test_physiology_summarizer_with_empty_data():
     
     with patch("services.ai.model_config.ModelSelector.get_llm", return_value=mock_llm):
         result = await physiology_summarizer_node(state)
+        
+        assert "physiology_summary" in result or "errors" in result
     
-    assert "physiology_summary" in result or "errors" in result

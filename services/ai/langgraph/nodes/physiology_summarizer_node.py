@@ -5,14 +5,17 @@ from .data_summarizer_node import create_data_summarizer_node
 
 
 def extract_physiology_data(state: TrainingAnalysisState) -> dict:
-    recovery_indicators = state["garmin_data"].get("recovery_indicators", [])
+    garmin_data = state["garmin_data"]
+    recovery_indicators = garmin_data.get("recovery_indicators", [])
+    physiological_markers = garmin_data.get("physiological_markers", {})
+    
     return {
-        "hrv_data": state["garmin_data"].get("physiological_markers", {}).get("hrv", {}),
+        "hrv_data": physiological_markers.get("hrv", {}),
         "sleep_data": [ind["sleep"] for ind in recovery_indicators if ind.get("sleep")],
         "stress_data": [ind["stress"] for ind in recovery_indicators if ind.get("stress")],
         "recovery_metrics": {
-            "physiological_markers": state["garmin_data"].get("physiological_markers", {}),
-            "body_metrics": state["garmin_data"].get("body_metrics", {}),
+            "physiological_markers": physiological_markers,
+            "body_metrics": garmin_data.get("body_metrics", {}),
             "recovery_indicators": recovery_indicators,
         },
     }
