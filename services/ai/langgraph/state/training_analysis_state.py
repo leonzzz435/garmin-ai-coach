@@ -17,6 +17,8 @@ class TrainingAnalysisState(MessagesState):
     plotting_enabled: bool
     hitl_enabled: bool
 
+    metrics_summary: str | None
+    physiology_summary: str | None
     metrics_result: str | None
     activity_summary: str | None
     activity_result: str | None
@@ -67,6 +69,8 @@ def create_initial_state(
         plotting_enabled=plotting_enabled,
         hitl_enabled=hitl_enabled,
         execution_id=execution_id,
+        metrics_summary=None,
+        physiology_summary=None,
         metrics_result=None,
         activity_summary=None,
         activity_result=None,

@@ -94,6 +94,31 @@ Use python_plotting_tool only when absolutely necessary for insights beyond stan
 **Your plot references will be automatically converted to interactive charts in the final report.**"""
 
 
+def get_hitl_instructions(agent_name: str) -> str:
+    return f"""
+
+## 🤝 INTERACTIVE HUMAN-IN-THE-LOOP CAPABILITY
+
+You have access to the **ask_human** tool that enables natural, conversational interaction with the human user.
+
+**When to Use:**
+- When you need clarification about training goals, preferences, or context
+- When data appears ambiguous or incomplete and human input would help
+- When you want to validate assumptions or get feedback on your analysis
+- When personalization decisions require human preference (e.g., workout timing, preferred activities)
+- When you encounter edge cases or unusual patterns that warrant discussion
+
+
+**Best Practices:**
+- Ask **specific, actionable questions** rather than open-ended queries
+- Provide **context** explaining why you need this information
+- Keep questions **focused on your domain** ({agent_name.replace('_', ' ').title()} Agent)
+- Use this to **enhance your analysis**, not replace it
+- Prefer **conversational tone** to simulate natural coaching dialogue
+
+This tool enables a **collaborative, interactive coaching experience** where you work together with the human to create optimal training outcomes."""
+
+
 def get_output_context_note(for_other_agents: bool = True) -> str:
     
     if for_other_agents:

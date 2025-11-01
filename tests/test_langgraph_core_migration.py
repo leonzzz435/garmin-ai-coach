@@ -19,12 +19,16 @@ def test_all_nodes_importable():
     from services.ai.langgraph.nodes.activity_data_node import activity_data_node
     from services.ai.langgraph.nodes.activity_interpreter_node import activity_interpreter_node
     from services.ai.langgraph.nodes.formatter_node import formatter_node
-    from services.ai.langgraph.nodes.metrics_node import metrics_node
-    from services.ai.langgraph.nodes.physiology_node import physiology_node
+    from services.ai.langgraph.nodes.metrics_expert_node import metrics_expert_node
+    from services.ai.langgraph.nodes.metrics_summarizer_node import metrics_summarizer_node
+    from services.ai.langgraph.nodes.physiology_expert_node import physiology_expert_node
+    from services.ai.langgraph.nodes.physiology_summarizer_node import physiology_summarizer_node
     from services.ai.langgraph.nodes.synthesis_node import synthesis_node
 
-    assert callable(metrics_node)
-    assert callable(physiology_node)
+    assert callable(metrics_summarizer_node)
+    assert callable(metrics_expert_node)
+    assert callable(physiology_summarizer_node)
+    assert callable(physiology_expert_node)
     assert callable(activity_data_node)
     assert callable(activity_interpreter_node)
     assert callable(synthesis_node)
@@ -50,6 +54,8 @@ def test_state_schema_completeness():
         "athlete_name",
         "garmin_data",
         "execution_id",
+        "metrics_summary",
+        "physiology_summary",
         "metrics_result",
         "activity_summary",
         "activity_result",

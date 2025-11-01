@@ -13,7 +13,7 @@ from .node_base import (
     execute_node_with_error_handling,
     log_node_completion,
 )
-from .prompt_components import get_output_context_note, get_workflow_context
+from .prompt_components import get_hitl_instructions, get_output_context_note, get_workflow_context
 from .tool_calling_helper import extract_text_content, handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
@@ -84,7 +84,11 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         hitl_enabled=hitl_enabled,
     )
 
-    system_prompt = SEASON_PLANNER_SYSTEM_PROMPT + get_workflow_context("season_planner")
+    system_prompt = (
+        SEASON_PLANNER_SYSTEM_PROMPT +
+        get_workflow_context("season_planner") +
+        (get_hitl_instructions("season_planner") if hitl_enabled else "")
+    )
     
     messages = [
         {"role": "system", "content": system_prompt},

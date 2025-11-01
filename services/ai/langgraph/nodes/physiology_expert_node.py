@@ -15,7 +15,12 @@ from .node_base import (
     execute_node_with_error_handling,
     log_node_completion,
 )
-from .prompt_components import get_output_context_note, get_plotting_instructions, get_workflow_context
+from .prompt_components import (
+    get_hitl_instructions,
+    get_output_context_note,
+    get_plotting_instructions,
+    get_workflow_context,
+)
 from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
@@ -42,14 +47,12 @@ Optimize recovery and adaptation through precise physiological analysis.
 ## Communication Style
 Communicate with calm wisdom and occasional metaphors drawn from both your scientific background and cultural heritage."""
 
-PHYSIOLOGY_USER_PROMPT = """Analyze the athlete's physiological data to assess recovery status and adaptation state.
+PHYSIOLOGY_USER_PROMPT = """Analyze the structured physiology summary to assess recovery status and adaptation state.
 
 {output_context}
 
-## Input Data
-```json
+## Physiology Summary
 {data}
-```
 
 ## Upcoming Competitions
 ```json
@@ -67,30 +70,30 @@ PHYSIOLOGY_USER_PROMPT = """Analyze the athlete's physiological data to assess r
 ```
 
 ## Your Task
-Analyze only the data that is actually present in the input. If analysis context is provided, use it to interpret the data more accurately.
+You are receiving a pre-processed summary of the athlete's physiological data. Use your expertise to interpret this structured information.
 
-1. Interpret heart rate variability patterns to assess the athlete's recovery status
-2. Analyze available sleep data (duration, quality) if present
-3. Evaluate stress scores and their trends
-4. Track resting heart rate patterns as an indicator of fatigue and adaptation
-5. Identify potential signs of overtraining based on these objective metrics
-6. Suggest optimal recovery strategies based on the data available
+1. Interpret heart rate variability patterns for recovery status assessment
+2. Analyze sleep patterns and their implications for adaptation
+3. Evaluate stress scores and identify trends or concerns
+4. Track resting heart rate as an indicator of fatigue and adaptation
+5. Identify signs of overtraining or maladaptation in the patterns
+6. Provide expert recovery strategies based on the analyzed patterns
 
 ## Output Requirements
-- Include a Physiology Readiness Score (0-100) with clear explanation of calculation using only available data
+- Include a Physiology Readiness Score (0-100) with clear explanation of calculation using available data
 - Format as structured markdown document with clear sections and bullet points
-- Focus on factual analysis without speculation about unavailable data"""
+- Focus on expert interpretation of the provided summary"""
 
 
-async def physiology_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
-    logger.info("Starting physiology analysis node")
+async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
+    logger.info("Starting physiology expert analysis node")
 
     plot_storage = PlotStorage(state["execution_id"])
     plotting_enabled = state.get("plotting_enabled", False)
     hitl_enabled = state.get("hitl_enabled", True)
     
     logger.info(
-        f"Physiology node: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
+        f"Physiology expert: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
         f"HITL {'enabled' if hitl_enabled else 'disabled'}"
     )
 
@@ -104,7 +107,8 @@ async def physiology_node(state: TrainingAnalysisState) -> dict[str, list | str 
     system_prompt = (
         PHYSIOLOGY_SYSTEM_PROMPT_BASE +
         get_workflow_context("physiology") +
-        (get_plotting_instructions("physiology") if plotting_enabled else "")
+        (get_plotting_instructions("physiology") if plotting_enabled else "") +
+        (get_hitl_instructions("physiology") if hitl_enabled else "")
     )
 
     llm_with_tools = (
@@ -112,7 +116,6 @@ async def physiology_node(state: TrainingAnalysisState) -> dict[str, list | str 
         else ModelSelector.get_llm(AgentRole.PHYSIO)
     )
 
-    recovery_indicators = state["garmin_data"].get("recovery_indicators", [])
     agent_start_time = datetime.now()
 
     async def call_physiology_analysis():
@@ -122,16 +125,7 @@ async def physiology_node(state: TrainingAnalysisState) -> dict[str, list | str 
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": PHYSIOLOGY_USER_PROMPT.format(
                     output_context=get_output_context_note(for_other_agents=True),
-                    data=json.dumps({
-                        "hrv_data": state["garmin_data"].get("physiological_markers", {}).get("hrv", {}),
-                        "sleep_data": [ind["sleep"] for ind in recovery_indicators if ind.get("sleep")],
-                        "stress_data": [ind["stress"] for ind in recovery_indicators if ind.get("stress")],
-                        "recovery_metrics": {
-                            "physiological_markers": state["garmin_data"].get("physiological_markers", {}),
-                            "body_metrics": state["garmin_data"].get("body_metrics", {}),
-                            "recovery_indicators": recovery_indicators,
-                        },
-                    }, indent=2),
+                    data=state.get("physiology_summary", "No physiology summary available"),
                     competitions=json.dumps(state["competitions"], indent=2),
                     current_date=json.dumps(state["current_date"], indent=2),
                     analysis_context=state["analysis_context"],
@@ -143,13 +137,13 @@ async def physiology_node(state: TrainingAnalysisState) -> dict[str, list | str 
 
     async def node_execution():
         physiology_result = await retry_with_backoff(
-            call_physiology_analysis, AI_ANALYSIS_CONFIG, "Physiology Analysis with Tools"
+            call_physiology_analysis, AI_ANALYSIS_CONFIG, "Physiology Expert with Tools"
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
         plots, plot_storage_data, available_plots = create_plot_entries("physiology", plot_storage)
         
-        log_node_completion("Physiology analysis", execution_time, len(available_plots))
+        log_node_completion("Physiology expert analysis", execution_time, len(available_plots))
 
         return {
             "physiology_result": physiology_result,
@@ -160,7 +154,7 @@ async def physiology_node(state: TrainingAnalysisState) -> dict[str, list | str 
         }
 
     return await execute_node_with_error_handling(
-        node_name="Physiology analysis",
+        node_name="Physiology expert analysis",
         node_function=node_execution,
-        error_message_prefix="Physiology analysis failed",
+        error_message_prefix="Physiology expert analysis failed",
     )

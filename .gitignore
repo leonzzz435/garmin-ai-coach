@@ -32,6 +32,9 @@ env/
 .pixi/
 # Note: pixi.lock should be committed for reproducible builds
 
+# Roo Code
+.roo/
+
 # Intermediate AI results
 data/
 

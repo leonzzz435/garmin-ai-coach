@@ -63,6 +63,7 @@ class ConfigParser:
             "ai_mode": self.config.get("extraction", {}).get("ai_mode", "development"),
             "enable_plotting": self.config.get("extraction", {}).get("enable_plotting", False),
             "hitl_enabled": self.config.get("extraction", {}).get("hitl_enabled", True),
+            "debug_mode": self.config.get("extraction", {}).get("debug_mode", False),
         }
 
     def get_competitions(self) -> list[dict[str, Any]]:
@@ -161,9 +162,11 @@ async def run_analysis_from_config(config_path: Path) -> None:
         now = datetime.now()
         plotting_enabled = extraction_settings.get("enable_plotting", False)
         hitl_enabled = extraction_settings.get("hitl_enabled", True)
+        debug_mode = extraction_settings.get("debug_mode", False)
         
         logger.info(f"Plotting enabled: {plotting_enabled}")
         logger.info(f"HITL enabled: {hitl_enabled}")
+        logger.info(f"Debug mode (breakpoint after summarization): {debug_mode}")
         
         current_date = {"date": now.strftime("%Y-%m-%d"), "day_name": now.strftime("%A")}
         week_dates = [
@@ -185,7 +188,7 @@ async def run_analysis_from_config(config_path: Path) -> None:
             def show_progress(message: str) -> None:
                 print(message)
             
-            workflow = create_integrated_analysis_and_planning_workflow()
+            workflow = create_integrated_analysis_and_planning_workflow(debug_mode=debug_mode)
             execution_id = f"cli_user_{datetime.now().strftime('%Y%m%d_%H%M%S')}_complete"
             config = {"configurable": {"thread_id": execution_id}}
             
@@ -240,6 +243,7 @@ async def run_analysis_from_config(config_path: Path) -> None:
                 week_dates=week_dates,
                 plotting_enabled=plotting_enabled,
                 hitl_enabled=False,
+                debug_mode=debug_mode,
             )
 
         logger.info("Saving results...")

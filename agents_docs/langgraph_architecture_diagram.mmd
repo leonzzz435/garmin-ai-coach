@@ -9,19 +9,27 @@ flowchart TD
     TDE[TriathlonCoachDataExtractor]
 
     %% LangGraph State Management
-    TAS[TrainingAnalysisState<br/>- user_id, athlete_name<br/>- garmin_data, contexts<br/>- competitions, dates<br/>- results with reducers]
+    TAS[TrainingAnalysisState<br/>- user_id, athlete_name<br/>- garmin_data, contexts<br/>- competitions, dates<br/>- summary fields<br/>- results with reducers]
 
-    %% Analysis Workflow Nodes
-    subgraph AW ["Analysis Workflow (Parallel + Sequential)"]
+    %% Analysis Workflow Nodes (2-Stage Architecture)
+    subgraph AW ["Analysis Workflow (2-Stage: Summarizers → Experts)"]
         direction TB
 
-        %% Parallel Analysis Phase
-        MN[Metrics Node<br/>Dr. Aiden Nakamura]
-        PN[Physiology Node<br/>Dr. Helena Virtanen]
-        ADN[Activity Data Node<br/>Marcus Chen]
+        %% Stage 1: Parallel Data Summarization (No Tools)
+        subgraph S1 ["Stage 1: Data Summarization"]
+            MSN[Metrics Summarizer<br/>Data Extractor<br/>NO tools]
+            PSN[Physiology Summarizer<br/>Data Extractor<br/>NO tools]
+            ADN[Activity Data<br/>Marcus Chen<br/>NO tools]
+        end
 
-        %% Sequential Processing
-        AIN[Activity Interpreter<br/>Elena Rodriguez]
+        %% Stage 2: Parallel Expert Analysis (With Tools)
+        subgraph S2 ["Stage 2: Expert Analysis"]
+            MEN[Metrics Expert<br/>Dr. Aiden Nakamura<br/>✓ Plotting ✓ HITL]
+            PEN[Physiology Expert<br/>Dr. Kwame Osei<br/>✓ Plotting ✓ HITL]
+            AIN[Activity Interpreter<br/>Elena Rodriguez<br/>✓ Plotting ✓ HITL]
+        end
+
+        %% Synthesis & Formatting
         SN[Synthesis Node<br/>Maya Lindholm]
         FN[Formatter Node<br/>James Morrison]
         PRN[Plot Resolution Node]
@@ -37,9 +45,9 @@ flowchart TD
     end
 
     %% Integrated Workflow
-    subgraph IW ["Integrated Analysis + Planning (10 Agents)"]
+    subgraph IW ["Integrated Analysis + Planning"]
         direction TB
-        IAW[Analysis Phase<br/>6 Agents Parallel/Sequential]
+        IAW[Analysis Phase<br/>2-Stage: 3 Summarizers + 3 Experts<br/>+ Synthesis + Formatting]
         IPW[Planning Phase<br/>4 Agents Sequential]
     end
 
@@ -85,14 +93,20 @@ flowchart TD
 
     TDE --> TAS
 
-    %% Analysis Workflow Flow
-    TAS --> MN
-    TAS --> PN
+    %% Analysis Workflow Flow (2-Stage Architecture)
+    %% Stage 1: Parallel Summarization
+    TAS --> MSN
+    TAS --> PSN
     TAS --> ADN
 
+    %% Stage 2: Summarizers feed Experts
+    MSN --> MEN
+    PSN --> PEN
     ADN --> AIN
-    MN --> SN
-    PN --> SN
+
+    %% Synthesis combines all expert outputs
+    MEN --> SN
+    PEN --> SN
     AIN --> SN
     SN --> FN
     FN --> PRN
@@ -101,17 +115,17 @@ flowchart TD
     PRN --> SPN
     SPN --> DIN
     DIN --> WPN
-    %% Weekly planner also uses the three analysis results
-    MN --> WPN
+    %% Weekly planner uses the three expert results
+    MEN --> WPN
     AIN --> WPN
-    PN --> WPN
+    PEN --> WPN
     WPN --> PFN
 
-    %% Tool Integration
-    MN -.-> PT
-    MN -.-> HT
-    PN -.-> PT
-    PN -.-> HT
+    %% Tool Integration (Only Experts have tools)
+    MEN -.-> PT
+    MEN -.-> HT
+    PEN -.-> PT
+    PEN -.-> HT
     AIN -.-> PT
     AIN -.-> HT
     SN -.-> WS
@@ -157,8 +171,8 @@ flowchart TD
     classDef external fill:#f1f8e9,stroke:#33691e,stroke-width:2px
 
     class GC,UC,CD,TD inputData
-    class AW,PW,IW,MN,PN,ADN,AIN,SN,FN,PRN,SPN,DIN,WPN,PFN workflow
-    class TS,PT,PS,WS tools
+    class AW,PW,IW,MSN,PSN,ADN,MEN,PEN,AIN,SN,FN,PRN,SPN,DIN,WPN,PFN,S1,S2 workflow
+    class TS,PT,PS,WS,HT tools
     class SMS,TAS,MS,SR,ES,CPT,LS,WCT,PM state
     class OG,AH,PH,PC,CS,EM output
     class API external

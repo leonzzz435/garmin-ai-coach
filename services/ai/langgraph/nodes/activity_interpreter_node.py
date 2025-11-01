@@ -15,7 +15,12 @@ from .node_base import (
     execute_node_with_error_handling,
     log_node_completion,
 )
-from .prompt_components import get_output_context_note, get_plotting_instructions, get_workflow_context
+from .prompt_components import (
+    get_hitl_instructions,
+    get_output_context_note,
+    get_plotting_instructions,
+    get_workflow_context,
+)
 from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
@@ -119,7 +124,8 @@ async def activity_interpreter_node(state: TrainingAnalysisState) -> dict[str, l
     system_prompt = (
         ACTIVITY_INTERPRETER_SYSTEM_PROMPT_BASE +
         get_workflow_context("activity") +
-        (get_plotting_instructions("activity") if plotting_enabled else "")
+        (get_plotting_instructions("activity") if plotting_enabled else "") +
+        (get_hitl_instructions("activity") if hitl_enabled else "")
     )
 
     llm_with_tools = (

@@ -9,9 +9,32 @@
 ## AI & LLM Providers
 
 ### Supported Models
-- **Anthropic Claude** - claude-sonnet, claude-opus, claude-3-haiku
+- **Anthropic Claude** - claude-sonnet-4, claude-opus-4, claude-3-haiku (with extended thinking support)
 - **OpenAI** - gpt-5, gpt-5-mini, gpt-4o, o1, o3, o4-mini
-- **OpenRouter/DeepSeek** - deepseek-chat, deepseek-reasoner
+- **OpenRouter/DeepSeek** - deepseek-chat, deepseek-r1
+
+### Model Assignment Strategy
+
+The system uses a **role-based model assignment strategy** that optimizes model selection based on task requirements:
+
+**STANDARD Mode (Production):**
+- **Data Summarization Nodes**: `claude-4-thinking` - Uses extended thinking for complex data structuring
+  - Metrics Summarizer (`AgentRole.ACTIVITY_DATA`)
+  - Physiology Summarizer (`AgentRole.ACTIVITY_DATA`)
+- **HTML Formatters**: `claude-4` - Fast, clean HTML generation without thinking overhead
+  - Analysis Formatter (`AgentRole.FORMATTER`)
+  - Planning Formatter (`AgentRole.FORMATTER`)
+- **Expert Nodes**: `gpt-5` - Advanced reasoning with Responses API (high verbosity, high reasoning effort)
+  - Metrics Expert (`AgentRole.METRICS`)
+  - Physiology Expert (`AgentRole.PHYSIO`)
+- **Other Nodes**: `gpt-5` - Consistent high-quality output
+  - Activity Interpreter, Synthesis, Workout Planning, Competition Planning, Season Planning
+
+**COST_EFFECTIVE Mode:**
+- All nodes use `claude-3-haiku` for budget-conscious operation
+
+**DEVELOPMENT Mode:**
+- All nodes use `claude-4` for fast iteration and testing
 
 ### AI Orchestration & Observability
 - **LangGraph 1.0+** - State-based workflow orchestration ✅ **ACTIVE**

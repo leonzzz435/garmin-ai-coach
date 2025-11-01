@@ -18,14 +18,7 @@ def create_ask_human_tool(agent_name: str = "Agent"):
     @tool("ask_human", args_schema=AskHumanInput)
     def ask_human_with_agent(question: str, context: str = "") -> str:
         """
-        Ask the human for information.
-
-        This workflow has multiple specialized agents, each handling different aspects.
-        Consider whether this question relates to your area of responsibility.
-
-        You can ask about information that:
-        - Is not already present in your input data
-        - Would help your analysis
+        Ask the human for information to enhance your analysis.
 
         Args:
             question: The question to ask the human
