@@ -14,7 +14,7 @@ def extract_metrics_data(state: TrainingAnalysisState) -> dict:
 
 metrics_summarizer_node = create_data_summarizer_node(
     node_name="Metrics Summarizer",
-    agent_role=AgentRole.ACTIVITY_SUMMARIZER,
+    agent_role=AgentRole.SUMMARIZER,
     data_extractor=extract_metrics_data,
     state_output_key="metrics_summary",
 )

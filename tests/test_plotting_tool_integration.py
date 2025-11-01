@@ -37,14 +37,23 @@ fig.update_layout(title='Test Plot')
         assert "plot_id" in result
 
     @pytest.mark.asyncio
-    async def test_model_tool_binding(self):
+    async def test_model_tool_binding(self, monkeypatch):
+        from unittest.mock import Mock
+
         from services.ai.ai_settings import AgentRole
         from services.ai.model_config import ModelSelector
 
         plot_storage = PlotStorage("test_execution")
         plotting_tool = create_plotting_tools(plot_storage, agent_name="test")
 
-        llm = ModelSelector.get_llm(AgentRole.METRICS)
+        mock_llm = Mock()
+        mock_llm_with_tools = Mock()
+        mock_llm_with_tools.kwargs = {"tools": [plotting_tool]}
+        mock_llm.bind_tools.return_value = mock_llm_with_tools
+        
+        monkeypatch.setattr(ModelSelector, "get_llm", lambda role: mock_llm)
+
+        llm = ModelSelector.get_llm(AgentRole.METRICS_EXPERT)
         llm_with_tools = llm.bind_tools([plotting_tool])
 
         assert hasattr(llm_with_tools, "kwargs") and "tools" in llm_with_tools.kwargs

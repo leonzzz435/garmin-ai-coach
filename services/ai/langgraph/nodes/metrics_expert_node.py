@@ -112,8 +112,8 @@ async def metrics_expert_node(state: TrainingAnalysisState) -> dict[str, list | 
     )
 
     llm_with_tools = (
-        ModelSelector.get_llm(AgentRole.METRICS).bind_tools(tools) if tools
-        else ModelSelector.get_llm(AgentRole.METRICS)
+        ModelSelector.get_llm(AgentRole.METRICS_EXPERT).bind_tools(tools) if tools
+        else ModelSelector.get_llm(AgentRole.METRICS_EXPERT)
     )
 
     agent_start_time = datetime.now()

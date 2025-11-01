@@ -17,16 +17,16 @@ flowchart TD
 
         %% Stage 1: Parallel Data Summarization (No Tools)
         subgraph S1 ["Stage 1: Data Summarization"]
-            MSN[Metrics Summarizer<br/>Data Extractor<br/>NO tools]
-            PSN[Physiology Summarizer<br/>Data Extractor<br/>NO tools]
-            ADN[Activity Data<br/>Marcus Chen<br/>NO tools]
+            MSN[Metrics Summarizer<br/>Universal Summarizer<br/>NO tools]
+            PSN[Physiology Summarizer<br/>Universal Summarizer<br/>NO tools]
+            ADN[Activity Summarizer<br/>Universal Summarizer<br/>NO tools]
         end
 
         %% Stage 2: Parallel Expert Analysis (With Tools)
         subgraph S2 ["Stage 2: Expert Analysis"]
             MEN[Metrics Expert<br/>Dr. Aiden Nakamura<br/>✓ Plotting ✓ HITL]
             PEN[Physiology Expert<br/>Dr. Kwame Osei<br/>✓ Plotting ✓ HITL]
-            AIN[Activity Interpreter<br/>Elena Rodriguez<br/>✓ Plotting ✓ HITL]
+            AIN[Activity Expert<br/>Coach Elena Petrova<br/>✓ Plotting ✓ HITL]
         end
 
         %% Synthesis & Formatting

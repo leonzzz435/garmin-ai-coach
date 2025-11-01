@@ -88,7 +88,7 @@ async def activity_summarizer_node(state: TrainingAnalysisState) -> dict[str, li
         agent_start_time = datetime.now()
 
         async def call_llm():
-            response = await ModelSelector.get_llm(AgentRole.ACTIVITY_SUMMARIZER).ainvoke([
+            response = await ModelSelector.get_llm(AgentRole.SUMMARIZER).ainvoke([
                 {"role": "system", "content": ACTIVITY_SUMMARIZER_SYSTEM_PROMPT},
                 {"role": "user", "content": ACTIVITY_SUMMARIZER_USER_PROMPT.format(
                     data=json.dumps(state["garmin_data"].get("recent_activities", []), indent=2)
