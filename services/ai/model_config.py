@@ -55,6 +55,14 @@ class ModelSelector:
         "deepseek-reasoner": ModelConfiguration(
             name="openrouter/deepseek/deepseek-r1", base_url="https://openrouter.ai/api/v1"
         ),
+        # Google Models (via OpenRouter)
+        "gemini-2.5-pro": ModelConfiguration(
+            name="google/gemini-2.5-pro", base_url="https://openrouter.ai/api/v1"
+        ),
+        # xAI Models (via OpenRouter)
+        "grok-4": ModelConfiguration(
+            name="x-ai/grok-4", base_url="https://openrouter.ai/api/v1"
+        ),
     }
 
     @classmethod
