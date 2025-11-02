@@ -2,6 +2,67 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2025-11-02
+
+### 🚨 Breaking Changes
+
+#### Agent Architecture Redesign
+- Implemented 2-stage analysis pipeline: **Data Summarization → Expert Analysis**
+- All analysis nodes renamed (e.g., `metrics_node` → `metrics_expert_node`)
+- HITL tool renamed: `ask_human` → `communicate_with_human` with new `message_type` parameter
+- New state fields: `metrics_summary`, `physiology_summary`
+
+#### AgentRole Enum Changes
+```python
+# Old → New
+AgentRole.METRICS → AgentRole.METRICS_EXPERT
+AgentRole.PHYSIO → AgentRole.PHYSIOLOGY_EXPERT
+AgentRole.ACTIVITY_DATA → AgentRole.SUMMARIZER
+AgentRole.ACTIVITY_INTERPRETER → AgentRole.ACTIVITY_EXPERT
+```
+
+### Added
+
+#### 2-Stage Agent Pipeline
+- **Stage 1 (Summarizers)**: 3 parallel nodes organize raw data without interpretation
+  - `metrics_summarizer_node`, `physiology_summarizer_node`, `activity_summarizer_node`
+  - Run in parallel from START, no tool access for maximum efficiency
+- **Stage 2 (Experts)**: 3 parallel nodes interpret structured summaries
+  - `metrics_expert_node`, `physiology_expert_node`, `activity_expert_node`
+  - Full tool access (plotting + HITL) for deep analysis
+
+#### Generic Summarization Framework
+- New `create_data_summarizer_node()` factory for consistent data processing
+- Universal summarization prompt: preserves all numeric values, uses tables extensively
+- Easy to extend for new data types
+
+#### Enhanced HITL System
+- Message types: `question`, `observation`, `suggestion`, `clarification`
+- Selective usage guidelines to prevent workflow interruption
+- Richer agent-human interaction paradigm
+
+#### New Model Support
+- `deepseek-v3.2-exp` with reasoning support
+- `gemini-2.5-pro` via OpenRouter
+- `grok-4` via OpenRouter
+- Updated `claude-4` to latest `claude-sonnet-4-5-20250929`
+
+### Changed
+
+- **Per-role model assignments**: Different models for summarizers, experts, formatters
+- **Season planner**: Now context-free, creates strategic plans based only on competition schedule
+- **Planning workflow**: Dual-branch architecture with deferred finalize node
+- **Documentation**: Updated architecture diagrams and tech stack docs for 2-stage design
+
+### Benefits
+
+- 🎯 **Clarity**: Summarizers organize, experts interpret - clear separation of concerns
+- 🚀 **Performance**: Parallel Stage 1 + Parallel Stage 2, no tool overhead in summarizers
+- 💰 **Cost Efficiency**: Use cost-effective models for summarization, powerful models for analysis
+- 🧪 **Maintainability**: Generic factory pattern, consistent testing boundaries
+
+---
+
 ## [1.1.0] - 2025-10-17
 
 ### Added
