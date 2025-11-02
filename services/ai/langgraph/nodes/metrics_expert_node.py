@@ -15,7 +15,12 @@ from .node_base import (
     execute_node_with_error_handling,
     log_node_completion,
 )
-from .prompt_components import get_output_context_note, get_plotting_instructions, get_workflow_context
+from .prompt_components import (
+    get_hitl_instructions,
+    get_output_context_note,
+    get_plotting_instructions,
+    get_workflow_context,
+)
 from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
@@ -42,14 +47,12 @@ Analyze training metrics and competition readiness with data-driven precision.
 ## Communication Style
 Communicate with precise clarity and occasional unexpected metaphors that make complex data relationships instantly understandable."""
 
-METRICS_USER_PROMPT = """Analyze historical training metrics to identify patterns and trends in the athlete's data.
+METRICS_USER_PROMPT = """Analyze the structured metrics summary to identify patterns and trends in the athlete's training data.
 
 {output_context}
 
-## Input Data
-```json
+## Metrics Summary
 {data}
-```
 
 ## Upcoming Competitions
 ```json
@@ -67,14 +70,14 @@ METRICS_USER_PROMPT = """Analyze historical training metrics to identify pattern
 ```
 
 ## Your Task
-Analyze only the data that is actually present in the input. If analysis context is provided, use it to interpret the data more accurately.
+You are receiving a pre-processed summary of the athlete's metrics data. Use your expertise to interpret this structured information.
 
-1. Analyze training load trends over time to identify patterns
-2. Examine fitness metrics progression if that data is available
-3. Evaluate training status data to understand the athlete's current fitness state
-4. Connect these metrics to upcoming competition dates
-5. Identify potential performance opportunities or risks
-6. Create practical recommendations based strictly on the available data
+1. Interpret training load trends and identify significant patterns
+2. Analyze fitness metrics progression and adaptation signals
+3. Evaluate current training status in context of competition goals
+4. Connect metrics to upcoming competition dates for readiness assessment
+5. Identify performance opportunities, risks, and adaptation windows
+6. Provide expert recommendations based on the analyzed patterns
 
 ## Output Requirements
 - Include a Metrics Readiness Score (0-100) with clear explanation of calculation using only available metrics
@@ -82,15 +85,15 @@ Analyze only the data that is actually present in the input. If analysis context
 - Focus on factual analysis without speculation about unavailable metrics"""
 
 
-async def metrics_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
-    logger.info("Starting metrics analysis node")
+async def metrics_expert_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
+    logger.info("Starting metrics expert analysis node")
 
     plot_storage = PlotStorage(state["execution_id"])
     plotting_enabled = state.get("plotting_enabled", False)
     hitl_enabled = state.get("hitl_enabled", True)
     
     logger.info(
-        f"Metrics node: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
+        f"Metrics expert: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
         f"HITL {'enabled' if hitl_enabled else 'disabled'}"
     )
 
@@ -104,12 +107,13 @@ async def metrics_node(state: TrainingAnalysisState) -> dict[str, list | str | d
     system_prompt = (
         METRICS_SYSTEM_PROMPT_BASE +
         get_workflow_context("metrics") +
-        (get_plotting_instructions("metrics") if plotting_enabled else "")
+        (get_plotting_instructions("metrics") if plotting_enabled else "") +
+        (get_hitl_instructions("metrics") if hitl_enabled else "")
     )
 
     llm_with_tools = (
-        ModelSelector.get_llm(AgentRole.METRICS).bind_tools(tools) if tools
-        else ModelSelector.get_llm(AgentRole.METRICS)
+        ModelSelector.get_llm(AgentRole.METRICS_EXPERT).bind_tools(tools) if tools
+        else ModelSelector.get_llm(AgentRole.METRICS_EXPERT)
     )
 
     agent_start_time = datetime.now()
@@ -121,11 +125,7 @@ async def metrics_node(state: TrainingAnalysisState) -> dict[str, list | str | d
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": METRICS_USER_PROMPT.format(
                     output_context=get_output_context_note(for_other_agents=True),
-                    data=json.dumps({
-                        "training_load_history": state["garmin_data"].get("training_load_history", []),
-                        "vo2_max_history": state["garmin_data"].get("vo2_max_history", []),
-                        "training_status": state["garmin_data"].get("training_status", {}),
-                    }, indent=2),
+                    data=state.get("metrics_summary", "No metrics summary available"),
                     competitions=json.dumps(state["competitions"], indent=2),
                     current_date=json.dumps(state["current_date"], indent=2),
                     analysis_context=state["analysis_context"],
@@ -139,13 +139,13 @@ async def metrics_node(state: TrainingAnalysisState) -> dict[str, list | str | d
         metrics_result = await retry_with_backoff(
             call_metrics_with_tools, AI_ANALYSIS_CONFIG, "Metrics Agent with Tools"
         )
-        logger.info("Metrics node completed analysis")
+        logger.info("Metrics expert analysis completed")
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
         
         plots, plot_storage_data, available_plots = create_plot_entries("metrics", plot_storage)
         
-        log_node_completion("Metrics analysis", execution_time, len(available_plots))
+        log_node_completion("Metrics expert analysis", execution_time, len(available_plots))
 
         return {
             "metrics_result": metrics_result,
@@ -156,7 +156,7 @@ async def metrics_node(state: TrainingAnalysisState) -> dict[str, list | str | d
         }
 
     return await execute_node_with_error_handling(
-        node_name="Metrics analysis",
+        node_name="Metrics expert analysis",
         node_function=node_execution,
-        error_message_prefix="Metrics analysis failed",
+        error_message_prefix="Metrics expert analysis failed",
     )

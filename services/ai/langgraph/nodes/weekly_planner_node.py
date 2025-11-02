@@ -13,7 +13,7 @@ from .node_base import (
     execute_node_with_error_handling,
     log_node_completion,
 )
-from .prompt_components import get_workflow_context
+from .prompt_components import get_hitl_instructions, get_workflow_context
 from .tool_calling_helper import extract_text_content, handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
@@ -122,7 +122,11 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         hitl_enabled=hitl_enabled,
     )
 
-    system_prompt = WEEKLY_PLANNER_SYSTEM_PROMPT + get_workflow_context("weekly_planner")
+    system_prompt = (
+        WEEKLY_PLANNER_SYSTEM_PROMPT +
+        get_workflow_context("weekly_planner") +
+        (get_hitl_instructions("weekly_planner") if hitl_enabled else "")
+    )
     
     user_message = {"role": "user", "content": WEEKLY_PLANNER_USER_PROMPT.format(
         season_plan=state.get("season_plan", ""),

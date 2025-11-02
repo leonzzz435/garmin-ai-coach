@@ -5,14 +5,14 @@ from core.config import AIMode, get_config
 
 
 class AgentRole(Enum):
-    METRICS = "metrics"
-    ACTIVITY_DATA = "activity_data"  # Data extraction agent
-    ACTIVITY_INTERPRETER = "activity_interpreter"  # Interpretation agent
-    PHYSIO = "physio"
+    SUMMARIZER = "summarizer"
+    METRICS_EXPERT = "metrics_expert"
+    PHYSIOLOGY_EXPERT = "physiology_expert"
+    ACTIVITY_EXPERT = "activity_expert"
     SYNTHESIS = "synthesis"
     WORKOUT = "workout"
     COMPETITION_PLANNER = "competition_planner"
-    SEASON_PLANNER = "season_planner"  # Long-term seasonal planning
+    SEASON_PLANNER = "season_planner"
     FORMATTER = "formatter"
 
 
@@ -20,21 +20,43 @@ class AgentRole(Enum):
 class AISettings:
     mode: AIMode
 
-    # Model assignments - one model per stage for all agents
-    stage_models: dict[AIMode, str] = field(
+    model_assignments: dict[AIMode, dict[AgentRole, str]] = field(
         default_factory=lambda: {
-            AIMode.STANDARD: "gpt-5",  # Production: Top-tier reasoning with GPT-5
-            AIMode.COST_EFFECTIVE: "claude-3-haiku",  # Budget: Fast and cost-effective
-            AIMode.DEVELOPMENT: "claude-4",  # Development: Fast iteration
+            AIMode.STANDARD: {
+                AgentRole.SUMMARIZER: "gpt-5",
+                AgentRole.FORMATTER: "gpt-5",
+                AgentRole.METRICS_EXPERT: "gpt-5",
+                AgentRole.PHYSIOLOGY_EXPERT: "gpt-5",
+                AgentRole.ACTIVITY_EXPERT: "gpt-5",
+                AgentRole.SYNTHESIS: "gpt-5",
+                AgentRole.WORKOUT: "gpt-5",
+                AgentRole.COMPETITION_PLANNER: "gpt-5",
+                AgentRole.SEASON_PLANNER: "gpt-5",
+            },
+            AIMode.COST_EFFECTIVE: {
+                AgentRole.SUMMARIZER: "claude-3-haiku",
+                AgentRole.FORMATTER: "claude-3-haiku",
+                AgentRole.METRICS_EXPERT: "claude-3-haiku",
+                AgentRole.PHYSIOLOGY_EXPERT: "claude-3-haiku",
+                AgentRole.ACTIVITY_EXPERT: "claude-3-haiku",
+                AgentRole.SYNTHESIS: "claude-3-haiku",
+                AgentRole.WORKOUT: "claude-3-haiku",
+                AgentRole.COMPETITION_PLANNER: "claude-3-haiku",
+                AgentRole.SEASON_PLANNER: "claude-3-haiku",
+            },
+            AIMode.DEVELOPMENT: {
+                AgentRole.SUMMARIZER: "claude-4",
+                AgentRole.FORMATTER: "claude-4",
+                AgentRole.METRICS_EXPERT: "claude-4",
+                AgentRole.PHYSIOLOGY_EXPERT: "claude-4",
+                AgentRole.ACTIVITY_EXPERT: "claude-4",
+                AgentRole.SYNTHESIS: "claude-4",
+                AgentRole.WORKOUT: "claude-4",
+                AgentRole.COMPETITION_PLANNER: "claude-4",
+                AgentRole.SEASON_PLANNER: "claude-4",
+            },
         }
     )
-
-    # Derived model assignments for compatibility
-    model_assignments: dict[AIMode, dict[AgentRole, str]] = field(default_factory=lambda: {})
-
-    def __post_init__(self):
-        for mode, model in self.stage_models.items():
-            self.model_assignments[mode] = {role: model for role in AgentRole}
 
     def get_model_for_role(self, role: AgentRole) -> str:
         return self.model_assignments[self.mode][role]

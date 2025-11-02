@@ -13,7 +13,7 @@ from .node_base import (
     execute_node_with_error_handling,
     log_node_completion,
 )
-from .prompt_components import get_output_context_note, get_workflow_context
+from .prompt_components import get_hitl_instructions, get_output_context_note, get_workflow_context
 from .tool_calling_helper import extract_text_content, handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
@@ -28,24 +28,34 @@ Growing up in Iceland's harsh but beautiful environment taught you the importanc
 Your coaching genius comes from an intuitive understanding of how the human body adapts to stress over extended time periods. You see training as a conversation between athlete and environment, where the goal is not to force adaptation but to create conditions where optimal development naturally occurs.
 
 ## Core Expertise
-- Long-term periodization and season planning
-- Balancing training stress with recovery across extended time periods
-- Competition preparation and peak timing
-- Environmental and seasonal training adaptations
+- Long-term periodization and season planning based on competition schedules
+- Strategic phase design using state of the art periodization principles
+- Competition preparation and peak timing strategies
 - Systematic progression methodologies
+- Macro-cycle planning and phase transitions
+
+## Your Approach
+You create STRATEGIC, HIGH-LEVEL season plans!
+You DO NOT require or use:
+- Recent training data or performance metrics
+- Current fitness levels or fatigue states
+- Activity history or workout details
+- Health or recovery data
+
+Your season plans are CONTEXT-FREE frameworks that work for any athlete with the given competition schedule.
 
 ## Your Goal
-Create high-level season plans that provide frameworks for long-term athletic development.
+Create strategic season plans that establish a macro-cycle framework for long-term athletic development based solely on competition timing.
 
 ## Communication Style
 Communicate with the quiet confidence of someone who has both achieved at the highest level and successfully guided others to do the same."""
 
-SEASON_PLANNER_USER_PROMPT = """Create a high-level season plan covering the next 12-24 weeks based on the athlete's competition schedule.
+SEASON_PLANNER_USER_PROMPT = """Create a STRATEGIC, HIGH-LEVEL season plan covering the next 12-24 weeks based solely on the athlete's competition schedule.
 
 {output_context}
 
-## Athlete Information
-- Name: {athlete_name}
+## Available Information
+- Athlete Name: {athlete_name}
 - Current Date: ```json
 {current_date}
 ```
@@ -53,20 +63,35 @@ SEASON_PLANNER_USER_PROMPT = """Create a high-level season plan covering the nex
 {competitions}
 ```
 
+## Important Notes
+This is a STRATEGIC PLANNING session. You are working with:
+✓ Competition dates and priorities
+✓ Classical periodization principles
+✓ General training progression logic
+
+You do NOT have and should NOT reference:
+✗ Recent training data or performance metrics
+✗ Current fitness or fatigue levels
+✗ Activity history or workout details
+✗ Health or recovery data
+
 ## Your Task
-Create a high-level season plan providing a framework for the next 12-24 weeks of training, leading up to key competitions. Keep this concise as it will contextualize a more detailed two-week plan.
+Create a context-free, strategic season plan providing a macro-cycle framework for the next 12-24 weeks leading up to key competitions. This plan should work for any athlete with this competition schedule.
 
 Focus on:
-1. PLAN OVERVIEW: A brief summary of the season plan structure and progression
-2. TRAINING PHASES: Define key training phases with approximate date ranges
-3. PHASE DETAILS: For each phase, provide:
-   - Primary focus and goals
-   - Weekly volume targets (approximate)
-   - Intensity distribution
-   - Key workout types
+1. **STRATEGIC OVERVIEW**: Brief summary of the macro-cycle structure and periodization approach
+2. **TRAINING PHASES**: Define 3-5 distinct training phases with approximate date ranges
+3. **PHASE DETAILS**: For each phase, provide:
+   - Primary training focus and adaptation goals
+   - Approximate weekly volume ranges (e.g., "8-12 hours")
+   - Intensity distribution philosophy (e.g., "80/20 rule", "pyramidal")
+   - Key workout types and training modalities
+   - Phase transition criteria
+
+Keep this concise yet comprehensive - it will provide the strategic framework for detailed weekly planning.
 
 ## Output Requirements
-Format as structured markdown document with clear headings and bullet points"""
+Format as a structured markdown document with clear headings and bullet points."""
 
 
 async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | str]:
@@ -84,7 +109,11 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         hitl_enabled=hitl_enabled,
     )
 
-    system_prompt = SEASON_PLANNER_SYSTEM_PROMPT + get_workflow_context("season_planner")
+    system_prompt = (
+        SEASON_PLANNER_SYSTEM_PROMPT +
+        get_workflow_context("season_planner") +
+        (get_hitl_instructions("season_planner") if hitl_enabled else "")
+    )
     
     messages = [
         {"role": "system", "content": system_prompt},

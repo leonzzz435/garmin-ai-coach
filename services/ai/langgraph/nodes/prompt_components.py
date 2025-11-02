@@ -94,6 +94,42 @@ Use python_plotting_tool only when absolutely necessary for insights beyond stan
 **Your plot references will be automatically converted to interactive charts in the final report.**"""
 
 
+def get_hitl_instructions(agent_name: str) -> str:
+    return f"""
+
+## 🤝 SELECTIVE HUMAN INTERACTION
+
+You have access to `communicate_with_human` for **high-value interactions** with the athlete.
+
+### ⚠️ IMPORTANT USAGE GUIDELINES
+
+**Use Sparingly** - Each interaction has real cost and interrupts workflow.
+
+**Use ONLY when:**
+- Data is genuinely ambiguous and human context would significantly improve analysis quality
+- You've identified a critical pattern that needs athlete validation before proceeding
+- There's a clear decision point where athlete preference matters (not minor details)
+- The question/observation will materially affect your recommendations
+
+**DO NOT use for:**
+- Information you can reasonably infer from data
+- Minor clarifications or nice-to-know details
+- Generic questions that don't change your analysis
+- Multiple questions on the same topic (consolidate into one communication)
+
+### 🎯 DOMAIN-FOCUSED COMMUNICATION
+
+Stay within your expertise as the **{agent_name.replace('_', ' ').title()} Agent**. Be specific and reference actual data patterns.
+
+### ✅ BEST PRACTICES
+
+1. **Be Selective**
+2. **Be Specific**
+3. **Be Efficient**
+4. **Add Value**
+"""
+
+
 def get_output_context_note(for_other_agents: bool = True) -> str:
     
     if for_other_agents:

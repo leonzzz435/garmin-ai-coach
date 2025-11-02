@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from langgraph.errors import GraphInterrupt
-from services.ai.tools.hitl import create_ask_human_tool
+from services.ai.tools.hitl import create_communicate_with_human_tool
 from services.ai.tools.plotting import PlotStorage, create_plotting_tools
 
 logger = logging.getLogger(__name__)
@@ -26,9 +26,9 @@ def configure_node_tools(
     
     if hitl_enabled:
         display_name = agent_name.replace("_", " ").title()
-        ask_human_tool = create_ask_human_tool(display_name)
-        tools.append(ask_human_tool)
-        logger.debug(f"{agent_name}: Added HITL tool")
+        communicate_tool = create_communicate_with_human_tool(display_name)
+        tools.append(communicate_tool)
+        logger.debug(f"{agent_name}: Added HITL communication tool")
     
     return tools
 

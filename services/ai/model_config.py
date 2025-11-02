@@ -34,7 +34,7 @@ class ModelSelector:
         "gpt-5-mini": ModelConfiguration(name="gpt-5-mini", base_url="https://api.openai.com/v1"),
         # Anthropic Models
         "claude-4": ModelConfiguration(
-            name="claude-sonnet-4-20250514", base_url="https://api.anthropic.com"
+            name="claude-sonnet-4-5-20250929", base_url="https://api.anthropic.com"
         ),
         "claude-4-thinking": ModelConfiguration(
             name="claude-sonnet-4-5-20250929", base_url="https://api.anthropic.com"
@@ -54,6 +54,17 @@ class ModelSelector:
         ),
         "deepseek-reasoner": ModelConfiguration(
             name="openrouter/deepseek/deepseek-r1", base_url="https://openrouter.ai/api/v1"
+        ),
+        "deepseek-v3.2-exp": ModelConfiguration(
+            name="deepseek/deepseek-v3.2-exp", base_url="https://openrouter.ai/api/v1"
+        ),
+        # Google Models (via OpenRouter)
+        "gemini-2.5-pro": ModelConfiguration(
+            name="google/gemini-2.5-pro", base_url="https://openrouter.ai/api/v1"
+        ),
+        # xAI Models (via OpenRouter)
+        "grok-4": ModelConfiguration(
+            name="x-ai/grok-4", base_url="https://openrouter.ai/api/v1"
         ),
     }
 
@@ -103,6 +114,10 @@ class ModelSelector:
                 "reasoning": {"effort": "high"},
                 "model_kwargs": {"text": {"verbosity": "high"}},
                 "log": "Using GPT-5-mini with Responses API for {role} (verbosity: high, reasoning_effort: high)",
+            },
+            "deepseek-v3.2-exp": {
+                "extra_body": {"reasoning": {"enabled": True}},
+                "log": "Using DeepSeek V3.2 Exp with reasoning enabled for {role}",
             },
         }
         
