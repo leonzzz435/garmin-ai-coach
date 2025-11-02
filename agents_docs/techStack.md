@@ -11,7 +11,7 @@
 ### Supported Models
 - **Anthropic Claude** - claude-sonnet-4, claude-opus-4, claude-3-haiku (with extended thinking support)
 - **OpenAI** - gpt-5, gpt-5-mini, gpt-4o, o1, o3, o4-mini
-- **OpenRouter/DeepSeek** - deepseek-chat, deepseek-r1
+- **OpenRouter/DeepSeek** - deepseek-chat, deepseek-r1, deepseek-v3.2-exp (with reasoning support)
 
 ### Model Assignment Strategy
 

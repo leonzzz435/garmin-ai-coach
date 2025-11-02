@@ -55,6 +55,9 @@ class ModelSelector:
         "deepseek-reasoner": ModelConfiguration(
             name="openrouter/deepseek/deepseek-r1", base_url="https://openrouter.ai/api/v1"
         ),
+        "deepseek-v3.2-exp": ModelConfiguration(
+            name="deepseek/deepseek-v3.2-exp", base_url="https://openrouter.ai/api/v1"
+        ),
         # Google Models (via OpenRouter)
         "gemini-2.5-pro": ModelConfiguration(
             name="google/gemini-2.5-pro", base_url="https://openrouter.ai/api/v1"
@@ -111,6 +114,10 @@ class ModelSelector:
                 "reasoning": {"effort": "high"},
                 "model_kwargs": {"text": {"verbosity": "high"}},
                 "log": "Using GPT-5-mini with Responses API for {role} (verbosity: high, reasoning_effort: high)",
+            },
+            "deepseek-v3.2-exp": {
+                "extra_body": {"reasoning": {"enabled": True}},
+                "log": "Using DeepSeek V3.2 Exp with reasoning enabled for {role}",
             },
         }
         
