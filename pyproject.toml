@@ -63,7 +63,6 @@ ignore = [
     "D",      # pydocstyle - docstrings intentionally minimized
     "ANN",    # typing annotations enforcement
     "B008",   # function call in argument defaults
-    "UP038",  # isinstance tuple -> union (postpone upgrade)
     "E501",   # line-too-long - 120 chars is reasonable
     "E402",   # module-import-not-at-top - needed for sys.path manipulation in scripts
     "PLR0911", # too-many-return-statements - sometimes clearer than alternatives

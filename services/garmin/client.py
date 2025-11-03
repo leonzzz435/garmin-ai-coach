@@ -23,10 +23,10 @@ class GarminConnectClient:
     def _try_resume_tokens(self) -> bool:
         try:
             garth.resume(str(self._token_dir))
-            logger.info("Resumed existing Garmin OAuth tokens from %s", self._token_dir)
+            logger.debug("Resumed existing Garmin OAuth tokens from %s", self._token_dir)
             return True
         except Exception as exc:
-            logger.info("No valid tokens found; need fresh login (%s)", exc)
+            logger.debug("No valid tokens found; need fresh login (%s)", exc)
             return False
 
     def _fresh_login(
@@ -45,7 +45,7 @@ class GarminConnectClient:
             else:
                 garth.login(email, password)
             garth.save(str(self._token_dir))
-            logger.info("Saved Garmin OAuth tokens to %s after fresh login", self._token_dir)
+            logger.debug("Saved Garmin OAuth tokens to %s after fresh login", self._token_dir)
         except requests.HTTPError as http_err:
             body = getattr(http_err.response, "text", "")
             logger.error("Garmin login HTTP error: %s; body=%s", http_err, body[:500])
@@ -61,12 +61,12 @@ class GarminConnectClient:
         mfa_callback: Callable[[], str] | None = None,
     ) -> None:
         try:
-            logger.info("Initializing Garmin Connect client")
+            logger.debug("Initializing Garmin Connect client")
             self._token_dir.mkdir(parents=True, exist_ok=True)
 
             resumed = self._try_resume_tokens()
             if not resumed:
-                logger.info("Performing fresh login due to missing or expired tokens")
+                logger.debug("Performing fresh login due to missing or expired tokens")
                 self._fresh_login(email, password, mfa_callback)
 
             self._client = Garmin()
@@ -76,11 +76,15 @@ class GarminConnectClient:
                 status = getattr(getattr(http_err, "response", None), "status_code", None)
                 body = getattr(http_err.response, "text", "")
                 if status in (401, 403):
-                    logger.info("Token resume rejected by server (%s). Performing fresh login", status)
+                    logger.debug(
+                        "Token resume rejected by server (%s). Performing fresh login", status
+                    )
                     self._fresh_login(email, password, mfa_callback)
                     self._client.login(tokenstore=str(self._token_dir))
                 else:
-                    logger.error("Garmin client login HTTP error: %s; body=%s", http_err, body[:500])
+                    logger.error(
+                        "Garmin client login HTTP error: %s; body=%s", http_err, body[:500]
+                    )
                     raise
             try:
                 if hasattr(self._client, "get_full_name"):
@@ -88,10 +92,10 @@ class GarminConnectClient:
             except requests.HTTPError as http_err:
                 status = getattr(getattr(http_err, "response", None), "status_code", None)
                 if status in (401, 403):
-                    logger.info("Session ping unauthorized (%s). Performing fresh login", status)
+                    logger.debug("Session ping unauthorized (%s). Performing fresh login", status)
                     self._fresh_login(email, password, mfa_callback)
                     self._client.login(tokenstore=str(self._token_dir))
-            logger.info("Successfully connected to Garmin Connect")
+            logger.debug("Successfully connected to Garmin Connect")
         except Exception as exc:
             logger.error("Failed to connect to Garmin Connect: %s", exc)
             raise
@@ -103,7 +107,7 @@ class GarminConnectClient:
     def disconnect(self) -> None:
         if self._client:
             self._client = None
-            logger.info("Disconnected from Garmin Connect")
+            logger.debug("Disconnected from Garmin Connect")
 
     def __enter__(self):
         return self

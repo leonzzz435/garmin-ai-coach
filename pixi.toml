@@ -39,6 +39,7 @@ flake8 = ">=7.3.0, <8"
 mypy = ">=1.18.2, <2"
 ruff = ">=0.14.1, <0.15"
 vulture = ">=2.14, <3"
+rich = ">=13.7,<14"
 
 [tasks]
 # Development tasks
