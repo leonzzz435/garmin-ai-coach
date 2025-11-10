@@ -1,5 +1,4 @@
 from langchain_core.tools import tool
-from langgraph.types import interrupt
 from pydantic import BaseModel, Field
 
 
@@ -53,12 +52,6 @@ def create_communicate_with_human_tool(agent_name: str = "Agent"):
             - Clarification: "The data shows a gap in training between Dec 15-22.
               Was this planned recovery, illness, or something else?"
         """
-        return interrupt({
-            "type": "communicate_with_human",
-            "message": message,
-            "message_type": message_type,
-            "context": context,
-            "agent": agent_name,
-        }).get("content", "No response provided")
+        return "Tool execution delegated to graph routing"
 
     return communicate_with_human_agent

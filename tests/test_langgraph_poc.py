@@ -1,10 +1,9 @@
 """Minimal tests for LangGraph proof of concept."""
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
 
-from services.ai.langgraph.nodes.metrics_expert_node import metrics_expert_node
 from services.ai.langgraph.state.training_analysis_state import create_initial_state
 from services.ai.langgraph.workflows.analysis_workflow import create_analysis_workflow
 
@@ -48,38 +47,3 @@ def test_state_creation(sample_garmin_data):
 def test_workflow_creation(mock_langsmith):
     assert create_analysis_workflow() is not None
     mock_langsmith.assert_called_once()
-
-
-@pytest.mark.asyncio
-@patch("services.ai.model_config.ModelSelector.get_llm")
-@patch("services.ai.tools.plotting.PlotStorage")
-@patch("services.ai.langgraph.nodes.metrics_expert_node.retry_with_backoff", new_callable=AsyncMock)
-async def test_metrics_expert_node_basic(mock_retry, mock_plot_storage, mock_get_llm, sample_state):
-    mock_llm = Mock()
-    mock_llm_with_tools = Mock()
-
-    mock_response = Mock()
-    mock_response.content = "Test analysis result"
-    mock_response.tool_calls = []
-    mock_llm_with_tools.ainvoke = AsyncMock(return_value=mock_response)
-
-    mock_llm.bind_tools.return_value = mock_llm_with_tools
-    mock_get_llm.return_value = mock_llm
-
-    mock_retry.return_value = "Test analysis result"
-
-    mock_storage = Mock()
-    mock_storage.get_all_plots.return_value = {}
-    mock_plot_storage.return_value = mock_storage
-    
-    sample_state["metrics_summary"] = "Test metrics summary"
-
-    result = await metrics_expert_node(sample_state)
-
-    assert "metrics_result" in result
-    assert "plots" in result
-    assert "costs" in result
-    assert result["metrics_result"] == "Test analysis result"
-
-    mock_llm.bind_tools.assert_called_once()
-    mock_get_llm.assert_called_once()

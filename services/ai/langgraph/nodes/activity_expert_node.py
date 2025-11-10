@@ -2,14 +2,15 @@ import json
 import logging
 from datetime import datetime
 
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
+
 from services.ai.ai_settings import AgentRole
-from services.ai.model_config import ModelSelector
 from services.ai.tools.plotting import PlotStorage
-from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
+from .expert_subgraph_factory import ExpertNodeConfig, create_expert_subgraph
 from .node_base import (
-    configure_node_tools,
     create_cost_entry,
     create_plot_entries,
     execute_node_with_error_handling,
@@ -21,7 +22,6 @@ from .prompt_components import (
     get_plotting_instructions,
     get_workflow_context,
 )
-from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
@@ -102,23 +102,17 @@ Structure your response to include two clearly distinguished sections:
 Format as structured markdown document with clear sections and bullet points"""
 
 
-async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
-    logger.info("Starting activity expert node")
+async def activity_expert_node(state: TrainingAnalysisState, config: RunnableConfig) -> dict[str, list | str | dict]:
+    logger.info("Starting activity expert analysis node (refactored)")
 
     plot_storage = PlotStorage(state["execution_id"])
     plotting_enabled = state.get("plotting_enabled", False)
     hitl_enabled = state.get("hitl_enabled", True)
+    checkpointer = config.get("configurable", {}).get("checkpointer")
     
     logger.info(
-        f"Activity expert node: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
+        f"Activity expert: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
         f"HITL {'enabled' if hitl_enabled else 'disabled'}"
-    )
-
-    tools = configure_node_tools(
-        agent_name="activity",
-        plot_storage=plot_storage,
-        plotting_enabled=plotting_enabled,
-        hitl_enabled=hitl_enabled,
     )
 
     system_prompt = (
@@ -128,39 +122,73 @@ async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list |
         (get_hitl_instructions("activity") if hitl_enabled else "")
     )
 
-    llm_with_tools = (
-        ModelSelector.get_llm(AgentRole.ACTIVITY_EXPERT).bind_tools(tools) if tools
-        else ModelSelector.get_llm(AgentRole.ACTIVITY_EXPERT)
+    user_prompt = ACTIVITY_EXPERT_USER_PROMPT.format(
+        output_context=get_output_context_note(for_other_agents=True),
+        activity_summary=state.get("activity_summary", ""),
+        competitions=json.dumps(state["competitions"], indent=2),
+        current_date=json.dumps(state["current_date"], indent=2),
+        analysis_context=state["analysis_context"],
+    )
+
+    node_config = ExpertNodeConfig(
+        node_name="activity_expert",
+        display_name="Activity Expert",
+        agent_role=AgentRole.ACTIVITY_EXPERT,
+        system_prompt=system_prompt,
+        user_prompt_template=user_prompt,
+        state_result_key="activity_result",
+        plotting_enabled=plotting_enabled,
+        max_iterations=15,
+    )
+
+    subgraph = create_expert_subgraph(
+        node_config,
+        plot_storage if plotting_enabled else None,
+        checkpointer=checkpointer
     )
 
     agent_start_time = datetime.now()
 
-    async def call_activity_expert():
-        return await handle_tool_calling_in_node(
-            llm_with_tools=llm_with_tools,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": ACTIVITY_EXPERT_USER_PROMPT.format(
-                    output_context=get_output_context_note(for_other_agents=True),
-                    activity_summary=state.get("activity_summary", ""),
-                    competitions=json.dumps(state["competitions"], indent=2),
-                    current_date=json.dumps(state["current_date"], indent=2),
-                    analysis_context=state["analysis_context"],
-                )},
-            ],
-            tools=tools,
-            max_iterations=15,
-        )
-
     async def node_execution():
-        activity_result = await retry_with_backoff(
-            call_activity_expert, AI_ANALYSIS_CONFIG, "Activity Expert Analysis with Tools"
+        from langgraph.types import interrupt as langgraph_interrupt
+        
+        subgraph_state = {
+            **state,
+            "messages": [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt),
+            ],
+        }
+
+        subgraph_thread_id = f"{state.get('execution_id', 'default')}_activity_expert"
+        subgraph_config = {"configurable": {"thread_id": subgraph_thread_id}}
+        result = None
+        
+        async for chunk in subgraph.astream(subgraph_state, config=subgraph_config, stream_mode="values"):
+            result = chunk
+        
+        snapshot = subgraph.get_state(subgraph_config)
+        if snapshot.next:
+            for task in snapshot.tasks:
+                if hasattr(task, "interrupts") and task.interrupts:
+                    for intr in task.interrupts:
+                        logger.info("Activity expert: Propagating interrupt from subgraph")
+                        langgraph_interrupt(intr.value)
+
+        final_ai_message = next(
+            (m for m in reversed(result["messages"]) if hasattr(m, "content") and not hasattr(m, "tool_call_id")),
+            None
         )
+        
+        activity_result = final_ai_message.content if final_ai_message else "No analysis produced"
+        
+        logger.info("Activity expert analysis completed")
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
+        
         plots, plot_storage_data, available_plots = create_plot_entries("activity_expert", plot_storage)
-
-        log_node_completion("Activity expert", execution_time, len(available_plots))
+        
+        log_node_completion("Activity expert analysis", execution_time, len(available_plots))
 
         return {
             "activity_result": activity_result,
@@ -171,7 +199,7 @@ async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list |
         }
 
     return await execute_node_with_error_handling(
-        node_name="Activity expert",
+        node_name="Activity expert analysis",
         node_function=node_execution,
         error_message_prefix="Activity expert analysis failed",
     )

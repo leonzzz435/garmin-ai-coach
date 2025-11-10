@@ -185,9 +185,9 @@ async def run_analysis_from_config(config_path: Path) -> None:
             def show_progress(message: str) -> None:
                 print(message)
             
-            workflow = create_integrated_analysis_and_planning_workflow()
+            workflow, checkpointer = create_integrated_analysis_and_planning_workflow()
             execution_id = f"cli_user_{datetime.now().strftime('%Y%m%d_%H%M%S')}_complete"
-            config = {"configurable": {"thread_id": execution_id}}
+            config = {"configurable": {"thread_id": execution_id, "checkpointer": checkpointer}}
             
             async with trace(
                 name="Garmin HITL Session",

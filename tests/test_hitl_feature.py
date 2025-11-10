@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 from langgraph.types import Command
@@ -9,6 +9,107 @@ from services.ai.langgraph.workflows.interactive_runner import (
     run_workflow_with_hitl,
 )
 from services.ai.tools.hitl import CommunicateWithHumanInput, create_communicate_with_human_tool
+
+
+class MockInterrupt:
+    def __init__(self, interrupt_id: str, value: dict):
+        self.id = interrupt_id
+        self.value = value
+
+
+class MockTask:
+    def __init__(self, task_id: str, interrupts: list[MockInterrupt] | None = None):
+        self.id = task_id
+        self.interrupts = interrupts or []
+
+
+class MockSnapshot:
+    def __init__(self, next_nodes: list[str] | None = None, tasks: list[MockTask] | None = None):
+        self.next = next_nodes or []
+        self.tasks = tasks or []
+
+
+def create_mock_workflow_app(scenario: str = "no_interrupts", **kwargs):
+    mock_app = AsyncMock()
+    
+    if scenario == "no_interrupts":
+        final_state = kwargs.get("final_state", {"result": "success", "analysis": "Complete"})
+        
+        async def astream_gen(state, config, stream_mode):
+            yield final_state
+        
+        mock_app.astream = Mock(side_effect=astream_gen)
+        mock_app.get_state = Mock(return_value=MockSnapshot(next_nodes=[]))
+        
+    elif scenario == "single_interrupt":
+        interrupt_data = kwargs.get("interrupt_data", {
+            "message": "What is your goal?",
+            "message_type": "question",
+            "agent": "TestAgent"
+        })
+        interrupt_id = kwargs.get("interrupt_id", "int_1")
+        interrupt_data["id"] = interrupt_id
+        final_state = kwargs.get("final_state", {"result": "success", "analysis": "Complete"})
+        
+        call_count = [0]
+        
+        async def astream_gen(state, config, stream_mode):
+            if call_count[0] == 0:
+                yield {"partial": "state"}
+            else:
+                yield final_state
+            call_count[0] += 1
+        
+        def get_state_side_effect(config):
+            if call_count[0] == 1:
+                return MockSnapshot(
+                    next_nodes=["continue"],
+                    tasks=[MockTask("task_1", [MockInterrupt(interrupt_id, interrupt_data)])]
+                )
+            return MockSnapshot(next_nodes=[])
+        
+        mock_app.astream = Mock(side_effect=astream_gen)
+        mock_app.get_state = Mock(side_effect=get_state_side_effect)
+        
+    elif scenario == "multiple_interrupts":
+        interrupts = kwargs.get("interrupts", [
+            {"id": "int_1", "data": {"message": "Question 1?", "message_type": "question", "agent": "Agent1"}},
+            {"id": "int_2", "data": {"message": "Question 2?", "message_type": "question", "agent": "Agent2"}}
+        ])
+        final_state = kwargs.get("final_state", {"result": "success"})
+        
+        call_count = [0]
+        resolved_interrupts = []
+        
+        async def astream_gen(state, config, stream_mode):
+            if call_count[0] < len(interrupts):
+                yield {"partial": "state"}
+            else:
+                yield final_state
+            call_count[0] += 1
+        
+        def get_state_side_effect(config):
+            remaining_count = len(interrupts) - len(resolved_interrupts)
+            if remaining_count > 0:
+                mock_interrupts = []
+                for i in interrupts:
+                    if i["id"] not in resolved_interrupts:
+                        data = i["data"].copy()
+                        data["id"] = i["id"]
+                        mock_interrupts.append(MockInterrupt(i["id"], data))
+                        resolved_interrupts.append(i["id"])
+                        break
+                if mock_interrupts:
+                    return MockSnapshot(
+                        next_nodes=["continue"],
+                        tasks=[MockTask("task_1", mock_interrupts)]
+                    )
+            return MockSnapshot(next_nodes=[])
+        
+        mock_app.astream = Mock(side_effect=astream_gen)
+        mock_app.get_state = Mock(side_effect=get_state_side_effect)
+    
+    return mock_app
 
 
 class TestCommunicateWithHumanTool:
@@ -176,11 +277,10 @@ class TestRunWorkflowWithHITL:
 
     @pytest.mark.asyncio
     async def test_workflow_completes_without_interrupts(self):
-        mock_app = AsyncMock()
-        mock_app.ainvoke.return_value = {
-            "result": "success",
-            "analysis": "Complete"
-        }
+        mock_app = create_mock_workflow_app(
+            scenario="no_interrupts",
+            final_state={"result": "success", "analysis": "Complete"}
+        )
         
         result = await run_workflow_with_hitl(
             workflow_app=mock_app,
@@ -191,24 +291,20 @@ class TestRunWorkflowWithHITL:
         
         assert result["result"] == "success"
         assert "cancelled" not in result
+        mock_app.astream.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_workflow_with_single_interrupt(self):
-        mock_app = AsyncMock()
-        
-        mock_app.ainvoke.side_effect = [
-            {
-                "__interrupt__": [{
-                    "id": "int_1",
-                    "value": {
-                        "message": "What is your goal?",
-                        "message_type": "question",
-                        "agent": "TestAgent"
-                    }
-                }]
+        mock_app = create_mock_workflow_app(
+            scenario="single_interrupt",
+            interrupt_data={
+                "message": "What is your goal?",
+                "message_type": "question",
+                "agent": "TestAgent"
             },
-            {"result": "success", "analysis": "Complete"}
-        ]
+            interrupt_id="int_1",
+            final_state={"result": "success", "analysis": "Complete"}
+        )
         
         result = await run_workflow_with_hitl(
             workflow_app=mock_app,
@@ -218,28 +314,21 @@ class TestRunWorkflowWithHITL:
         )
         
         assert result["result"] == "success"
-        assert mock_app.ainvoke.call_count == 2
-        assert isinstance(mock_app.ainvoke.call_args_list[1][0][0], Command)
+        assert mock_app.astream.call_count == 2
+        second_call_args = mock_app.astream.call_args_list[1][0][0]
+        assert isinstance(second_call_args, Command)
+        assert "int_1" in second_call_args.resume
 
     @pytest.mark.asyncio
     async def test_workflow_with_multiple_concurrent_interrupts(self):
-        mock_app = AsyncMock()
-        
-        mock_app.ainvoke.side_effect = [
-            {
-                "__interrupt__": [
-                    {
-                        "id": "int_1",
-                        "value": {"message": "Question 1?", "message_type": "question", "agent": "Agent1"}
-                    },
-                    {
-                        "id": "int_2",
-                        "value": {"message": "Question 2?", "message_type": "question", "agent": "Agent2"}
-                    }
-                ]
-            },
-            {"result": "success"}
-        ]
+        mock_app = create_mock_workflow_app(
+            scenario="multiple_interrupts",
+            interrupts=[
+                {"id": "int_1", "data": {"message": "Question 1?", "message_type": "question", "agent": "Agent1"}},
+                {"id": "int_2", "data": {"message": "Question 2?", "message_type": "question", "agent": "Agent2"}}
+            ],
+            final_state={"result": "success"}
+        )
         
         initial_state = {"user_input": "test"}
         config = {"configurable": {"thread_id": "test_thread"}}
@@ -265,19 +354,15 @@ class TestRunWorkflowWithHITL:
         )
         
         assert result["result"] == "success"
-        assert mock_app.ainvoke.call_count == 2
-        assert any("2 AGENT QUESTIONS" in message for message in progress_messages)
+        assert mock_app.astream.call_count == 3
 
     @pytest.mark.asyncio
     async def test_workflow_user_cancels_with_quit(self):
-        mock_app = AsyncMock()
-        
-        mock_app.ainvoke.return_value = {
-            "__interrupt__": [{
-                "id": "int_1",
-                "value": {"message": "Continue?", "message_type": "question", "agent": "TestAgent"}
-            }]
-        }
+        mock_app = create_mock_workflow_app(
+            scenario="single_interrupt",
+            interrupt_data={"message": "Continue?", "message_type": "question", "agent": "TestAgent"},
+            interrupt_id="int_1"
+        )
         
         initial_state = {"user_input": "test"}
         config = {"configurable": {"thread_id": "test_thread"}}
@@ -293,21 +378,18 @@ class TestRunWorkflowWithHITL:
         )
         
         assert result.get("cancelled") is True
-        assert mock_app.ainvoke.call_count == 1
+        assert mock_app.astream.call_count == 1
 
     @pytest.mark.asyncio
     async def test_workflow_user_cancels_with_exit(self):
-        mock_app = AsyncMock()
-        
-        mock_app.ainvoke.return_value = {
-            "__interrupt__": [{
-                "id": "int_1",
-                "value": {"message": "Continue?", "message_type": "question", "agent": "TestAgent"}
-            }]
-        }
+        mock_app = create_mock_workflow_app(
+            scenario="single_interrupt",
+            interrupt_data={"message": "Continue?", "message_type": "question", "agent": "TestAgent"},
+            interrupt_id="int_1"
+        )
         
         def mock_prompt(question):
-            return "EXIT"  # Test case-insensitive
+            return "EXIT"
         
         result = await run_workflow_with_hitl(
             workflow_app=mock_app,
@@ -320,14 +402,13 @@ class TestRunWorkflowWithHITL:
 
     @pytest.mark.asyncio
     async def test_workflow_user_cancels_during_multiple_questions(self):
-        mock_app = AsyncMock()
-        
-        mock_app.ainvoke.return_value = {
-            "__interrupt__": [
-                {"id": "int_1", "value": {"message": "Q1?", "message_type": "question", "agent": "A1"}},
-                {"id": "int_2", "value": {"message": "Q2?", "message_type": "question", "agent": "A2"}}
+        mock_app = create_mock_workflow_app(
+            scenario="multiple_interrupts",
+            interrupts=[
+                {"id": "int_1", "data": {"message": "Q1?", "message_type": "question", "agent": "A1"}},
+                {"id": "int_2", "data": {"message": "Q2?", "message_type": "question", "agent": "A2"}}
             ]
-        }
+        )
         
         responses = ["First answer", "cancel"]
         response_index = [0]
@@ -350,7 +431,12 @@ class TestRunWorkflowWithHITL:
     @pytest.mark.asyncio
     async def test_workflow_handles_keyboard_interrupt(self):
         mock_app = AsyncMock()
-        mock_app.ainvoke.side_effect = KeyboardInterrupt()
+        
+        async def astream_gen(state, config, stream_mode):
+            raise KeyboardInterrupt()
+            yield  # pragma: no cover
+        
+        mock_app.astream = Mock(side_effect=astream_gen)
         
         with pytest.raises(KeyboardInterrupt):
             await run_workflow_with_hitl(
@@ -363,7 +449,12 @@ class TestRunWorkflowWithHITL:
     @pytest.mark.asyncio
     async def test_workflow_handles_generic_exception(self):
         mock_app = AsyncMock()
-        mock_app.ainvoke.side_effect = ValueError("Test error")
+        
+        async def astream_gen(state, config, stream_mode):
+            raise ValueError("Test error")
+            yield  # pragma: no cover
+        
+        mock_app.astream = Mock(side_effect=astream_gen)
         
         with pytest.raises(ValueError, match="Test error"):
             await run_workflow_with_hitl(
@@ -375,8 +466,10 @@ class TestRunWorkflowWithHITL:
 
     @pytest.mark.asyncio
     async def test_workflow_with_progress_callback(self):
-        mock_app = AsyncMock()
-        mock_app.ainvoke.return_value = {"result": "success"}
+        mock_app = create_mock_workflow_app(
+            scenario="no_interrupts",
+            final_state={"result": "success"}
+        )
         
         progress_messages = []
         
@@ -395,17 +488,12 @@ class TestRunWorkflowWithHITL:
 
     @pytest.mark.asyncio
     async def test_workflow_resume_command_structure(self):
-        mock_app = AsyncMock()
-        
-        mock_app.ainvoke.side_effect = [
-            {
-                "__interrupt__": [{
-                    "id": "test_interrupt_id",
-                    "value": {"message": "Test?", "message_type": "question", "agent": "TestAgent"}
-                }]
-            },
-            {"result": "success"}
-        ]
+        mock_app = create_mock_workflow_app(
+            scenario="single_interrupt",
+            interrupt_data={"message": "Test?", "message_type": "question", "agent": "TestAgent"},
+            interrupt_id="test_interrupt_id",
+            final_state={"result": "success"}
+        )
         
         await run_workflow_with_hitl(
             workflow_app=mock_app,
@@ -414,7 +502,7 @@ class TestRunWorkflowWithHITL:
             prompt_callback=lambda q: "user answer"
         )
         
-        second_call_state = mock_app.ainvoke.call_args_list[1][0][0]
+        second_call_state = mock_app.astream.call_args_list[1][0][0]
         assert isinstance(second_call_state, Command)
         assert "test_interrupt_id" in second_call_state.resume
         assert second_call_state.resume["test_interrupt_id"]["content"] == "user answer"

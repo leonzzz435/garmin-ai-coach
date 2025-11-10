@@ -31,7 +31,7 @@ class InterruptHandler:
         return interrupts
 
     @staticmethod
-    def format_question(payload: dict, index: int | None = None) -> str:
+    def format_question(payload: dict, index: int | str | None = None) -> str:
         message = payload.get("message", "Message not found")
         message_type = payload.get("message_type", "question")
         context = payload.get("context", "")
@@ -57,59 +57,69 @@ async def run_workflow_with_hitl(
 ) -> dict:
     
     state = initial_state
+    final_state = None
 
     while True:
         try:
-            result = await workflow_app.ainvoke(state, config=config)
-
-            interrupts = InterruptHandler.extract_all_interrupts(result)
-
-            if interrupts:
-                if len(interrupts) == 1:
+            async for chunk in workflow_app.astream(state, config=config, stream_mode="values"):
+                final_state = chunk
+            
+            snapshot = workflow_app.get_state(config)
+            
+            logger.debug(f"Snapshot next: {snapshot.next}")
+            logger.debug(f"Snapshot tasks: {len(snapshot.tasks) if snapshot.tasks else 0}")
+            
+            if snapshot.next:
+                interrupts = []
+                for task in snapshot.tasks:
+                    logger.debug(f"Task {task.id}: interrupts={hasattr(task, 'interrupts')}")
+                    if hasattr(task, "interrupts") and task.interrupts:
+                        for intr in task.interrupts:
+                            logger.debug(f"Interrupt value type: {type(intr.value)}, value: {intr.value}")
+                            interrupt_id = intr.value.get("id") if isinstance(intr.value, dict) else None
+                            if not interrupt_id:
+                                interrupt_id = f"interrupt_{task.id}"
+                            interrupts.append((interrupt_id, intr.value))
+                
+                logger.info(f"Found {len(interrupts)} interrupts to handle")
+                
+                if interrupts:
+                    if len(interrupts) > 1:
+                        logger.info(f"Found {len(interrupts)} interrupts - will handle sequentially")
+                        if progress_callback:
+                            progress_callback(f"\n{'=' * 70}")
+                            progress_callback(f"🤖 {len(interrupts)} AGENT QUESTIONS (Sequential)")
+                            progress_callback(f"{'=' * 70}\n")
+                    
                     interrupt_id, payload = interrupts[0]
-                    question = InterruptHandler.format_question(payload)
+                    
+                    if len(interrupts) > 1:
+                        question = InterruptHandler.format_question(
+                            payload,
+                            index=f"1/{len(interrupts)}"
+                        )
+                    else:
+                        question = InterruptHandler.format_question(payload)
 
-                    user_response = prompt_callback(question)
+                    if progress_callback:
+                        progress_callback(question)
+                    
+                    user_response = prompt_callback(
+                        "\n👤 Your answer: " if len(interrupts) == 1
+                        else f"\n👤 Answer 1/{len(interrupts)}: "
+                    )
 
                     if user_response.lower() in ["quit", "exit", "cancel"]:
                         logger.info("Workflow cancelled by user during HITL interaction")
-                        result["cancelled"] = True
-                        return result
+                        return {**final_state, "cancelled": True}
 
                     state = Command(resume={interrupt_id: {"content": user_response}})
-                    
-                else:
-                    logger.info(f"Handling {len(interrupts)} concurrent agent questions")
-
-                    if progress_callback:
-                        progress_callback(f"\n{'=' * 70}")
-                        progress_callback(f"🤖 {len(interrupts)} AGENT QUESTIONS")
-                        progress_callback(f"{'=' * 70}\n")
-
-                    answers = {}
-                    for idx, (interrupt_id, payload) in enumerate(interrupts, 1):
-                        question = InterruptHandler.format_question(payload, index=idx)
-                        
-                        if progress_callback:
-                            progress_callback(question)
-                        
-                        user_response = prompt_callback(f"\n👤 Answer {idx}: ")
-                        
-                        if user_response.lower() in ["quit", "exit", "cancel"]:
-                            logger.info("Workflow cancelled by user during HITL interaction")
-                            result["cancelled"] = True
-                            return result
-                        
-                        answers[interrupt_id] = {"content": user_response}
-                    
-                    state = Command(resume=answers)
-                
-                continue
-
+                    continue
+            
             if progress_callback:
                 progress_callback("✅ Workflow completed")
 
-            return result
+            return final_state
 
         except KeyboardInterrupt:
             logger.info("Workflow interrupted by user (Ctrl+C)")

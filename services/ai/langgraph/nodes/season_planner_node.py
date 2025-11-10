@@ -2,23 +2,23 @@ import json
 import logging
 from datetime import datetime
 
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
+
 from services.ai.ai_settings import AgentRole
-from services.ai.model_config import ModelSelector
-from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
+from .expert_subgraph_factory import ExpertNodeConfig, create_expert_subgraph
 from .node_base import (
-    configure_node_tools,
     create_cost_entry,
     execute_node_with_error_handling,
     log_node_completion,
 )
 from .prompt_components import get_hitl_instructions, get_output_context_note, get_workflow_context
-from .tool_calling_helper import extract_text_content, handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
-SEASON_PLANNER_SYSTEM_PROMPT = """You are Coach Magnus Thorsson, a legendary ultra-endurance champion from Iceland who developed the "Thorsson Method" of periodization.
+SEASON_PLANNER_SYSTEM_PROMPT_BASE = """You are Coach Magnus Thorsson, a legendary ultra-endurance champion from Iceland who developed the "Thorsson Method" of periodization.
 
 ## Your Background
 As one of the most successful ultra-endurance athletes of your generation, you revolutionized training periodization by developing systematic approaches to long-term athletic development. Your "Thorsson Method" combines traditional Icelandic training philosophies with cutting-edge sports science.
@@ -94,56 +94,78 @@ Keep this concise yet comprehensive - it will provide the strategic framework fo
 Format as a structured markdown document with clear headings and bullet points."""
 
 
-async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | str]:
-    logger.info("Starting season planner node")
+async def season_planner_node(state: TrainingAnalysisState, config: RunnableConfig) -> dict[str, list | str]:
+    logger.info("Starting season planner node (refactored)")
 
     hitl_enabled = state.get("hitl_enabled", True)
-    logger.info(f"Season planner node: HITL {'enabled' if hitl_enabled else 'disabled'}")
-    
-    agent_start_time = datetime.now()
-
-    tools = configure_node_tools(
-        agent_name="season_planner",
-        plot_storage=None,
-        plotting_enabled=False,
-        hitl_enabled=hitl_enabled,
-    )
+    checkpointer = config.get("configurable", {}).get("checkpointer")
+    logger.info(f"Season planner: HITL {'enabled' if hitl_enabled else 'disabled'}")
 
     system_prompt = (
-        SEASON_PLANNER_SYSTEM_PROMPT +
+        SEASON_PLANNER_SYSTEM_PROMPT_BASE +
         get_workflow_context("season_planner") +
         (get_hitl_instructions("season_planner") if hitl_enabled else "")
     )
     
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": SEASON_PLANNER_USER_PROMPT.format(
-            output_context=get_output_context_note(for_other_agents=True),
-            athlete_name=state["athlete_name"],
-            current_date=json.dumps(state["current_date"], indent=2),
-            competitions=json.dumps(state["competitions"], indent=2),
-        )},
-    ]
+    user_prompt = SEASON_PLANNER_USER_PROMPT.format(
+        output_context=get_output_context_note(for_other_agents=True),
+        athlete_name=state["athlete_name"],
+        current_date=json.dumps(state["current_date"], indent=2),
+        competitions=json.dumps(state["competitions"], indent=2),
+    )
 
-    if hitl_enabled:
-        llm_with_tools = ModelSelector.get_llm(AgentRole.SEASON_PLANNER).bind_tools(tools)
-        
-        async def call_season_planning():
-            return await handle_tool_calling_in_node(
-                llm_with_tools=llm_with_tools,
-                messages=messages,
-                tools=tools,
-                max_iterations=15,
-            )
-    else:
-        async def call_season_planning():
-            response = await ModelSelector.get_llm(AgentRole.SEASON_PLANNER).ainvoke(messages)
-            return extract_text_content(response)
+    node_config = ExpertNodeConfig(
+        node_name="season_planner",
+        display_name="Season Planner",
+        agent_role=AgentRole.SEASON_PLANNER,
+        system_prompt=system_prompt,
+        user_prompt_template=user_prompt,
+        state_result_key="season_plan",
+        plotting_enabled=False,
+        max_iterations=15,
+    )
+
+    subgraph = create_expert_subgraph(
+        node_config,
+        plot_storage=None,
+        checkpointer=checkpointer
+    )
+
+    agent_start_time = datetime.now()
 
     async def node_execution():
-        season_plan = await retry_with_backoff(
-            call_season_planning, AI_ANALYSIS_CONFIG, "Season Planning"
+        from langgraph.types import interrupt as langgraph_interrupt
+        
+        subgraph_state = {
+            **state,
+            "messages": [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt),
+            ],
+        }
+
+        subgraph_config = {"configurable": {"thread_id": state.get("execution_id", "default")}}
+        result = None
+        
+        async for chunk in subgraph.astream(subgraph_state, config=subgraph_config, stream_mode="values"):
+            result = chunk
+        
+        snapshot = subgraph.get_state(subgraph_config)
+        if snapshot.next:
+            for task in snapshot.tasks:
+                if hasattr(task, "interrupts") and task.interrupts:
+                    for intr in task.interrupts:
+                        logger.info("Season planner: Propagating interrupt from subgraph")
+                        langgraph_interrupt(intr.value)
+
+        final_ai_message = next(
+            (m for m in reversed(result["messages"]) if hasattr(m, "content") and not hasattr(m, "tool_call_id")),
+            None
         )
+        
+        season_plan = final_ai_message.content if final_ai_message else "No season plan produced"
+        
+        logger.info("Season planner completed")
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
         log_node_completion("Season planning", execution_time)

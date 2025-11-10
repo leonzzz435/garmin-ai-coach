@@ -19,10 +19,11 @@ class TestWorkflowStability:
         assert hasattr(workflow, "ainvoke")
 
     def test_integrated_workflow_creation(self):
-        workflow = create_integrated_analysis_and_planning_workflow()
+        workflow, checkpointer = create_integrated_analysis_and_planning_workflow()
         assert workflow is not None
         assert hasattr(workflow, "invoke")
         assert hasattr(workflow, "ainvoke")
+        assert checkpointer is not None
 
     def test_state_schema_compatibility(self):
         state = create_initial_state(
@@ -63,7 +64,7 @@ class TestWorkflowIntegration:
     def test_workflow_accepts_valid_state(self, minimal_valid_state):
         """Test workflows can accept valid state structure."""
         planning_workflow = create_planning_workflow()
-        integrated_workflow = create_integrated_analysis_and_planning_workflow()
+        integrated_workflow, _ = create_integrated_analysis_and_planning_workflow()
 
         assert planning_workflow is not None
         assert integrated_workflow is not None
@@ -88,7 +89,7 @@ class TestWorkflowIntegration:
 
     def test_workflow_node_count_stability(self):
         planning_workflow = create_planning_workflow()
-        integrated_workflow = create_integrated_analysis_and_planning_workflow()
+        integrated_workflow, _ = create_integrated_analysis_and_planning_workflow()
 
         assert planning_workflow is not None
         assert integrated_workflow is not None

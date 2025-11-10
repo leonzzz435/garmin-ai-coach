@@ -11,7 +11,6 @@ class AgentRole(Enum):
     ACTIVITY_EXPERT = "activity_expert"
     SYNTHESIS = "synthesis"
     WORKOUT = "workout"
-    COMPETITION_PLANNER = "competition_planner"
     SEASON_PLANNER = "season_planner"
     FORMATTER = "formatter"
 
@@ -30,7 +29,6 @@ class AISettings:
                 AgentRole.ACTIVITY_EXPERT: "gpt-5",
                 AgentRole.SYNTHESIS: "gpt-5",
                 AgentRole.WORKOUT: "gpt-5",
-                AgentRole.COMPETITION_PLANNER: "gpt-5",
                 AgentRole.SEASON_PLANNER: "gpt-5",
             },
             AIMode.COST_EFFECTIVE: {
@@ -41,18 +39,16 @@ class AISettings:
                 AgentRole.ACTIVITY_EXPERT: "claude-3-haiku",
                 AgentRole.SYNTHESIS: "claude-3-haiku",
                 AgentRole.WORKOUT: "claude-3-haiku",
-                AgentRole.COMPETITION_PLANNER: "claude-3-haiku",
                 AgentRole.SEASON_PLANNER: "claude-3-haiku",
             },
             AIMode.DEVELOPMENT: {
-                AgentRole.SUMMARIZER: "claude-4",
-                AgentRole.FORMATTER: "claude-4",
-                AgentRole.METRICS_EXPERT: "claude-4",
-                AgentRole.PHYSIOLOGY_EXPERT: "claude-4",
-                AgentRole.ACTIVITY_EXPERT: "claude-4",
-                AgentRole.SYNTHESIS: "claude-4",
-                AgentRole.WORKOUT: "claude-4",
-                AgentRole.COMPETITION_PLANNER: "claude-4",
+                AgentRole.SUMMARIZER: "claude-3-haiku",
+                AgentRole.FORMATTER: "claude-3-haiku",
+                AgentRole.METRICS_EXPERT: "claude-3-haiku",
+                AgentRole.PHYSIOLOGY_EXPERT: "claude-3-haiku",
+                AgentRole.ACTIVITY_EXPERT: "claude-3-haiku",
+                AgentRole.SYNTHESIS: "claude-3-haiku",
+                AgentRole.WORKOUT: "claude-3-haiku",
                 AgentRole.SEASON_PLANNER: "claude-4",
             },
         }

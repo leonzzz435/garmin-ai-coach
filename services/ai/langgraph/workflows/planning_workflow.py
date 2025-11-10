@@ -92,6 +92,8 @@ async def run_weekly_planning(
 def create_integrated_analysis_and_planning_workflow():
     LangSmithConfig.setup_langsmith()
 
+    checkpointer = MemorySaver()
+
     workflow = StateGraph(TrainingAnalysisState)
 
     workflow.add_node("metrics_summarizer", metrics_summarizer_node)
@@ -134,14 +136,13 @@ def create_integrated_analysis_and_planning_workflow():
     workflow.add_edge("plan_formatter", "finalize")
     workflow.add_edge("finalize", END)
 
-    checkpointer = MemorySaver()
     app = workflow.compile(checkpointer=checkpointer)
     logger.info(
         "Created integrated analysis + planning workflow with parallel architecture: "
         "3 summarizers → 3 experts → [analysis branch (synthesis/formatter/plots) || planning branch (season/data_integration/weekly/plan_formatter)] → finalize"
     )
     
-    return app
+    return app, checkpointer
 
 
 async def run_complete_analysis_and_planning(
@@ -160,8 +161,10 @@ async def run_complete_analysis_and_planning(
     execution_id = f"{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_complete"
     cost_tracker = ProgressIntegratedCostTracker(f"garmin_ai_coach_{user_id}", progress_manager)
 
+    app, checkpointer = create_integrated_analysis_and_planning_workflow()
+
     final_state, execution = await cost_tracker.run_workflow_with_progress(
-        create_integrated_analysis_and_planning_workflow(),
+        app,
         create_initial_state(
             user_id=user_id,
             athlete_name=athlete_name,

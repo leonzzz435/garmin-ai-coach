@@ -8,7 +8,7 @@ from services.ai.tools.plotting import PlotStorage
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
-from .tool_calling_helper import handle_tool_calling_in_node
+from ..utils.message_utils import extract_text_content
 
 logger = logging.getLogger(__name__)
 
@@ -115,27 +115,25 @@ async def synthesis_node(state: TrainingAnalysisState) -> dict[str, list | str]:
         agent_start_time = datetime.now()
 
         async def call_synthesis_analysis():
-            return await handle_tool_calling_in_node(
-                llm_with_tools=ModelSelector.get_llm(AgentRole.SYNTHESIS).bind_tools([]),
-                messages=[
-                    {"role": "system", "content": (
-                        SYNTHESIS_SYSTEM_PROMPT_BASE + (SYNTHESIS_PLOT_INSTRUCTIONS if plotting_enabled else "")
-                    )},
-                    {"role": "user", "content": (
-                        SYNTHESIS_USER_PROMPT_BASE.format(
-                            athlete_name=state["athlete_name"],
-                            metrics_result=state.get("metrics_result", ""),
-                            activity_result=state.get("activity_result", ""),
-                            physiology_result=state.get("physiology_result", ""),
-                            competitions=json.dumps(state["competitions"], indent=2),
-                            current_date=json.dumps(state["current_date"], indent=2),
-                            style_guide=state["style_guide"],
-                        ) + (SYNTHESIS_USER_PLOT_INSTRUCTIONS if plotting_enabled else "")
-                    )},
-                ],
-                tools=[],
-                max_iterations=3,
-            )
+            llm = ModelSelector.get_llm(AgentRole.SYNTHESIS)
+            
+            system_content = SYNTHESIS_SYSTEM_PROMPT_BASE + (SYNTHESIS_PLOT_INSTRUCTIONS if plotting_enabled else "")
+            user_content = SYNTHESIS_USER_PROMPT_BASE.format(
+                athlete_name=state["athlete_name"],
+                metrics_result=state.get("metrics_result", ""),
+                activity_result=state.get("activity_result", ""),
+                physiology_result=state.get("physiology_result", ""),
+                competitions=json.dumps(state["competitions"], indent=2),
+                current_date=json.dumps(state["current_date"], indent=2),
+                style_guide=state["style_guide"],
+            ) + (SYNTHESIS_USER_PLOT_INSTRUCTIONS if plotting_enabled else "")
+            
+            response = await llm.ainvoke([
+                {"role": "system", "content": system_content},
+                {"role": "user", "content": user_content},
+            ])
+            
+            return extract_text_content(response)
 
         synthesis_result = await retry_with_backoff(
             call_synthesis_analysis, AI_ANALYSIS_CONFIG, "Synthesis Analysis with Tools"

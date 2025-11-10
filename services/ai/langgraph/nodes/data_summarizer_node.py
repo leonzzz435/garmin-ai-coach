@@ -9,7 +9,7 @@ from services.ai.model_config import ModelSelector
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
-from .tool_calling_helper import extract_text_content
+from ..utils.message_utils import extract_text_content
 
 logger = logging.getLogger(__name__)
 

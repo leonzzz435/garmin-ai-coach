@@ -2,14 +2,15 @@ import json
 import logging
 from datetime import datetime
 
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
+
 from services.ai.ai_settings import AgentRole
-from services.ai.model_config import ModelSelector
 from services.ai.tools.plotting import PlotStorage
-from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
+from .expert_subgraph_factory import ExpertNodeConfig, create_expert_subgraph
 from .node_base import (
-    configure_node_tools,
     create_cost_entry,
     create_plot_entries,
     execute_node_with_error_handling,
@@ -21,7 +22,6 @@ from .prompt_components import (
     get_plotting_instructions,
     get_workflow_context,
 )
-from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
@@ -85,23 +85,17 @@ You are receiving a pre-processed summary of the athlete's physiological data. U
 - Focus on expert interpretation of the provided summary"""
 
 
-async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
-    logger.info("Starting physiology expert analysis node")
+async def physiology_expert_node(state: TrainingAnalysisState, config: RunnableConfig) -> dict[str, list | str | dict]:
+    logger.info("Starting physiology expert analysis node (refactored)")
 
     plot_storage = PlotStorage(state["execution_id"])
     plotting_enabled = state.get("plotting_enabled", False)
     hitl_enabled = state.get("hitl_enabled", True)
+    checkpointer = config.get("configurable", {}).get("checkpointer")
     
     logger.info(
         f"Physiology expert: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
         f"HITL {'enabled' if hitl_enabled else 'disabled'}"
-    )
-
-    tools = configure_node_tools(
-        agent_name="physiology",
-        plot_storage=plot_storage,
-        plotting_enabled=plotting_enabled,
-        hitl_enabled=hitl_enabled,
     )
 
     system_prompt = (
@@ -111,36 +105,70 @@ async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list
         (get_hitl_instructions("physiology") if hitl_enabled else "")
     )
 
-    llm_with_tools = (
-        ModelSelector.get_llm(AgentRole.PHYSIOLOGY_EXPERT).bind_tools(tools) if tools
-        else ModelSelector.get_llm(AgentRole.PHYSIOLOGY_EXPERT)
+    user_prompt = PHYSIOLOGY_USER_PROMPT.format(
+        output_context=get_output_context_note(for_other_agents=True),
+        data=state.get("physiology_summary", "No physiology summary available"),
+        competitions=json.dumps(state["competitions"], indent=2),
+        current_date=json.dumps(state["current_date"], indent=2),
+        analysis_context=state["analysis_context"],
+    )
+
+    node_config = ExpertNodeConfig(
+        node_name="physiology_expert",
+        display_name="Physiology Expert",
+        agent_role=AgentRole.PHYSIOLOGY_EXPERT,
+        system_prompt=system_prompt,
+        user_prompt_template=user_prompt,
+        state_result_key="physiology_result",
+        plotting_enabled=plotting_enabled,
+        max_iterations=15,
+    )
+
+    subgraph = create_expert_subgraph(
+        node_config,
+        plot_storage if plotting_enabled else None,
+        checkpointer=checkpointer
     )
 
     agent_start_time = datetime.now()
 
-    async def call_physiology_analysis():
-        return await handle_tool_calling_in_node(
-            llm_with_tools=llm_with_tools,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": PHYSIOLOGY_USER_PROMPT.format(
-                    output_context=get_output_context_note(for_other_agents=True),
-                    data=state.get("physiology_summary", "No physiology summary available"),
-                    competitions=json.dumps(state["competitions"], indent=2),
-                    current_date=json.dumps(state["current_date"], indent=2),
-                    analysis_context=state["analysis_context"],
-                )},
-            ],
-            tools=tools,
-            max_iterations=15,
-        )
-
     async def node_execution():
-        physiology_result = await retry_with_backoff(
-            call_physiology_analysis, AI_ANALYSIS_CONFIG, "Physiology Expert with Tools"
+        from langgraph.types import interrupt as langgraph_interrupt
+        
+        subgraph_state = {
+            **state,
+            "messages": [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt),
+            ],
+        }
+
+        subgraph_thread_id = f"{state.get('execution_id', 'default')}_physiology_expert"
+        subgraph_config = {"configurable": {"thread_id": subgraph_thread_id}}
+        result = None
+        
+        async for chunk in subgraph.astream(subgraph_state, config=subgraph_config, stream_mode="values"):
+            result = chunk
+        
+        snapshot = subgraph.get_state(subgraph_config)
+        if snapshot.next:
+            for task in snapshot.tasks:
+                if hasattr(task, "interrupts") and task.interrupts:
+                    for intr in task.interrupts:
+                        logger.info("Physiology expert: Propagating interrupt from subgraph")
+                        langgraph_interrupt(intr.value)
+
+        final_ai_message = next(
+            (m for m in reversed(result["messages"]) if hasattr(m, "content") and not hasattr(m, "tool_call_id")),
+            None
         )
+        
+        physiology_result = final_ai_message.content if final_ai_message else "No analysis produced"
+        
+        logger.info("Physiology expert analysis completed")
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
+        
         plots, plot_storage_data, available_plots = create_plot_entries("physiology", plot_storage)
         
         log_node_completion("Physiology expert analysis", execution_time, len(available_plots))
