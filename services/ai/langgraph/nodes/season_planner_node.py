@@ -134,9 +134,17 @@ async def season_planner_node(state: TrainingAnalysisState, config: RunnableConf
     agent_start_time = datetime.now()
 
     async def node_execution():
-        from langgraph.types import interrupt as langgraph_interrupt
+        from langchain_core.messages import AIMessage
+
+        from langgraph.types import Command
+        from langgraph.types import interrupt as bubble_interrupt
         
-        subgraph_state = {
+        subgraph_thread_id = f"{state.get('execution_id', 'default')}_season_planner"
+        subgraph_config = {"configurable": {"thread_id": subgraph_thread_id}}
+        
+        # Resume if pending; otherwise seed fresh messages
+        snap = subgraph.get_state(subgraph_config)
+        input_state = None if snap.next else {
             **state,
             "messages": [
                 SystemMessage(content=system_prompt),
@@ -144,26 +152,22 @@ async def season_planner_node(state: TrainingAnalysisState, config: RunnableConf
             ],
         }
 
-        subgraph_config = {"configurable": {"thread_id": state.get("execution_id", "default")}}
-        result = None
-        
-        async for chunk in subgraph.astream(subgraph_state, config=subgraph_config, stream_mode="values"):
-            result = chunk
-        
-        snapshot = subgraph.get_state(subgraph_config)
-        if snapshot.next:
-            for task in snapshot.tasks:
-                if hasattr(task, "interrupts") and task.interrupts:
-                    for intr in task.interrupts:
-                        logger.info("Season planner: Propagating interrupt from subgraph")
-                        langgraph_interrupt(intr.value)
+        result = await subgraph.ainvoke(input_state, config=subgraph_config)
 
-        final_ai_message = next(
-            (m for m in reversed(result["messages"]) if hasattr(m, "content") and not hasattr(m, "tool_call_id")),
+        # If the subgraph interrupted, bubble it and resume with user answer
+        if result.get("__interrupt__"):
+            intr = result["__interrupt__"][0]
+            logger.info("Season planner: Propagating interrupt from subgraph")
+            answer = bubble_interrupt(intr.value)
+            # Resume the subgraph with the user's answer
+            result = await subgraph.ainvoke(Command(resume=answer), config=subgraph_config)
+
+        # Normal completion path
+        ai_msg = next(
+            (m for m in reversed(result["messages"]) if isinstance(m, AIMessage)),
             None
         )
-        
-        season_plan = final_ai_message.content if final_ai_message else "No season plan produced"
+        season_plan = ai_msg.content if ai_msg else "No season plan produced"
         
         logger.info("Season planner completed")
 

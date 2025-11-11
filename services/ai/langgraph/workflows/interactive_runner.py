@@ -75,11 +75,9 @@ async def run_workflow_with_hitl(
                     logger.debug(f"Task {task.id}: interrupts={hasattr(task, 'interrupts')}")
                     if hasattr(task, "interrupts") and task.interrupts:
                         for intr in task.interrupts:
-                            logger.debug(f"Interrupt value type: {type(intr.value)}, value: {intr.value}")
-                            interrupt_id = intr.value.get("id") if isinstance(intr.value, dict) else None
-                            if not interrupt_id:
-                                interrupt_id = f"interrupt_{task.id}"
-                            interrupts.append((interrupt_id, intr.value))
+                            # Use real interrupt id from token
+                            iid = getattr(intr, "interrupt_id", None) or getattr(intr, "id", None)
+                            interrupts.append((iid, intr.value))
                 
                 logger.info(f"Found {len(interrupts)} interrupts to handle")
                 

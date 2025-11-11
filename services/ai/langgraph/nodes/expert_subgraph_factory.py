@@ -78,15 +78,21 @@ def create_expert_subgraph(
         return "tools"
     
     async def hitl_interrupt(state: TrainingAnalysisState) -> dict:
+        import json
+        
         last_message = state["messages"][-1]
         
+        # Robust tool-call parsing for different providers
         hitl_tc = next(
-            tc for tc in last_message.tool_calls 
-            if tc["name"] == "communicate_with_human"
+            tc for tc in last_message.tool_calls
+            if tc.get("name") == "communicate_with_human"
         )
         
-        original_tool_call_id = hitl_tc["id"]
-        question_payload = hitl_tc["args"]
+        original_tool_call_id = hitl_tc.get("id") or hitl_tc["id"]
+        question_payload = hitl_tc.get("args") or hitl_tc.get("input") or {}
+        
+        # Add agent name for UI display
+        question_payload = {**question_payload, "agent": config.display_name}
         
         logger.info(
             f"{config.node_name}: HITL interrupt triggered "
@@ -95,11 +101,23 @@ def create_expert_subgraph(
         
         user_response = interrupt(question_payload)
         
-        answer_content = user_response.get("content", "No response provided")
+        # Handle both str and dict payloads
+        if isinstance(user_response, str):
+            answer_content = user_response
+        elif isinstance(user_response, dict):
+            # Support multiple shapes
+            answer_content = (
+                user_response.get("content")
+                or user_response.get("answer")
+                or user_response.get("message")
+                or json.dumps(user_response)
+            )
+        else:
+            answer_content = str(user_response)
         
         tool_message = ToolMessage(
             content=answer_content,
-            tool_call_id=original_tool_call_id  # CORRECT PAIRING
+            tool_call_id=original_tool_call_id
         )
         
         logger.info(

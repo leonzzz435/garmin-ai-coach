@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import Mock
 
-from services.ai.langgraph.nodes.tool_calling_helper import extract_text_content
+from services.ai.langgraph.utils.message_utils import extract_text_content
 
 
 class TestExtractTextContent(unittest.TestCase):
