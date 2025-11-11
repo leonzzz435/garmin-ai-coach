@@ -135,8 +135,7 @@ async def physiology_expert_node(state: TrainingAnalysisState, config: RunnableC
     async def node_execution():
         from langchain_core.messages import AIMessage
 
-        from langgraph.types import Command
-        from langgraph.types import interrupt as bubble_interrupt
+        from ..utils.subgraph_helpers import run_subgraph_until_done
         
         subgraph_thread_id = f"{state.get('execution_id', 'default')}_physiology_expert"
         subgraph_config = {"configurable": {"thread_id": subgraph_thread_id}}
@@ -151,17 +150,10 @@ async def physiology_expert_node(state: TrainingAnalysisState, config: RunnableC
             ],
         }
 
-        result = await subgraph.ainvoke(input_state, config=subgraph_config)
+        # Run subgraph, draining all sequential HITL interrupts
+        result = await run_subgraph_until_done(subgraph, input_state, subgraph_config)
 
-        # If the subgraph interrupted, bubble it and resume with user answer
-        if result.get("__interrupt__"):
-            intr = result["__interrupt__"][0]
-            logger.info("Physiology expert: Propagating interrupt from subgraph")
-            answer = bubble_interrupt(intr.value)
-            # Resume the subgraph with the user's answer
-            result = await subgraph.ainvoke(Command(resume=answer), config=subgraph_config)
-
-        # Normal completion path
+        # Extract final AI message
         ai_msg = next(
             (m for m in reversed(result["messages"]) if isinstance(m, AIMessage)),
             None

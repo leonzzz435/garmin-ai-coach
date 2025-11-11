@@ -244,6 +244,16 @@ async def run_analysis_from_config(config_path: Path) -> None:
 
         logger.info("Saving results...")
 
+        def safe_write_text(path: Path, data: Any) -> None:
+            """Write data to file, converting to string if needed."""
+            if isinstance(data, list):
+                content = "\n".join(map(str, data))
+            elif isinstance(data, str):
+                content = data
+            else:
+                content = str(data)
+            path.write_text(content, encoding="utf-8")
+
         files_generated: list[str] = []
         
         for filename, key in [
@@ -255,7 +265,7 @@ async def run_analysis_from_config(config_path: Path) -> None:
             ("season_plan.md", "season_plan"),
         ]:
             if content := result.get(key):
-                (output_dir / filename).write_text(content, encoding="utf-8")
+                safe_write_text(output_dir / filename, content)
                 files_generated.append(filename)
                 logger.info(f"Saved: {output_dir}/{filename}")
 
