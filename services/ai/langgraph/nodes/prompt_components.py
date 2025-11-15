@@ -64,7 +64,7 @@ All agents read from and write to a shared state object containing:
 
 3. **Orchestration & HITL** (`master_orchestrator`)
    - Reads: All expert outputs (`metrics_outputs`, `physiology_outputs`, `activity_outputs`)
-   - Collects questions from `expert_outputs.questions` field
+   - Collects questions from `expert_outputs.output` field (if output is list[Question])
    - **If questions exist AND hitl_enabled**:
      * Displays questions to user
      * Collects answers
@@ -74,7 +74,7 @@ All agents read from and write to a shared state object containing:
    - **Special routing**: After analysis completes → routes to BOTH `synthesis` AND `season_planner` in parallel
 
 4. **Synthesis Phase** (`synthesis`{you_marker if agent_type == "synthesis" else ""})
-   - Reads: `metrics_outputs.for_synthesis`, `physiology_outputs.for_synthesis`, `activity_outputs.for_synthesis`
+   - Reads: `metrics_outputs.output.for_synthesis`, `physiology_outputs.output.for_synthesis`, `activity_outputs.output.for_synthesis`
    - Integrates all expert analyses into unified athlete report
    - Writes: `synthesis_result`
    - Sets: `synthesis_complete = True` (workflow marker)
@@ -93,7 +93,7 @@ All agents read from and write to a shared state object containing:
 **Execution Flow**:
 
 1. **Season Planning Phase** (`season_planner`{you_marker if agent_type == "season_planner" else ""})
-   - Reads: `metrics_outputs.for_season_planner`, `physiology_outputs.for_season_planner`, `activity_outputs.for_season_planner`, `competitions`, `current_date`
+   - Reads: `metrics_outputs.output.for_season_planner`, `physiology_outputs.output.for_season_planner`, `activity_outputs.output.for_season_planner`, `competitions`, `current_date`
    - Creates 12-24 week periodization strategy
    - Writes: `season_plan`
 
@@ -109,7 +109,7 @@ All agents read from and write to a shared state object containing:
    - Routes to: `weekly_planner`
 
 4. **Weekly Planning Phase** (`weekly_planner`{you_marker if agent_type == "weekly_planner" else ""})
-   - Reads: `metrics_outputs.for_weekly_planner`, `physiology_outputs.for_weekly_planner`, `activity_outputs.for_weekly_planner`, `season_plan`, `week_dates`
+   - Reads: `metrics_outputs.output.for_weekly_planner`, `physiology_outputs.output.for_weekly_planner`, `activity_outputs.output.for_weekly_planner`, `season_plan`, `week_dates`
    - Creates detailed 14-day workout plan aligned with season strategy
    - Writes: `weekly_plan`
 

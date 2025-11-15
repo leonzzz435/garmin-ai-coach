@@ -17,9 +17,13 @@ def _extract_for_synthesis(expert_outputs):
     """Extract for_synthesis field from expert outputs."""
     if expert_outputs is None:
         raise ValueError("Expert outputs cannot be None - synthesis requires all expert analyses")
-    if hasattr(expert_outputs, "for_synthesis"):
-        return expert_outputs.for_synthesis
-    raise ValueError(f"Expert outputs missing 'for_synthesis' field: {type(expert_outputs)}")
+    if hasattr(expert_outputs, "output"):
+        output = expert_outputs.output
+        if isinstance(output, list):
+            raise ValueError(f"Expert outputs contain questions, not analysis. HITL interaction required.")
+        if hasattr(output, "for_synthesis"):
+            return output.for_synthesis
+    raise ValueError(f"Expert outputs missing 'output.for_synthesis' field: {type(expert_outputs)}")
 
 
 SYNTHESIS_SYSTEM_PROMPT_BASE = """You are Maya Lindholm, a legendary performance integration specialist whose "Holistic Performance Synthesis" approach has guided multiple athletes to Olympic gold and world records.

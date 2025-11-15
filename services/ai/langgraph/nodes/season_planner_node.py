@@ -77,17 +77,7 @@ This is a STRATEGIC PLANNING session. You are working with:
 ✓ Strategic insights from expert analyses (fitness trends, execution patterns, recovery capacity)
 
 ## Your Task
-Create a context-free, strategic season plan providing a macro-cycle framework for the next 12-24 weeks leading up to key competitions. This plan should work for any athlete with this competition schedule.
-
-Focus on:
-1. **STRATEGIC OVERVIEW**: Brief summary of the macro-cycle structure and periodization approach
-2. **TRAINING PHASES**: Define 3-5 distinct training phases with approximate date ranges
-3. **PHASE DETAILS**: For each phase, provide:
-   - Primary training focus and adaptation goals
-   - Approximate weekly volume ranges (e.g., "8-12 hours")
-   - Intensity distribution philosophy (e.g., "80/20 rule", "pyramidal")
-   - Key workout types and training modalities
-   - Phase transition criteria
+Create a strategic season plan providing a macro-cycle framework for the next 12-24 weeks leading up to key competitions.
 
 Keep this concise yet comprehensive - it will provide the strategic framework for detailed weekly planning.
 
@@ -128,9 +118,13 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
     
     # Extract strategic insights from expert outputs
     def get_strategic_insights(expert_outputs):
-        if hasattr(expert_outputs, "for_season_planner"):
-            return expert_outputs.for_season_planner
-        raise ValueError(f"Expert outputs missing 'for_season_planner' field: {type(expert_outputs)}")
+        if hasattr(expert_outputs, "output"):
+            output = expert_outputs.output
+            if isinstance(output, list):
+                raise ValueError(f"Expert outputs contain questions, not analysis. HITL interaction required.")
+            if hasattr(output, "for_season_planner"):
+                return output.for_season_planner
+        raise ValueError(f"Expert outputs missing 'output.for_season_planner' field: {type(expert_outputs)}")
     
     base_messages = [
         {"role": "system", "content": system_prompt},

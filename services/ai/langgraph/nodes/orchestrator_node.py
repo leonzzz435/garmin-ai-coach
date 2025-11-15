@@ -70,10 +70,13 @@ class MasterOrchestrator:
         # Create agent-specific Q&A messages
         agent_qa_updates = self._create_agent_specific_qa_messages(all_questions, answers)
         
-        logger.info(f"MasterOrchestrator: Re-invoking {config['agents']} with agent-specific Q&A messages")
+        # Only re-invoke agents that actually had questions
+        agents_to_reinvoke = [key.replace("_messages", "") for key in agent_qa_updates.keys()]
+        
+        logger.info(f"MasterOrchestrator: Re-invoking {agents_to_reinvoke} with agent-specific Q&A messages")
         
         return Command(
-            goto=config["agents"],
+            goto=agents_to_reinvoke,
             update=agent_qa_updates
         )
     
@@ -101,13 +104,16 @@ class MasterOrchestrator:
             if not result:
                 continue
             
-            # Handle Pydantic models (expert outputs) vs dicts (planner outputs)
-            if hasattr(result, "questions"):
-                questions = result.questions
+            # Handle both ExpertOutput and AgentOutput with union type output field
+            questions = None
+            if hasattr(result, "output"):
+                # Union type: list[Question] | ReceiverOutputs (experts) or list[Question] | str (agents)
+                output = result.output
+                if isinstance(output, list):
+                    questions = output
             elif isinstance(result, dict):
+                # Fallback for dict format (if any legacy code)
                 questions = result.get("questions", [])
-            else:
-                questions = None
             
             if questions:
                 for q in questions:
@@ -162,7 +168,7 @@ class MasterOrchestrator:
         questions: list[dict],
         answers: list[dict]
     ) -> dict:
-        """Create agent-specific Q&A message updates."""
+        """Create agent-specific Q&A message updates with accumulated messages per agent."""
         updates = {}
         
         for qa_item, answer_item in zip(questions, answers, strict=True):
@@ -170,15 +176,18 @@ class MasterOrchestrator:
             question = qa_item["question"]["message"]
             answer = answer_item["answer"]
             
-            # Create Q&A pair for this agent
-            qa_pair = [
-                AIMessage(content=f"{question}"),
-                HumanMessage(content=answer)
-            ]
-            
             # Store in agent-specific field
             field_name = f"{agent_name}_messages"
-            updates[field_name] = qa_pair
+            
+            # Initialize list if not present, then append Q&A pair
+            if field_name not in updates:
+                updates[field_name] = []
+            
+            # Append Q&A pair for this agent (one pair per question)
+            updates[field_name].extend([
+                AIMessage(content=f"{question}"),
+                HumanMessage(content=answer)
+            ])
         
         return updates
 

@@ -1,19 +1,19 @@
 """Expert-specific output schemas for analysis agents."""
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 from .agent_outputs import Question
 
 
-class ExpertOutputBase(BaseModel):
-    """Base class for expert outputs with common three-consumer structure.
+class ReceiverOutputs(BaseModel):
+    """Analysis outputs for downstream consumers.
     
-    Each expert provides tailored output for three different consumers:
+    Provides tailored output for three different consumers:
     - Synthesis Agent: Creates comprehensive athlete report
     - Season Planner: Designs 12-24 week macro-cycles
     - Weekly Planner: Creates next 14 days of training
     """
-
+    
     for_synthesis: str = Field(
         ...,
         description="Output for Synthesis Agent creating comprehensive athlete report"
@@ -26,18 +26,20 @@ class ExpertOutputBase(BaseModel):
         ...,
         description="Output for Weekly Planner creating next 14-day training plan"
     )
-    questions: list[Question] | None = Field(
-        None,
-        description="Optional questions requiring user clarification for HITL"
-    )
+
+
+class ExpertOutputBase(BaseModel):
+    """Base class for expert outputs with mutually exclusive modes.
     
-    @field_validator("questions", mode="before")
-    @classmethod
-    def handle_none_string(cls, v):
-        """Convert string 'None' or 'null' to actual None."""
-        if isinstance(v, str) and v.lower() in ("none", "null"):
-            return None
-        return v
+    Expert must produce EITHER:
+    - Questions for HITL (first invocation when clarification needed)
+    - Output for downstream consumers (after HITL or when no questions needed)
+    """
+
+    output: list[Question] | ReceiverOutputs = Field(
+        ...,
+        description="EITHER questions for HITL OR full output for downstream consumers"
+    )
 
 
 class MetricsExpertOutputs(ExpertOutputBase):

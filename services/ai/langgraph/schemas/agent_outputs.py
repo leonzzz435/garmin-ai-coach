@@ -13,29 +13,14 @@ class Question(BaseModel):
 
 
 class AgentOutput(BaseModel):
-    """Structured output from agents with optional questions.
-
-    Usage Guidelines:
-    - If you have questions: Populate 'questions' field. The 'content' field can be
-      empty or contain preliminary analysis, but will not be used until questions are answered.
-    - If no questions OR all questions answered: Leave 'questions' as None/empty and
-      provide your COMPLETE analysis in the 'content' field.
+    """Structured output from agents with mutually exclusive modes.
+    
+    Agent must produce EITHER:
+    - Questions for HITL (first invocation when clarification needed)
+    - Content for downstream consumers (after HITL or when no questions needed)
     """
 
-    content: str = Field(
+    output: list[Question] | str = Field(
         ...,
-        description="Complete output. MUST be fully populated when questions is None/empty. "
-                   "Can be empty or preliminary when questions are present."
+        description="EITHER questions for HITL OR complete output for downstream consumers"
     )
-    questions: list[Question] | None = Field(
-        None,
-        description="List of questions requiring user clarification. If None or empty, "
-                   "content must contain complete analysis."
-    )
-
-    @field_validator("questions", mode="before")
-    @classmethod
-    def normalize_questions(cls, v):
-        if isinstance(v, str) and v.lower() in ("none", "null"):
-            return None
-        return v

@@ -85,10 +85,15 @@ async def plan_formatter_node(state: TrainingAnalysisState) -> dict[str, list | 
         agent_start_time = datetime.now()
 
         def get_content(field):
-            """Extract content from AgentOutput dict or return as-is."""
+            """Extract content from AgentOutput with new union type output field."""
             value = state.get(field, "")
-            if isinstance(value, dict) and "content" in value:
-                return value["content"]
+            if hasattr(value, "output"):
+                output = value.output
+                if isinstance(output, str):
+                    return output
+                raise ValueError(f"AgentOutput contains questions, not content. HITL interaction required.")
+            if isinstance(value, dict):
+                return value.get("output", value.get("content", value))
             return value
         
         async def call_plan_formatting():

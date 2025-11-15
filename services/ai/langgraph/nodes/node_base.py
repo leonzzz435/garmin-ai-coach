@@ -16,8 +16,9 @@ def configure_node_tools(
 ) -> list:
     """Configure tools for node execution.
     
-    Note: HITL is now handled by master_orchestrator_node via AgentOutput.questions,
-    not via tools. This function only configures plotting tools.
+    Note: HITL is now handled by master_orchestrator_node via expert outputs
+    (ExpertOutputBase.output as list[Question]), not via tools. This function
+    only configures plotting tools.
     """
     tools = []
     

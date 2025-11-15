@@ -130,14 +130,25 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
     
     # Extract tactical details from expert outputs
     def get_tactical_details(expert_outputs):
-        if hasattr(expert_outputs, "for_weekly_planner"):
-            return expert_outputs.for_weekly_planner
-        raise ValueError(f"Expert outputs missing 'for_weekly_planner' field: {type(expert_outputs)}")
+        if hasattr(expert_outputs, "output"):
+            output = expert_outputs.output
+            if isinstance(output, list):
+                raise ValueError(f"Expert outputs contain questions, not analysis. HITL interaction required.")
+            if hasattr(output, "for_weekly_planner"):
+                return output.for_weekly_planner
+        raise ValueError(f"Expert outputs missing 'output.for_weekly_planner' field: {type(expert_outputs)}")
     
-    # Extract content from AgentOutput dicts (for season_plan)
+    # Extract content from AgentOutput (with new union type output field)
     def get_content(field):
         value = state.get(field, "")
-        return value.get("content", value) if isinstance(value, dict) else value
+        if hasattr(value, "output"):
+            output = value.output
+            if isinstance(output, str):
+                return output
+            raise ValueError(f"AgentOutput contains questions, not content. HITL interaction required.")
+        if isinstance(value, dict):
+            return value.get("output", value.get("content", value))
+        return value
     
     # Include Q&A messages from orchestrator if present (for HITL re-invocations)
     # Read from agent-specific field
