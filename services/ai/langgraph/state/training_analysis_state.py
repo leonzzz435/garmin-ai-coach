@@ -27,6 +27,9 @@ class TrainingAnalysisState(MessagesState):
 
     season_plan: str | None
     weekly_plan: str | None
+    
+    synthesis_complete: bool
+    season_plan_complete: bool
 
     analysis_html: str | None
     planning_html: str | None
@@ -78,6 +81,8 @@ def create_initial_state(
         synthesis_result=None,
         season_plan=None,
         weekly_plan=None,
+        synthesis_complete=False,
+        season_plan_complete=False,
         analysis_html=None,
         planning_html=None,
         plot_resolution_stats=None,

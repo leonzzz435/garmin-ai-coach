@@ -11,6 +11,7 @@ from ..nodes.data_integration_node import data_integration_node
 from ..nodes.formatter_node import formatter_node
 from ..nodes.metrics_expert_node import metrics_expert_node
 from ..nodes.metrics_summarizer_node import metrics_summarizer_node
+from ..nodes.orchestrator_node import master_orchestrator_node
 from ..nodes.physiology_expert_node import physiology_expert_node
 from ..nodes.physiology_summarizer_node import physiology_summarizer_node
 from ..nodes.plan_formatter_node import plan_formatter_node
@@ -30,14 +31,22 @@ def create_planning_workflow():
     workflow = StateGraph(TrainingAnalysisState)
 
     workflow.add_node("season_planner", season_planner_node)
+    workflow.add_node("master_orchestrator", master_orchestrator_node)
     workflow.add_node("data_integration", data_integration_node)
     workflow.add_node("weekly_planner", weekly_planner_node)
     workflow.add_node("plan_formatter", plan_formatter_node)
 
     workflow.add_edge(START, "season_planner")
-    workflow.add_edge("season_planner", "data_integration")
+    workflow.add_edge("season_planner", "master_orchestrator")
+    
+    # Master orchestrator routes based on stage detection
+    workflow.add_edge("master_orchestrator", "data_integration")
+    workflow.add_edge("master_orchestrator", "plan_formatter")
+    workflow.add_edge("master_orchestrator", "season_planner")
+    workflow.add_edge("master_orchestrator", "weekly_planner")
+    
     workflow.add_edge("data_integration", "weekly_planner")
-    workflow.add_edge("weekly_planner", "plan_formatter")
+    workflow.add_edge("weekly_planner", "master_orchestrator")
     workflow.add_edge("plan_formatter", END)
 
     checkpointer = MemorySaver()
@@ -107,6 +116,7 @@ def create_integrated_analysis_and_planning_workflow():
     workflow.add_node("plot_resolution", plot_resolution_node)
 
     workflow.add_node("season_planner", season_planner_node)
+    workflow.add_node("master_orchestrator", master_orchestrator_node)
     workflow.add_node("data_integration", data_integration_node)
     workflow.add_node("weekly_planner", weekly_planner_node)
     workflow.add_node("plan_formatter", plan_formatter_node)
@@ -121,14 +131,23 @@ def create_integrated_analysis_and_planning_workflow():
     workflow.add_edge("physiology_summarizer", "physiology_expert")
     workflow.add_edge("activity_summarizer", "activity_expert")
 
-    workflow.add_edge(["metrics_expert", "physiology_expert", "activity_expert"], "synthesis")
+    workflow.add_edge(["metrics_expert", "physiology_expert", "activity_expert"], "master_orchestrator")
+    
+    # Master orchestrator uses Command(goto=...) for dynamic routing
+    # No static edges needed - orchestrator decides whether to re-invoke experts or proceed to synthesis
+    
     workflow.add_edge("synthesis", "formatter")
     workflow.add_edge("formatter", "plot_resolution")
 
+    # Parallel execution: season_planner starts after experts complete
     workflow.add_edge(["metrics_expert", "physiology_expert", "activity_expert"], "season_planner")
+    
+    # Season planner proceeds directly to data_integration (no HITL with experts)
+    # Only weekly planner needs orchestrator for HITL
     workflow.add_edge("season_planner", "data_integration")
+    
     workflow.add_edge("data_integration", "weekly_planner")
-    workflow.add_edge("weekly_planner", "plan_formatter")
+    workflow.add_edge("weekly_planner", "master_orchestrator")
     
     workflow.add_edge("plot_resolution", "finalize")
     workflow.add_edge("plan_formatter", "finalize")

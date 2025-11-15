@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Any
 
 from langgraph.errors import GraphInterrupt
-from services.ai.tools.hitl import create_communicate_with_human_tool
 from services.ai.tools.plotting import PlotStorage, create_plotting_tools
 
 logger = logging.getLogger(__name__)
@@ -14,21 +13,18 @@ def configure_node_tools(
     agent_name: str,
     plot_storage: PlotStorage | None = None,
     plotting_enabled: bool = False,
-    hitl_enabled: bool = True,
 ) -> list:
+    """Configure tools for node execution.
     
+    Note: HITL is now handled by master_orchestrator_node via AgentOutput.questions,
+    not via tools. This function only configures plotting tools.
+    """
     tools = []
     
     if plotting_enabled and plot_storage:
         plotting_tool = create_plotting_tools(plot_storage, agent_name=agent_name)
         tools.append(plotting_tool)
         logger.debug(f"{agent_name}: Added plotting tool")
-    
-    if hitl_enabled:
-        display_name = agent_name.replace("_", " ").title()
-        communicate_tool = create_communicate_with_human_tool(display_name)
-        tools.append(communicate_tool)
-        logger.debug(f"{agent_name}: Added HITL communication tool")
     
     return tools
 

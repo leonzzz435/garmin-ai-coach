@@ -44,7 +44,11 @@ def extract_text_content(response) -> str:
 
 async def handle_tool_calling_in_node(
     llm_with_tools, messages: list[dict[str, str]], tools: list, max_iterations: int = 5
-) -> str:
+):
+    """Handle tool calling loop and return final response.
+    
+    Returns the LLM response directly (which may be AgentOutput if structured output was applied).
+    """
     conversation = [
         {"role": msg["role"], "content": msg["content"]}
         for msg in messages if msg["role"] in ("system", "user")
@@ -100,11 +104,10 @@ async def handle_tool_calling_in_node(
                 conversation.append(tool_message)
 
         else:
-            content = response.content if hasattr(response, "content") else str(response)
-            final_response = extract_text_content(content)
             logger.info(f"Final response received after {iteration} iterations")
-            return final_response
+            # Return response directly - it may be AgentOutput if with_structured_output was used
+            return response
 
     logger.warning(f"Max iterations ({max_iterations}) reached in tool calling")
-    content = response.content if hasattr(response, "content") else str(response)
-    return extract_text_content(content)
+    # Return response directly - it may be AgentOutput if with_structured_output was used
+    return response

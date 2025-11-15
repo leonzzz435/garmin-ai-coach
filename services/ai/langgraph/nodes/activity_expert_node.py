@@ -15,6 +15,7 @@ from .node_base import (
     execute_node_with_error_handling,
     log_node_completion,
 )
+from .orchestrator_node import AgentOutput
 from .prompt_components import (
     get_hitl_instructions,
     get_output_context_note,
@@ -118,7 +119,6 @@ async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list |
         agent_name="activity",
         plot_storage=plot_storage,
         plotting_enabled=plotting_enabled,
-        hitl_enabled=hitl_enabled,
     )
 
     system_prompt = (
@@ -128,16 +128,15 @@ async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list |
         (get_hitl_instructions("activity") if hitl_enabled else "")
     )
 
-    llm_with_tools = (
-        ModelSelector.get_llm(AgentRole.ACTIVITY_EXPERT).bind_tools(tools) if tools
-        else ModelSelector.get_llm(AgentRole.ACTIVITY_EXPERT)
-    )
+    base_llm = ModelSelector.get_llm(AgentRole.ACTIVITY_EXPERT)
+    llm_with_tools = base_llm.bind_tools(tools) if tools else base_llm
+    llm_with_structure = llm_with_tools.with_structured_output(AgentOutput)
 
     agent_start_time = datetime.now()
 
     async def call_activity_expert():
         return await handle_tool_calling_in_node(
-            llm_with_tools=llm_with_tools,
+            llm_with_tools=llm_with_structure,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": ACTIVITY_EXPERT_USER_PROMPT.format(
@@ -153,7 +152,7 @@ async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list |
         )
 
     async def node_execution():
-        activity_result = await retry_with_backoff(
+        agent_output = await retry_with_backoff(
             call_activity_expert, AI_ANALYSIS_CONFIG, "Activity Expert Analysis with Tools"
         )
 
@@ -163,7 +162,7 @@ async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list |
         log_node_completion("Activity expert", execution_time, len(available_plots))
 
         return {
-            "activity_result": activity_result,
+            "activity_result": agent_output.model_dump(),
             "plots": plots,
             "plot_storage_data": plot_storage_data,
             "costs": [create_cost_entry("activity_expert", execution_time)],

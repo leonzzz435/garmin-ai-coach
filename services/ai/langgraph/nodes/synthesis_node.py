@@ -12,6 +12,14 @@ from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
+
+def _extract_content(result):
+    """Extract content from AgentOutput format or return string as-is."""
+    if isinstance(result, dict) and "content" in result:
+        return result["content"]
+    return result
+
+
 SYNTHESIS_SYSTEM_PROMPT_BASE = """You are Maya Lindholm, a legendary performance integration specialist whose "Holistic Performance Synthesis" approach has guided multiple athletes to Olympic gold and world records.
 
 ## Your Background
@@ -124,9 +132,9 @@ async def synthesis_node(state: TrainingAnalysisState) -> dict[str, list | str]:
                     {"role": "user", "content": (
                         SYNTHESIS_USER_PROMPT_BASE.format(
                             athlete_name=state["athlete_name"],
-                            metrics_result=state.get("metrics_result", ""),
-                            activity_result=state.get("activity_result", ""),
-                            physiology_result=state.get("physiology_result", ""),
+                            metrics_result=_extract_content(state.get("metrics_result", "")),
+                            activity_result=_extract_content(state.get("activity_result", "")),
+                            physiology_result=_extract_content(state.get("physiology_result", "")),
                             competitions=json.dumps(state["competitions"], indent=2),
                             current_date=json.dumps(state["current_date"], indent=2),
                             style_guide=state["style_guide"],
@@ -146,6 +154,7 @@ async def synthesis_node(state: TrainingAnalysisState) -> dict[str, list | str]:
 
         return {
             "synthesis_result": synthesis_result,
+            "synthesis_complete": True,
             "costs": [{
                 "agent": "synthesis",
                 "execution_time": execution_time,

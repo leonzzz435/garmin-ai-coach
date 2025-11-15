@@ -99,11 +99,9 @@ def get_hitl_instructions(agent_name: str) -> str:
 
 ## 🤝 SELECTIVE HUMAN INTERACTION
 
-You have access to `communicate_with_human` for **high-value interactions** with the athlete.
+If you need to ask the athlete a question, include it in the `questions` field of your AgentOutput.
 
 ### ⚠️ IMPORTANT USAGE GUIDELINES
-
-**Use Sparingly** - Each interaction has real cost and interrupts workflow.
 
 **Use ONLY when:**
 - Data is genuinely ambiguous and human context would significantly improve analysis quality
@@ -111,13 +109,13 @@ You have access to `communicate_with_human` for **high-value interactions** with
 - There's a clear decision point where athlete preference matters (not minor details)
 - The question/observation will materially affect your recommendations
 
-**DO NOT use for:**
+**DO NOT ask questions for:**
 - Information you can reasonably infer from data
 - Minor clarifications or nice-to-know details
 - Generic questions that don't change your analysis
-- Multiple questions on the same topic (consolidate into one communication)
+- Multiple questions on the same topic (consolidate into one question)
 
-### 🎯 DOMAIN-FOCUSED COMMUNICATION
+### 🎯 DOMAIN-FOCUSED QUESTIONS
 
 Stay within your expertise as the **{agent_name.replace('_', ' ').title()} Agent**. Be specific and reference actual data patterns.
 
@@ -127,6 +125,11 @@ Stay within your expertise as the **{agent_name.replace('_', ' ').title()} Agent
 2. **Be Specific**
 3. **Be Efficient**
 4. **Add Value**
+
+### 📝 HOW TO ASK QUESTIONS
+
+Include questions in your AgentOutput structure:
+If you have no questions, set `questions: null` or omit the field entirely, and return the final full output in the content field.
 """
 
 

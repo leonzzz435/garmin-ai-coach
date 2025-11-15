@@ -15,6 +15,7 @@ from .node_base import (
     execute_node_with_error_handling,
     log_node_completion,
 )
+from .orchestrator_node import AgentOutput
 from .prompt_components import (
     get_hitl_instructions,
     get_output_context_note,
@@ -82,7 +83,8 @@ You are receiving a pre-processed summary of the athlete's metrics data. Use you
 ## Output Requirements
 - Include a Metrics Readiness Score (0-100) with clear explanation of calculation using only available metrics
 - Format as structured markdown document with clear sections and bullet points
-- Focus on factual analysis without speculation about unavailable metrics"""
+- Focus on factual analysis without speculation about unavailable metrics
+- If you need clarification from the athlete, include questions in the structured format"""
 
 
 async def metrics_expert_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
@@ -101,7 +103,6 @@ async def metrics_expert_node(state: TrainingAnalysisState) -> dict[str, list | 
         agent_name="metrics",
         plot_storage=plot_storage,
         plotting_enabled=plotting_enabled,
-        hitl_enabled=hitl_enabled,
     )
 
     system_prompt = (
@@ -111,16 +112,17 @@ async def metrics_expert_node(state: TrainingAnalysisState) -> dict[str, list | 
         (get_hitl_instructions("metrics") if hitl_enabled else "")
     )
 
-    llm_with_tools = (
-        ModelSelector.get_llm(AgentRole.METRICS_EXPERT).bind_tools(tools) if tools
-        else ModelSelector.get_llm(AgentRole.METRICS_EXPERT)
-    )
+    base_llm = ModelSelector.get_llm(AgentRole.METRICS_EXPERT)
+    
+    # Bind tools first, then apply structured output
+    llm_with_tools = base_llm.bind_tools(tools) if tools else base_llm
+    llm_with_structure = llm_with_tools.with_structured_output(AgentOutput)
 
     agent_start_time = datetime.now()
 
     async def call_metrics_with_tools():
         return await handle_tool_calling_in_node(
-            llm_with_tools=llm_with_tools,
+            llm_with_tools=llm_with_structure,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": METRICS_USER_PROMPT.format(
@@ -136,7 +138,7 @@ async def metrics_expert_node(state: TrainingAnalysisState) -> dict[str, list | 
         )
 
     async def node_execution():
-        metrics_result = await retry_with_backoff(
+        agent_output = await retry_with_backoff(
             call_metrics_with_tools, AI_ANALYSIS_CONFIG, "Metrics Agent with Tools"
         )
         logger.info("Metrics expert analysis completed")
@@ -148,7 +150,7 @@ async def metrics_expert_node(state: TrainingAnalysisState) -> dict[str, list | 
         log_node_completion("Metrics expert analysis", execution_time, len(available_plots))
 
         return {
-            "metrics_result": metrics_result,
+            "metrics_result": agent_output.model_dump(),
             "plots": plots,
             "plot_storage_data": plot_storage_data,
             "costs": [create_cost_entry("metrics", execution_time)],

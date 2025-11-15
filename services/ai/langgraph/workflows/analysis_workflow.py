@@ -10,6 +10,7 @@ from ..nodes.activity_summarizer_node import activity_summarizer_node
 from ..nodes.formatter_node import formatter_node
 from ..nodes.metrics_expert_node import metrics_expert_node
 from ..nodes.metrics_summarizer_node import metrics_summarizer_node
+from ..nodes.orchestrator_node import master_orchestrator_node
 from ..nodes.physiology_expert_node import physiology_expert_node
 from ..nodes.physiology_summarizer_node import physiology_summarizer_node
 from ..nodes.plot_resolution_node import plot_resolution_node
@@ -32,6 +33,7 @@ def create_analysis_workflow():
     workflow.add_node("physiology_expert", physiology_expert_node)
     workflow.add_node("activity_expert", activity_expert_node)
     
+    workflow.add_node("master_orchestrator", master_orchestrator_node)
     workflow.add_node("synthesis", synthesis_node)
     workflow.add_node("formatter", formatter_node)
     workflow.add_node("plot_resolution", plot_resolution_node)
@@ -44,9 +46,14 @@ def create_analysis_workflow():
     workflow.add_edge("physiology_summarizer", "physiology_expert")
     workflow.add_edge("activity_summarizer", "activity_expert")
 
-    workflow.add_edge("metrics_expert", "synthesis")
-    workflow.add_edge("physiology_expert", "synthesis")
-    workflow.add_edge("activity_expert", "synthesis")
+    workflow.add_edge(["metrics_expert", "physiology_expert", "activity_expert"], "master_orchestrator")
+    
+    # Master orchestrator routes to next stage or re-invokes agents
+    workflow.add_edge("master_orchestrator", "synthesis")
+    workflow.add_edge("master_orchestrator", "metrics_expert")
+    workflow.add_edge("master_orchestrator", "physiology_expert")
+    workflow.add_edge("master_orchestrator", "activity_expert")
+    
     workflow.add_edge("synthesis", "formatter")
     workflow.add_edge("formatter", "plot_resolution")
     workflow.add_edge("plot_resolution", END)
