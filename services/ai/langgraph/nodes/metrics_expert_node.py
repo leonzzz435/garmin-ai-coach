@@ -55,7 +55,7 @@ METRICS_USER_PROMPT = """Analyze the structured metrics summary to identify patt
 {current_date}
 ```
 
-## Analysis User Context
+## Additional User Notes
 ```
 {analysis_context}
 ```

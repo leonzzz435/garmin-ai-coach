@@ -188,19 +188,40 @@ async def run_analysis_from_config(config_path: Path) -> None:
 
         files_generated: list[str] = []
         
+        # Save HTML outputs
         for filename, key in [
             ("analysis.html", "analysis_html"),
             ("planning.html", "planning_html"),
-            ("metrics_result.md", "metrics_result"),
-            ("activity_result.md", "activity_result"),
-            ("physiology_result.md", "physiology_result"),
-            ("season_plan.md", "season_plan"),
         ]:
             if content := result.get(key):
                 # Handle AgentOutput dict format (from structured output)
                 if isinstance(content, dict):
                     content = content.get("content", "")
                 (output_dir / filename).write_text(content, encoding="utf-8")
+                files_generated.append(filename)
+                logger.info(f"Saved: {output_dir}/{filename}")
+        
+        # Save structured outputs as JSON (expert outputs and planner outputs)
+        for filename, key in [
+            ("metrics_expert.json", "metrics_outputs"),
+            ("activity_expert.json", "activity_outputs"),
+            ("physiology_expert.json", "physiology_outputs"),
+            ("season_plan.json", "season_plan"),
+            ("weekly_plan.json", "weekly_plan"),
+        ]:
+            if output := result.get(key):
+                # Convert Pydantic model to dict
+                if hasattr(output, "model_dump"):
+                    output_data = output.model_dump(mode="json")
+                elif isinstance(output, dict):
+                    output_data = output
+                else:
+                    continue
+                
+                (output_dir / filename).write_text(
+                    json.dumps(output_data, indent=2, ensure_ascii=False),
+                    encoding="utf-8"
+                )
                 files_generated.append(filename)
                 logger.info(f"Saved: {output_dir}/{filename}")
 

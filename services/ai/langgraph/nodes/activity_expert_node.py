@@ -57,7 +57,7 @@ ACTIVITY_EXPERT_USER_PROMPT = """Interpret structured activity summaries to iden
 {current_date}
 ```
 
-## Analysis Context
+## Additional User Notes
 ```
 {analysis_context}
 ```

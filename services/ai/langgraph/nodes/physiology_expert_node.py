@@ -55,7 +55,7 @@ PHYSIOLOGY_USER_PROMPT = """Analyze the structured physiology summary to assess 
 {current_date}
 ```
 
-## Analysis Context
+## Additional User Notes
 ```
 {analysis_context}
 ```

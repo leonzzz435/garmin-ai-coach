@@ -43,8 +43,6 @@ Communicate with the quiet confidence of someone who has both achieved at the hi
 
 SEASON_PLANNER_USER_PROMPT = """Create a STRATEGIC, HIGH-LEVEL season plan covering the next 12-24 weeks based on the athlete's competition schedule and expert analyses.
 
-{output_context}
-
 ## Available Information
 - Athlete Name: {athlete_name}
 - Current Date: ```json

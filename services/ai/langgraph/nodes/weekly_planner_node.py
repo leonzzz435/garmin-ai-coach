@@ -86,7 +86,7 @@ Before creating the training plan, establish appropriate training intensity zone
 
 ## Your Task
 Create a concrete, practical 14-day training plan that:
-1. Aligns with the current phase in your season plan
+1. Aligns with the current phase from the season plan
 2. Adapts to the athlete's current Training Readiness Score
 3. Provides an appropriate balance of workload and recovery
 
