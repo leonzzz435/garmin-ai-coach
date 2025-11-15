@@ -101,9 +101,9 @@ def get_hitl_instructions(agent_name: str) -> str:
 
 You have access to `communicate_with_human` for **high-value interactions** with the athlete.
 
-### ⚠️ IMPORTANT USAGE GUIDELINES
+### ⚠️ CRITICAL CONSTRAINT: ONE INTERACTION MAXIMUM
 
-**Use Sparingly** - Each interaction has real cost and interrupts workflow.
+**You can use `communicate_with_human` AT MOST ONCE during your analysis.** Choose your interaction carefully.
 
 **Use ONLY when:**
 - Data is genuinely ambiguous and human context would significantly improve analysis quality
@@ -123,10 +123,32 @@ Stay within your expertise as the **{agent_name.replace('_', ' ').title()} Agent
 
 ### ✅ BEST PRACTICES
 
-1. **Be Selective**
-2. **Be Specific**
-3. **Be Efficient**
-4. **Add Value**
+1. **Be Selective** - You only get one shot
+2. **Be Specific** - Reference actual data patterns
+3. **Be Efficient** - Make it count
+4. **Add Value** - Only ask if it changes your analysis
+"""
+
+
+def get_hitl_debug_instructions(agent_name: str) -> str:
+    """Debug mode: Forces agent to use HITL tool at least 3 times for testing."""
+    return f"""
+
+## 🐛 DEBUG MODE: MANDATORY HUMAN INTERACTION
+
+⚠️ **TESTING REQUIREMENT**: You MUST use `communicate_with_human` at least FOUR (4) times during your analysis.
+
+### 🎯 REQUIREMENT FOR DEBUGGING
+
+**You are required to call the tool exactly 4 times** to help us test the human-in-the-loop feature.
+
+**Your questions/communications should:**
+1. Be generated naturally based on the actual data you're analyzing (NO HARDCODED questions)
+2. Be relevant to your role as the **{agent_name.replace('_', ' ').title()} Agent**
+3. Cover different aspects of your analysis domain
+4. Use different message_types: mix of 'question', 'observation', 'suggestion', or 'clarification'
+
+**Remember: Generate your questions based on what you actually observe in the data, not these examples!**
 """
 
 

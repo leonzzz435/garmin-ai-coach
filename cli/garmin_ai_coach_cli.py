@@ -173,21 +173,34 @@ async def run_analysis_from_config(config_path: Path) -> None:
         ]
         
         logger.info("Running AI analysis and planning...")
+        logger.critical(
+            f"CLI_WORKFLOW_START | "
+            f"athlete={athlete_name} | "
+            f"plotting_enabled={plotting_enabled} | "
+            f"hitl_enabled={hitl_enabled} | "
+            f"activities_days={extraction_settings['activities_days']} | "
+            f"metrics_days={extraction_settings['metrics_days']}"
+        )
         
         if hitl_enabled:
             def prompt_user(question: str) -> str:
+                logger.critical(f"CLI_PROMPT_USER | question_length={len(question)}")
                 print(f"\n{'='*70}")
                 print(f"🤖 {question}")
                 print(f"{'='*70}")
                 response = input("\n👤 Your answer: ").strip()
+                logger.critical(f"CLI_USER_RESPONSE | response_length={len(response)}")
                 return response
             
             def show_progress(message: str) -> None:
+                logger.info(f"CLI_PROGRESS | {message}")
                 print(message)
             
             workflow, checkpointer = create_integrated_analysis_and_planning_workflow()
             execution_id = f"cli_user_{datetime.now().strftime('%Y%m%d_%H%M%S')}_complete"
             config = {"configurable": {"thread_id": execution_id, "checkpointer": checkpointer}}
+            
+            logger.critical(f"CLI_WORKFLOW_CREATED | execution_id={execution_id}")
             
             async with trace(
                 name="Garmin HITL Session",
@@ -200,7 +213,7 @@ async def run_analysis_from_config(config_path: Path) -> None:
                 },
                 tags=[f"thread:{execution_id}", "garmin", "hitl", "cli"],
             ) as run:
-                logger.info("Created parent LangSmith run for HITL session")
+                logger.critical("CLI_LANGSMITH_TRACE_STARTED")
                 
                 result = await run_workflow_with_hitl(
                     workflow_app=workflow,
@@ -227,7 +240,11 @@ async def run_analysis_from_config(config_path: Path) -> None:
                     "execution_id": execution_id,
                     "cancelled": result.get("cancelled", False),
                 })
-                logger.info("Parent LangSmith run completed successfully")
+                logger.critical(
+                    f"CLI_WORKFLOW_COMPLETE | "
+                    f"execution_id={execution_id} | "
+                    f"cancelled={result.get('cancelled', False)}"
+                )
         else:
             result = await run_complete_analysis_and_planning(
                 user_id="cli_user",

@@ -265,8 +265,8 @@ def parse_args():
     p.add_argument("--max-depth", type=int, default=None, help="Limit subtree depth (0 = only the focus run)")
     p.add_argument("--max-chars-json", type=int, default=None, help="Truncate strings in JSON to this many chars")
     p.add_argument("--max-chars-md",   type=int, default=4000, help="Truncate strings in Markdown (default: 4000)")
-    p.add_argument("--strip-keys-inputs", default="chat_history,messages,docs,state", help="Comma list of keys to remove from inputs")
-    p.add_argument("--strip-keys-outputs", default="", help="Comma list of keys to remove from outputs")
+    p.add_argument("--strip-keys-inputs", default="chat_history,messages,docs,state,garmin_data", help="Comma list of keys to remove from inputs")
+    p.add_argument("--strip-keys-outputs", default="state,garmin_data", help="Comma list of keys to remove from outputs")
     return p.parse_args()
 
 if __name__ == "__main__":
