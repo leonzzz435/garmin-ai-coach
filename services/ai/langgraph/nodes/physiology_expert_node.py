@@ -118,18 +118,31 @@ async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list
     agent_start_time = datetime.now()
 
     async def call_physiology_analysis():
+        # Include Q&A messages from orchestrator if present (for HITL re-invocations)
+        # Read from agent-specific field
+        qa_messages_raw = state.get("physiology_expert_messages", [])
+        qa_messages = []
+        for msg in qa_messages_raw:
+            if hasattr(msg, "type"):  # LangChain message object
+                role = "assistant" if msg.type == "ai" else "user"
+                qa_messages.append({"role": role, "content": msg.content})
+            else:  # Already a dict
+                qa_messages.append(msg)
+        
+        base_messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": PHYSIOLOGY_USER_PROMPT.format(
+                output_context=get_output_context_note(for_other_agents=True),
+                data=state.get("physiology_summary", "No physiology summary available"),
+                competitions=json.dumps(state["competitions"], indent=2),
+                current_date=json.dumps(state["current_date"], indent=2),
+                analysis_context=state["analysis_context"],
+            )},
+        ]
+        
         return await handle_tool_calling_in_node(
             llm_with_tools=llm_with_structure,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": PHYSIOLOGY_USER_PROMPT.format(
-                    output_context=get_output_context_note(for_other_agents=True),
-                    data=state.get("physiology_summary", "No physiology summary available"),
-                    competitions=json.dumps(state["competitions"], indent=2),
-                    current_date=json.dumps(state["current_date"], indent=2),
-                    analysis_context=state["analysis_context"],
-                )},
-            ],
+            messages=base_messages + qa_messages,
             tools=tools,
             max_iterations=15,
         )

@@ -84,12 +84,19 @@ async def plan_formatter_node(state: TrainingAnalysisState) -> dict[str, list | 
     try:
         agent_start_time = datetime.now()
 
+        def get_content(field):
+            """Extract content from AgentOutput dict or return as-is."""
+            value = state.get(field, "")
+            if isinstance(value, dict) and "content" in value:
+                return value["content"]
+            return value
+        
         async def call_plan_formatting():
             response = await ModelSelector.get_llm(AgentRole.FORMATTER).ainvoke([
                 {"role": "system", "content": PLAN_FORMATTER_SYSTEM_PROMPT},
                 {"role": "user", "content": PLAN_FORMATTER_USER_PROMPT.format(
-                    season_plan=state.get("season_plan", ""),
-                    weekly_plan=state.get("weekly_plan", "")
+                    season_plan=get_content("season_plan"),
+                    weekly_plan=get_content("weekly_plan")
                 )},
             ])
             return extract_text_content(response)

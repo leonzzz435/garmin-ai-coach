@@ -2,7 +2,7 @@ import logging
 from typing import Literal
 
 from langchain_core.messages import AIMessage, HumanMessage
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from langgraph.types import Command
 
@@ -24,10 +24,32 @@ class Question(BaseModel):
 
 
 class AgentOutput(BaseModel):
-    """Structured output from agents with optional questions."""
+    """Structured output from agents with optional questions.
     
-    content: str = Field(..., description="Final analysis/output text if all questions clarified")
-    questions: list[Question] | None = Field(None, description="Optional HITL questions")
+    Usage Guidelines:
+    - If you have questions: Populate 'questions' field. The 'content' field can be
+      empty or contain preliminary analysis, but will not be used until questions are answered.
+    - If no questions OR all questions answered: Leave 'questions' as None/empty and
+      provide your COMPLETE analysis in the 'content' field.
+    """
+    
+    content: str = Field(
+        ...,
+        description="Complete analysis output. MUST be fully populated when questions is None/empty. "
+                   "Can be empty or preliminary when questions are present."
+    )
+    questions: list[Question] | None = Field(
+        None,
+        description="List of questions requiring user clarification. If None or empty, "
+                   "content must contain complete analysis."
+    )
+    
+    @field_validator("questions", mode="before")
+    @classmethod
+    def normalize_questions(cls, v):
+        if isinstance(v, str) and v.lower() in ("none", "null"):
+            return None
+        return v
 
 
 class MasterOrchestrator:
@@ -69,11 +91,16 @@ class MasterOrchestrator:
         
         logger.info(f"MasterOrchestrator: Processing {config['display_name']} stage")
         
-        all_questions = self._collect_questions(state, config["result_keys"])
+        all_questions = self._collect_questions(state, config["result_keys"], config["agents"])
         
         if not all_questions:
-            logger.info(f"MasterOrchestrator: No questions found, proceeding to {config['next_node']}")
-            return Command(goto=config["next_node"])
+            # For analysis stage, route to BOTH synthesis and season_planner in parallel
+            if stage == "analysis":
+                logger.info("MasterOrchestrator: No questions found, proceeding to synthesis and season_planner")
+                return Command(goto=["synthesis", "season_planner"])
+            else:
+                logger.info(f"MasterOrchestrator: No questions found, proceeding to {config['next_node']}")
+                return Command(goto=config["next_node"])
         
         if not state.get("hitl_enabled", True):
             logger.info("MasterOrchestrator: HITL disabled, skipping questions")
@@ -83,13 +110,14 @@ class MasterOrchestrator:
         
         answers = self._collect_answers(all_questions, config["display_name"])
         
-        qa_messages = self._create_qa_messages(all_questions, answers)
+        # Create agent-specific Q&A messages
+        agent_qa_updates = self._create_agent_specific_qa_messages(all_questions, answers)
         
-        logger.info(f"MasterOrchestrator: Re-invoking {config['agents']} with {len(qa_messages)} Q&A messages")
+        logger.info(f"MasterOrchestrator: Re-invoking {config['agents']} with agent-specific Q&A messages")
         
         return Command(
             goto=config["agents"],
-            update={"messages": state["messages"] + qa_messages}
+            update=agent_qa_updates
         )
     
     def _detect_stage(self, state: TrainingAnalysisState) -> str:
@@ -103,24 +131,25 @@ class MasterOrchestrator:
     def _collect_questions(
         self,
         state: TrainingAnalysisState,
-        result_keys: list[str]
+        result_keys: list[str],
+        agent_names: list[str]
     ) -> list[dict]:
         """Collect all questions from stage-specific agent outputs stored in result fields."""
         all_questions = []
         
-        for result_key in result_keys:
+        # Map result_keys to agent_names
+        for result_key, agent_name in zip(result_keys, agent_names, strict=True):
             result = state.get(result_key)
             
             if result and isinstance(result, dict):
                 questions = result.get("questions", [])
                 if questions:
-                    agent_name = result_key.replace("_result", "").replace("_plan", "")
                     for q in questions:
                         all_questions.append({
                             "agent": agent_name,
                             "question": q
                         })
-                    logger.debug(f"Collected {len(questions)} questions from {result_key}")
+                    logger.debug(f"Collected {len(questions)} questions from {result_key} (agent: {agent_name})")
         
         return all_questions
     
@@ -160,25 +189,30 @@ class MasterOrchestrator:
         print(f"\n{'='*60}\n")
         return answers
     
-    def _create_qa_messages(
-        self, 
-        questions: list[dict], 
+    def _create_agent_specific_qa_messages(
+        self,
+        questions: list[dict],
         answers: list[dict]
-    ) -> list:
-        """Create AIMessage/HumanMessage pairs from Q&A data."""
-        qa_messages = []
+    ) -> dict:
+        """Create agent-specific Q&A message updates."""
+        updates = {}
         
-        for qa_item, answer_item in zip(questions, answers):
-            agent_name = qa_item["agent"].replace("_", " ").upper()
+        for qa_item, answer_item in zip(questions, answers, strict=True):
+            agent_name = qa_item["agent"]
             question = qa_item["question"]["message"]
             answer = answer_item["answer"]
             
-            qa_messages.extend([
+            # Create Q&A pair for this agent
+            qa_pair = [
                 AIMessage(content=f"{question}"),
                 HumanMessage(content=answer)
-            ])
+            ]
+            
+            # Store in agent-specific field
+            field_name = f"{agent_name}_messages"
+            updates[field_name] = qa_pair
         
-        return qa_messages
+        return updates
 
 
 def master_orchestrator_node(state: TrainingAnalysisState) -> Command:

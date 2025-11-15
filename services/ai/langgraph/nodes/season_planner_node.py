@@ -115,7 +115,18 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         (get_hitl_instructions("season_planner") if hitl_enabled else "")
     )
     
-    messages = [
+    # Include Q&A messages from orchestrator if present (for HITL re-invocations)
+    # Read from agent-specific field
+    qa_messages_raw = state.get("season_planner_messages", [])
+    qa_messages = []
+    for msg in qa_messages_raw:
+        if hasattr(msg, "type"):  # LangChain message object
+            role = "assistant" if msg.type == "ai" else "user"
+            qa_messages.append({"role": role, "content": msg.content})
+        else:  # Already a dict
+            qa_messages.append(msg)
+    
+    base_messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": SEASON_PLANNER_USER_PROMPT.format(
             output_context=get_output_context_note(for_other_agents=True),
@@ -132,15 +143,16 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
     llm_with_structure = llm_with_tools.with_structured_output(AgentOutput)
     
     async def call_season_planning():
+        messages_with_qa = base_messages + qa_messages
         if tools:
             return await handle_tool_calling_in_node(
                 llm_with_tools=llm_with_structure,
-                messages=messages,
+                messages=messages_with_qa,
                 tools=tools,
                 max_iterations=15,
             )
         else:
-            return await llm_with_structure.ainvoke(messages)
+            return await llm_with_structure.ainvoke(messages_with_qa)
 
     async def node_execution():
         agent_output = await retry_with_backoff(
@@ -152,7 +164,6 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
 
         return {
             "season_plan": agent_output.model_dump(),
-            "season_plan_complete": True,
             "costs": [create_cost_entry("season_planner", execution_time)],
         }
 

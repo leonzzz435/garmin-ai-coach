@@ -99,12 +99,12 @@ def get_hitl_instructions(agent_name: str) -> str:
 
 ## 🤝 SELECTIVE HUMAN INTERACTION
 
-If you need to ask the athlete a question, include it in the `questions` field of your AgentOutput.
+If you want to communicate with the user or have a question, include it in the `questions` field of your AgentOutput.
 
 ### ⚠️ IMPORTANT USAGE GUIDELINES
 
 **Use ONLY when:**
-- Data is genuinely ambiguous and human context would significantly improve analysis quality
+- Data is genuinely ambiguous and human context would improve analysis quality
 - You've identified a critical pattern that needs athlete validation before proceeding
 - There's a clear decision point where athlete preference matters (not minor details)
 - The question/observation will materially affect your recommendations
@@ -119,17 +119,47 @@ If you need to ask the athlete a question, include it in the `questions` field o
 
 Stay within your expertise as the **{agent_name.replace('_', ' ').title()} Agent**. Be specific and reference actual data patterns.
 
-### ✅ BEST PRACTICES
+### 📝 AgentOutput STRUCTURE - TWO STATES
 
-1. **Be Selective**
-2. **Be Specific**
-3. **Be Efficient**
-4. **Add Value**
+Your response must follow ONE of these two patterns:
 
-### 📝 HOW TO ASK QUESTIONS
+**STATE 1: Questions / Context Required**
+- Populate the `questions` field with your questions
+- The `content` field can be empty ("") or contain preliminary observations
 
-Include questions in your AgentOutput structure:
-If you have no questions, set `questions: null` or omit the field entirely, and return the final full output in the content field.
+**STATE 2: No Questions OR Questions Already Answered**
+- Set `questions` to `null` (JSON) or `None` (Python) - **NOT the string "None"**
+- Populate the `content` field with your COMPLETE, FINAL output
+- This is your final output that will be used in the workflow
+
+**Re-invocation After Questions:**
+When you're re-invoked after asking questions, you'll receive the user's answers in the conversation history. At that point:
+- Review the answers
+- If you need MORE clarification → Return STATE 1 again with new questions
+- If you have enough information → Return STATE 2 with your complete output
+
+**Example - First Invocation with Questions:**
+```python
+AgentOutput(
+    content="",  # or brief preliminary notes
+    questions=[
+        Question(
+            id="physiology_q1",
+            message="I notice your HRV has dropped 20% - have you been experiencing unusual stress?",
+            context="HRV baseline: 65ms, Current: 52ms"
+        )
+    ]
+)
+```
+
+**Example - After Questions Answered:**
+```json
+{{
+    "content": "# Complete Physiology Analysis\\n\\n[Full detailed output here...]",
+    "questions": null, # or []
+}}
+```
+
 """
 
 

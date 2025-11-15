@@ -28,8 +28,9 @@ class TrainingAnalysisState(MessagesState):
     season_plan: str | None
     weekly_plan: str | None
     
-    synthesis_complete: bool
-    season_plan_complete: bool
+    # Boolean flags with OR reducer for concurrent updates
+    synthesis_complete: Annotated[bool, lambda x, y: x or y]
+    season_plan_complete: Annotated[bool, lambda x, y: x or y]
 
     analysis_html: str | None
     planning_html: str | None
@@ -43,6 +44,13 @@ class TrainingAnalysisState(MessagesState):
 
     available_plots: Annotated[list[str], lambda x, y: x + y]
     execution_id: str
+    
+    # Agent-specific HITL message storage (with append reducer)
+    metrics_expert_messages: Annotated[list, lambda x, y: (x or []) + y]
+    activity_expert_messages: Annotated[list, lambda x, y: (x or []) + y]
+    physiology_expert_messages: Annotated[list, lambda x, y: (x or []) + y]
+    season_planner_messages: Annotated[list, lambda x, y: (x or []) + y]
+    weekly_planner_messages: Annotated[list, lambda x, y: (x or []) + y]
 
 
 def create_initial_state(
@@ -92,4 +100,9 @@ def create_initial_state(
         errors=[],
         tool_usage={},
         available_plots=[],
+        metrics_expert_messages=[],
+        activity_expert_messages=[],
+        physiology_expert_messages=[],
+        season_planner_messages=[],
+        weekly_planner_messages=[],
     )

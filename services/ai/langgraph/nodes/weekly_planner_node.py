@@ -133,6 +133,17 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         value = state.get(field, "")
         return value.get("content", value) if isinstance(value, dict) else value
     
+    # Include Q&A messages from orchestrator if present (for HITL re-invocations)
+    # Read from agent-specific field
+    qa_messages_raw = state.get("weekly_planner_messages", [])
+    qa_messages = []
+    for msg in qa_messages_raw:
+        if hasattr(msg, "type"):  # LangChain message object
+            role = "assistant" if msg.type == "ai" else "user"
+            qa_messages.append({"role": role, "content": msg.content})
+        else:  # Already a dict
+            qa_messages.append(msg)
+    
     user_message = {"role": "user", "content": WEEKLY_PLANNER_USER_PROMPT.format(
         season_plan=get_content("season_plan"),
         athlete_name=state["athlete_name"],
@@ -145,21 +156,22 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         physiology_analysis=get_content("physiology_result"),
     )}
     
-    messages = [{"role": "system", "content": system_prompt}, user_message]
+    base_messages = [{"role": "system", "content": system_prompt}, user_message]
     
     base_llm = ModelSelector.get_llm(AgentRole.WORKOUT)
     llm_with_tools = base_llm.bind_tools(tools) if tools else base_llm
     llm_with_structure = llm_with_tools.with_structured_output(AgentOutput)
 
     async def call_weekly_planning():
+        messages_with_qa = base_messages + qa_messages
         if tools:
             return await handle_tool_calling_in_node(
                 llm_with_tools=llm_with_structure,
-                messages=messages,
+                messages=messages_with_qa,
                 tools=tools,
                 max_iterations=15,
             )
-        return await llm_with_structure.ainvoke(messages)
+        return await llm_with_structure.ainvoke(messages_with_qa)
 
     async def node_execution():
         agent_output = await retry_with_backoff(

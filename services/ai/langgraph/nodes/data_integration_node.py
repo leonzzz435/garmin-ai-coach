@@ -29,6 +29,7 @@ async def data_integration_node(state: TrainingAnalysisState) -> dict[str, list]
         logger.info(f"Data integration completed in {execution_time:.2f}s")
 
         return {
+            "season_plan_complete": True,  # Mark season planning complete for orchestrator
             "costs": [{
                 "agent": "data_integration",
                 "execution_time": execution_time,

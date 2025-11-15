@@ -51,7 +51,7 @@ async def handle_tool_calling_in_node(
     """
     conversation = [
         {"role": msg["role"], "content": msg["content"]}
-        for msg in messages if msg["role"] in ("system", "user")
+        for msg in messages if msg["role"] in ("system", "user", "assistant")
     ]
 
     iteration = 0

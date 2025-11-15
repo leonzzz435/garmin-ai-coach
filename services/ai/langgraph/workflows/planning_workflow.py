@@ -133,19 +133,16 @@ def create_integrated_analysis_and_planning_workflow():
 
     workflow.add_edge(["metrics_expert", "physiology_expert", "activity_expert"], "master_orchestrator")
     
-    # Master orchestrator uses Command(goto=...) for dynamic routing
-    # No static edges needed - orchestrator decides whether to re-invoke experts or proceed to synthesis
+    # Master orchestrator uses ONLY Command(goto=...) for dynamic routing
+    # NO unconditional edges from orchestrator - it routes dynamically based on stage
     
     workflow.add_edge("synthesis", "formatter")
     workflow.add_edge("formatter", "plot_resolution")
 
-    # Parallel execution: season_planner starts after experts complete
-    workflow.add_edge(["metrics_expert", "physiology_expert", "activity_expert"], "season_planner")
+    # Season planner routes back to orchestrator for HITL handling
+    workflow.add_edge("season_planner", "master_orchestrator")
     
-    # Season planner proceeds directly to data_integration (no HITL with experts)
-    # Only weekly planner needs orchestrator for HITL
-    workflow.add_edge("season_planner", "data_integration")
-    
+    # Data integration → weekly planner → orchestrator
     workflow.add_edge("data_integration", "weekly_planner")
     workflow.add_edge("weekly_planner", "master_orchestrator")
     

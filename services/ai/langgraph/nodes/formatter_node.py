@@ -35,7 +35,9 @@ Communicate with enthusiastic clarity and occasional visual sketches that instan
 FORMATTER_USER_PROMPT_BASE = """Transform **all the provided content** into a beautiful, functional HTML document that makes complex analysis immediately accessible and engaging.
 
 ## Analysis Content
+```markdown
 {synthesis_result}
+```
 
 ## Your Task
 Apply your "Insight-First Design System" to create an HTML document with:
@@ -110,10 +112,13 @@ async def formatter_node(state: TrainingAnalysisState) -> dict[str, list | str]:
         agent_start_time = datetime.now()
 
         async def call_html_formatting():
+            # Extract text content from AIMessage object
+            synthesis_result = extract_text_content(state.get("synthesis_result", ""))
+            
             response = await ModelSelector.get_llm(AgentRole.FORMATTER).ainvoke([
                 {"role": "system", "content": FORMATTER_SYSTEM_PROMPT},
                 {"role": "user", "content": (
-                    FORMATTER_USER_PROMPT_BASE.format(synthesis_result=state.get("synthesis_result", ""))
+                    FORMATTER_USER_PROMPT_BASE.format(synthesis_result=synthesis_result)
                     + (FORMATTER_PLOT_INSTRUCTIONS if plotting_enabled else "")
                 )},
             ])
