@@ -6,6 +6,7 @@ from services.ai.ai_settings import AgentRole
 from services.ai.model_config import ModelSelector
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
+from ..schemas import AgentOutput
 from ..state.training_analysis_state import TrainingAnalysisState
 from .node_base import (
     configure_node_tools,
@@ -13,7 +14,6 @@ from .node_base import (
     execute_node_with_error_handling,
     log_node_completion,
 )
-from .orchestrator_node import AgentOutput
 from .prompt_components import get_hitl_instructions, get_workflow_context
 from .tool_calling_helper import handle_tool_calling_in_node
 
@@ -128,7 +128,13 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         (get_hitl_instructions("weekly_planner") if hitl_enabled else "")
     )
     
-    # Extract content from AgentOutput dicts
+    # Extract tactical details from expert outputs
+    def get_tactical_details(expert_outputs):
+        if hasattr(expert_outputs, "for_weekly_planner"):
+            return expert_outputs.for_weekly_planner
+        raise ValueError(f"Expert outputs missing 'for_weekly_planner' field: {type(expert_outputs)}")
+    
+    # Extract content from AgentOutput dicts (for season_plan)
     def get_content(field):
         value = state.get(field, "")
         return value.get("content", value) if isinstance(value, dict) else value
@@ -151,9 +157,9 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         week_dates=json.dumps(state["week_dates"], indent=2),
         competitions=json.dumps(state["competitions"], indent=2),
         planning_context=state["planning_context"],
-        metrics_analysis=get_content("metrics_result"),
-        activity_analysis=get_content("activity_result"),
-        physiology_analysis=get_content("physiology_result"),
+        metrics_analysis=get_tactical_details(state.get("metrics_outputs")),
+        activity_analysis=get_tactical_details(state.get("activity_outputs")),
+        physiology_analysis=get_tactical_details(state.get("physiology_outputs")),
     )}
     
     base_messages = [{"role": "system", "content": system_prompt}, user_message]

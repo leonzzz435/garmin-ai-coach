@@ -2,6 +2,8 @@ from typing import Annotated, Any
 
 from langgraph.graph import MessagesState
 
+from ..schemas import ActivityExpertOutputs, MetricsExpertOutputs, PhysiologyExpertOutputs
+
 
 class TrainingAnalysisState(MessagesState):
     user_id: str
@@ -19,10 +21,13 @@ class TrainingAnalysisState(MessagesState):
 
     metrics_summary: str | None
     physiology_summary: str | None
-    metrics_result: str | None
     activity_summary: str | None
-    activity_result: str | None
-    physiology_result: str | None
+    
+    # Structured expert outputs
+    metrics_outputs: MetricsExpertOutputs | None
+    activity_outputs: ActivityExpertOutputs | None
+    physiology_outputs: PhysiologyExpertOutputs | None
+    
     synthesis_result: str | None
 
     season_plan: str | None
@@ -82,10 +87,10 @@ def create_initial_state(
         execution_id=execution_id,
         metrics_summary=None,
         physiology_summary=None,
-        metrics_result=None,
         activity_summary=None,
-        activity_result=None,
-        physiology_result=None,
+        metrics_outputs=None,
+        activity_outputs=None,
+        physiology_outputs=None,
         synthesis_result=None,
         season_plan=None,
         weekly_plan=None,

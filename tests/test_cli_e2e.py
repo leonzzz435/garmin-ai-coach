@@ -2,7 +2,6 @@ import importlib
 import json
 import os
 from dataclasses import dataclass
-from unittest.mock import AsyncMock
 
 import pytest
 
@@ -23,13 +22,14 @@ async def test_cli_e2e_smoke_with_mocks(tmp_path, monkeypatch):
         week_dates: list,
         plotting_enabled: bool = False,
         hitl_enabled: bool = True,
+        progress_manager=None,
     ) -> dict:
         return {
             "analysis_html": "<html><body>Analysis OK</body></html>",
             "planning_html": "<html><body>Plan OK</body></html>",
-            "metrics_result": "Metrics OK",
-            "activity_result": "Activity OK",
-            "physiology_result": "Physio OK",
+            "metrics_outputs": "Metrics OK",
+            "activity_outputs": "Activity OK",
+            "physiology_outputs": "Physio OK",
             "season_plan": "Season OK",
             "cost_summary": {"total_cost_usd": 0.0, "total_tokens": 0},
             "execution_id": "test-exec",
@@ -114,24 +114,25 @@ credentials:
 @pytest.mark.asyncio
 async def test_cli_e2e_with_hitl_enabled(tmp_path, monkeypatch):
 
-    async def fake_run_workflow_with_hitl(
-        workflow_app,
-        initial_state: dict,
-        config: dict,
-        prompt_callback,
-        progress_callback=None,
+    async def fake_run_complete_analysis_and_planning(
+        user_id: str,
+        athlete_name: str,
+        garmin_data: dict,
+        analysis_context: str,
+        planning_context: str,
+        competitions: list,
+        current_date: dict,
+        week_dates: list,
+        plotting_enabled: bool = False,
+        hitl_enabled: bool = True,
+        progress_manager=None,
     ) -> dict:
-        question = "What is your primary training goal?"
-        response = prompt_callback(question)
-        
-        assert response is not None
-        
         return {
             "analysis_html": "<html><body>Analysis with HITL</body></html>",
             "planning_html": "<html><body>Plan with HITL</body></html>",
-            "metrics_result": "Metrics OK",
-            "activity_result": "Activity OK",
-            "physiology_result": "Physio OK",
+            "metrics_outputs": "Metrics OK",
+            "activity_outputs": "Activity OK",
+            "physiology_outputs": "Physio OK",
             "season_plan": "Season OK",
             "cost_summary": {"total_cost_usd": 0.05, "total_tokens": 1000},
             "execution_id": "test-exec-hitl",
@@ -139,17 +140,9 @@ async def test_cli_e2e_with_hitl_enabled(tmp_path, monkeypatch):
         }
 
     monkeypatch.setattr(
-        importlib.import_module("services.ai.langgraph.workflows.interactive_runner"),
-        "run_workflow_with_hitl",
-        fake_run_workflow_with_hitl,
-        raising=True,
-    )
-
-    mock_workflow = AsyncMock()
-    monkeypatch.setattr(
         importlib.import_module("services.ai.langgraph.workflows.planning_workflow"),
-        "create_integrated_analysis_and_planning_workflow",
-        lambda: mock_workflow,
+        "run_complete_analysis_and_planning",
+        fake_run_complete_analysis_and_planning,
         raising=True,
     )
 

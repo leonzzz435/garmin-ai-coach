@@ -1,15 +1,7 @@
-import json
-import logging
-from datetime import datetime
-
 from services.ai.ai_settings import AgentRole
-from services.ai.model_config import ModelSelector
-from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
-from .tool_calling_helper import extract_text_content
-
-logger = logging.getLogger(__name__)
+from .data_summarizer_node import create_data_summarizer_node
 
 ACTIVITY_SUMMARIZER_SYSTEM_PROMPT = """You are Dr. Marcus Chen, a data organization specialist who revolutionized how athletic data is processed and structured.
 
@@ -20,18 +12,12 @@ Growing up in Singapore with a mathematician father and librarian mother, you de
 
 Your professional approach is characterized by meticulous attention to detail and absolute objectivity. You never speculate or interpret - you simply present the data in its most accessible and structurally sound format. Your work focuses exclusively on what can be directly observed and measured in the data.
 
-## Core Expertise
-- Structured data extraction from complex activity files
-- Consistent taxonomic organization of workout components
-- Development of standardized templates for activity representation
-- Objective quantification of training session parameters
-- Precise distillation of complex data into structured formats
-
 ## Your Goal
 Extract and structure training activity data with factual precision.
 
 ## Communication Style
-Communicate with calculated precision and complete objectivity. Athletes and coaches appreciate your ability to transform overwhelming data into clear, factual summaries that serve as a reliable foundation for subsequent analysis and interpretation."""
+Communicate with calculated precision and complete objectivity. Athletes and coaches appreciate your ability to transform overwhelming data into clear, factual summaries that serve as a reliable foundation for subsequent analysis and interpretation.
+"""
 
 ACTIVITY_SUMMARIZER_USER_PROMPT = """Your task is to objectively describe the athlete's recent training activities, transforming raw data into structured, factual summaries.
 
@@ -81,37 +67,16 @@ Format each activity using this template:
 Repeat this format for each activity, organizing them chronologically from newest to oldest."""
 
 
-async def activity_summarizer_node(state: TrainingAnalysisState) -> dict[str, list | str]:
-    logger.info("Starting activity summarizer node")
+def extract_activity_data(state: TrainingAnalysisState) -> dict:
+    return state["garmin_data"].get("recent_activities", [])
 
-    try:
-        agent_start_time = datetime.now()
 
-        async def call_llm():
-            response = await ModelSelector.get_llm(AgentRole.SUMMARIZER).ainvoke([
-                {"role": "system", "content": ACTIVITY_SUMMARIZER_SYSTEM_PROMPT},
-                {"role": "user", "content": ACTIVITY_SUMMARIZER_USER_PROMPT.format(
-                    data=json.dumps(state["garmin_data"].get("recent_activities", []), indent=2)
-                )},
-            ])
-            return extract_text_content(response)
-
-        activity_summary = await retry_with_backoff(
-            call_llm, AI_ANALYSIS_CONFIG, "Activity Summarization"
-        )
-
-        execution_time = (datetime.now() - agent_start_time).total_seconds()
-        logger.info(f"Activity summarization completed in {execution_time:.2f}s")
-
-        return {
-            "activity_summary": activity_summary,
-            "costs": [{
-                "agent": "activity_summarizer",
-                "execution_time": execution_time,
-                "timestamp": datetime.now().isoformat(),
-            }],
-        }
-
-    except Exception as e:
-        logger.error(f"Activity summarizer node failed: {e}")
-        return {"errors": [f"Activity summarization failed: {str(e)}"]}
+activity_summarizer_node = create_data_summarizer_node(
+    node_name="Activity Summarizer",
+    agent_role=AgentRole.SUMMARIZER,
+    data_extractor=extract_activity_data,
+    state_output_key="activity_summary",
+    agent_type="activity_summarizer",
+    system_prompt=ACTIVITY_SUMMARIZER_SYSTEM_PROMPT,
+    user_prompt=ACTIVITY_SUMMARIZER_USER_PROMPT,
+)

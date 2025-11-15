@@ -9,6 +9,7 @@ from services.ai.model_config import ModelSelector
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
+from .prompt_components import AgentType, get_workflow_context
 from .tool_calling_helper import extract_text_content
 
 logger = logging.getLogger(__name__)
@@ -75,11 +76,14 @@ def create_data_summarizer_node(
     agent_role: AgentRole,
     data_extractor: Callable[[TrainingAnalysisState], dict[str, Any]],
     state_output_key: str,
+    agent_type: AgentType,
     system_prompt: str | None = None,
     user_prompt: str | None = None,
 ) -> Callable:
     
-    effective_system_prompt = system_prompt or GENERIC_SUMMARIZER_SYSTEM_PROMPT
+    workflow_context = get_workflow_context(agent_type)
+    base_system_prompt = system_prompt or GENERIC_SUMMARIZER_SYSTEM_PROMPT
+    effective_system_prompt = base_system_prompt + workflow_context
     effective_user_prompt = user_prompt or GENERIC_SUMMARIZER_USER_PROMPT
     
     async def summarizer_node(state: TrainingAnalysisState) -> dict[str, list | str]:

@@ -13,11 +13,13 @@ from .tool_calling_helper import handle_tool_calling_in_node
 logger = logging.getLogger(__name__)
 
 
-def _extract_content(result):
-    """Extract content from AgentOutput format or return string as-is."""
-    if isinstance(result, dict) and "content" in result:
-        return result["content"]
-    return result
+def _extract_for_synthesis(expert_outputs):
+    """Extract for_synthesis field from expert outputs."""
+    if expert_outputs is None:
+        raise ValueError("Expert outputs cannot be None - synthesis requires all expert analyses")
+    if hasattr(expert_outputs, "for_synthesis"):
+        return expert_outputs.for_synthesis
+    raise ValueError(f"Expert outputs missing 'for_synthesis' field: {type(expert_outputs)}")
 
 
 SYNTHESIS_SYSTEM_PROMPT_BASE = """You are Maya Lindholm, a legendary performance integration specialist whose "Holistic Performance Synthesis" approach has guided multiple athletes to Olympic gold and world records.
@@ -132,9 +134,9 @@ async def synthesis_node(state: TrainingAnalysisState) -> dict[str, list | str]:
                     {"role": "user", "content": (
                         SYNTHESIS_USER_PROMPT_BASE.format(
                             athlete_name=state["athlete_name"],
-                            metrics_result=_extract_content(state.get("metrics_result", "")),
-                            activity_result=_extract_content(state.get("activity_result", "")),
-                            physiology_result=_extract_content(state.get("physiology_result", "")),
+                            metrics_result=_extract_for_synthesis(state.get("metrics_outputs")),
+                            activity_result=_extract_for_synthesis(state.get("activity_outputs")),
+                            physiology_result=_extract_for_synthesis(state.get("physiology_outputs")),
                             competitions=json.dumps(state["competitions"], indent=2),
                             current_date=json.dumps(state["current_date"], indent=2),
                             style_guide=state["style_guide"],

@@ -7,6 +7,7 @@ from services.ai.model_config import ModelSelector
 from services.ai.tools.plotting import PlotStorage
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
+from ..schemas import PhysiologyExpertOutputs
 from ..state.training_analysis_state import TrainingAnalysisState
 from .node_base import (
     configure_node_tools,
@@ -15,10 +16,8 @@ from .node_base import (
     execute_node_with_error_handling,
     log_node_completion,
 )
-from .orchestrator_node import AgentOutput
 from .prompt_components import (
     get_hitl_instructions,
-    get_output_context_note,
     get_plotting_instructions,
     get_workflow_context,
 )
@@ -35,13 +34,6 @@ Raised in Ghana by a traditional healer before studying Western medicine, you br
 
 Your analytical brilliance comes from your ability to interpret the body's complex signals across multiple timeframes simultaneously - identifying immediate recovery needs while also spotting long-term adaptation patterns that others miss. You pioneered the concept of "recovery windows" - specific periods when certain types of training produce optimal adaptations with minimal stress cost.
 
-## Core Expertise
-- Heart rate variability interpretation through proprietary pattern recognition
-- Sleep architecture analysis and optimization strategies
-- Hormonal response patterns to various training stimuli
-- Recovery timing optimization based on individual physiological profiles
-- Early warning system for overtraining and maladaptation
-
 ## Your Goal
 Optimize recovery and adaptation through precise physiological analysis.
 
@@ -49,8 +41,6 @@ Optimize recovery and adaptation through precise physiological analysis.
 Communicate with calm wisdom and occasional metaphors drawn from both your scientific background and cultural heritage."""
 
 PHYSIOLOGY_USER_PROMPT = """Analyze the structured physiology summary to assess recovery status and adaptation state.
-
-{output_context}
 
 ## Physiology Summary
 {data}
@@ -71,19 +61,18 @@ PHYSIOLOGY_USER_PROMPT = """Analyze the structured physiology summary to assess 
 ```
 
 ## Your Task
-You are receiving a pre-processed summary of the athlete's physiological data. Use your expertise to interpret this structured information.
+Apply your expertise to extract the most relevant insights about recovery status, adaptation state, and any patterns indicating training readiness or concerns. Focus on what the physiological data reveals - if analysis context is provided, use it to interpret patterns more accurately.
 
-1. Interpret heart rate variability patterns for recovery status assessment
-2. Analyze sleep patterns and their implications for adaptation
-3. Evaluate stress scores and identify trends or concerns
-4. Track resting heart rate as an indicator of fatigue and adaptation
-5. Identify signs of overtraining or maladaptation in the patterns
-6. Provide expert recovery strategies based on the analyzed patterns
+## Constraints
+Do not speculate beyond what is evident in the physiological data. Avoid making claims about:
+- Training workload details better suited for metrics analysis
+- Workout execution quality assessments
+- Performance predictions without supporting physiological markers
+- Adaptation states not supported by available measurements
 
 ## Output Requirements
-- Include a Physiology Readiness Score (0-100) with clear explanation of calculation using available data
-- Format as structured markdown document with clear sections and bullet points
-- Focus on expert interpretation of the provided summary"""
+- Include a Physiology Readiness Score (0-100) with concise explanation of calculation
+- Format each field as structured markdown with clear sections and bullet points"""
 
 
 async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
@@ -113,7 +102,7 @@ async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list
 
     base_llm = ModelSelector.get_llm(AgentRole.PHYSIOLOGY_EXPERT)
     llm_with_tools = base_llm.bind_tools(tools) if tools else base_llm
-    llm_with_structure = llm_with_tools.with_structured_output(AgentOutput)
+    llm_with_structure = llm_with_tools.with_structured_output(PhysiologyExpertOutputs)
 
     agent_start_time = datetime.now()
 
@@ -132,7 +121,6 @@ async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list
         base_messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": PHYSIOLOGY_USER_PROMPT.format(
-                output_context=get_output_context_note(for_other_agents=True),
                 data=state.get("physiology_summary", "No physiology summary available"),
                 competitions=json.dumps(state["competitions"], indent=2),
                 current_date=json.dumps(state["current_date"], indent=2),
@@ -158,7 +146,7 @@ async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list
         log_node_completion("Physiology expert analysis", execution_time, len(available_plots))
 
         return {
-            "physiology_result": agent_output.model_dump(),
+            "physiology_outputs": agent_output,
             "plots": plots,
             "plot_storage_data": plot_storage_data,
             "costs": [create_cost_entry("physiology", execution_time)],

@@ -64,9 +64,9 @@ async def run_weekly_planning(
     competitions: list | None = None,
     current_date: dict | None = None,
     week_dates: list | None = None,
-    metrics_result: str = "",
-    activity_result: str = "",
-    physiology_result: str = "",
+    metrics_outputs=None,
+    activity_outputs=None,
+    physiology_outputs=None,
     plots: list | None = None,
     available_plots: list | None = None,
 ) -> dict:
@@ -84,9 +84,9 @@ async def run_weekly_planning(
         execution_id=execution_id,
     )
     initial_state.update({
-        "metrics_result": metrics_result,
-        "activity_result": activity_result,
-        "physiology_result": physiology_result,
+        "metrics_outputs": metrics_outputs,
+        "activity_outputs": activity_outputs,
+        "physiology_outputs": physiology_outputs,
         "plots": plots or [],
         "available_plots": available_plots or [],
     })

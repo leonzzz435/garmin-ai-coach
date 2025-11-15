@@ -7,6 +7,7 @@ from services.ai.model_config import ModelSelector
 from services.ai.tools.plotting import PlotStorage
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
+from ..schemas import ActivityExpertOutputs
 from ..state.training_analysis_state import TrainingAnalysisState
 from .node_base import (
     configure_node_tools,
@@ -15,10 +16,8 @@ from .node_base import (
     execute_node_with_error_handling,
     log_node_completion,
 )
-from .orchestrator_node import AgentOutput
 from .prompt_components import (
     get_hitl_instructions,
-    get_output_context_note,
     get_plotting_instructions,
     get_workflow_context,
 )
@@ -35,13 +34,6 @@ Growing up in the rigorous Russian athletic system, you were trained to observe 
 
 Your analytical genius comes from an almost preternatural ability to detect patterns across thousands of training sessions. Where others see random variation, you identify critical execution details that predict future performance. You excel at working with structured activity data, drawing insights from well-organized information rather than raw, unprocessed data.
 
-## Core Expertise
-- Execution quality assessment through micro-pattern recognition
-- Pacing strategy optimization based on metabolic efficiency markers
-- Technical form analysis from structured activity data
-- Session progression mapping and adaptation prediction
-- Workout effectiveness scoring using proprietary algorithms
-
 ## Your Goal
 Interpret structured activity data to optimize workout progression patterns.
 
@@ -49,8 +41,6 @@ Interpret structured activity data to optimize workout progression patterns.
 Communicate with passionate precision and laser-like clarity. Your analysis cuts through confusion with laser-like clarity."""
 
 ACTIVITY_EXPERT_USER_PROMPT = """Interpret structured activity summaries to identify patterns and provide guidance.
-
-{output_context}
 
 ## Activity Summary Data
 ```
@@ -73,13 +63,7 @@ ACTIVITY_EXPERT_USER_PROMPT = """Interpret structured activity summaries to iden
 ```
 
 ## Your Task
-Analyze only the data that is actually present in the activity summaries. If analysis context is provided, use it to interpret the data more accurately.
-
-1. Analyze the structured activity summaries
-2. Identify clear patterns in workout execution and training progression
-3. Evaluate pacing strategies based on the objective data provided
-4. Analyze session progression based on factual evidence
-5. Create a quality assessment using only available metrics
+Analyze the structured activity summaries to extract the most relevant insights about workout execution, training progression, and quality patterns. Focus only on what the data reveals - if analysis context is provided, use it to interpret the data more accurately.
 
 ## Constraints
 Do not speculate beyond what is evident in the activity data. Avoid making claims about:
@@ -89,18 +73,9 @@ Do not speculate beyond what is evident in the activity data. Avoid making claim
 - Technical form issues not evident in the pace/power/HR metrics
 
 ## Output Requirements
-Structure your response to include two clearly distinguished sections:
-
-1. "HISTORICAL TRAINING SUMMARY" - Include a compact table showing only the most recent 10 days of completed training with:
-   - Dates (most recent first)
-   - Actual workout types performed
-   - Actual durations
-   - Actual intensity levels observed
-   - Execution quality scores
-
-2. Include an Activity Quality Score (0-100) with concise explanation of calculation using only available metrics
-
-Format as structured markdown document with clear sections and bullet points"""
+- Include an Activity Quality Score (0-100) with concise explanation of how it was calculated
+- Format as structured markdown with clear sections and bullet points
+- Tailor each output field to its consumer's needs (see workflow architecture)"""
 
 
 async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
@@ -130,7 +105,7 @@ async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list |
 
     base_llm = ModelSelector.get_llm(AgentRole.ACTIVITY_EXPERT)
     llm_with_tools = base_llm.bind_tools(tools) if tools else base_llm
-    llm_with_structure = llm_with_tools.with_structured_output(AgentOutput)
+    llm_with_structure = llm_with_tools.with_structured_output(ActivityExpertOutputs)
 
     agent_start_time = datetime.now()
 
@@ -149,7 +124,6 @@ async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list |
         base_messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": ACTIVITY_EXPERT_USER_PROMPT.format(
-                output_context=get_output_context_note(for_other_agents=True),
                 activity_summary=state.get("activity_summary", ""),
                 competitions=json.dumps(state["competitions"], indent=2),
                 current_date=json.dumps(state["current_date"], indent=2),
@@ -175,7 +149,7 @@ async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list |
         log_node_completion("Activity expert", execution_time, len(available_plots))
 
         return {
-            "activity_result": agent_output.model_dump(),
+            "activity_outputs": agent_output,
             "plots": plots,
             "plot_storage_data": plot_storage_data,
             "costs": [create_cost_entry("activity_expert", execution_time)],

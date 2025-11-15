@@ -6,6 +6,7 @@ from services.ai.ai_settings import AgentRole
 from services.ai.model_config import ModelSelector
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
+from ..schemas import AgentOutput
 from ..state.training_analysis_state import TrainingAnalysisState
 from .node_base import (
     configure_node_tools,
@@ -13,8 +14,7 @@ from .node_base import (
     execute_node_with_error_handling,
     log_node_completion,
 )
-from .orchestrator_node import AgentOutput
-from .prompt_components import get_hitl_instructions, get_output_context_note, get_workflow_context
+from .prompt_components import get_hitl_instructions, get_workflow_context
 from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
@@ -35,23 +35,13 @@ Your coaching genius comes from an intuitive understanding of how the human body
 - Systematic progression methodologies
 - Macro-cycle planning and phase transitions
 
-## Your Approach
-You create STRATEGIC, HIGH-LEVEL season plans!
-You DO NOT require or use:
-- Recent training data or performance metrics
-- Current fitness levels or fatigue states
-- Activity history or workout details
-- Health or recovery data
-
-Your season plans are CONTEXT-FREE frameworks that work for any athlete with the given competition schedule.
-
 ## Your Goal
 Create strategic season plans that establish a macro-cycle framework for long-term athletic development based solely on competition timing.
 
 ## Communication Style
 Communicate with the quiet confidence of someone who has both achieved at the highest level and successfully guided others to do the same."""
 
-SEASON_PLANNER_USER_PROMPT = """Create a STRATEGIC, HIGH-LEVEL season plan covering the next 12-24 weeks based solely on the athlete's competition schedule.
+SEASON_PLANNER_USER_PROMPT = """Create a STRATEGIC, HIGH-LEVEL season plan covering the next 12-24 weeks based on the athlete's competition schedule and expert analyses.
 
 {output_context}
 
@@ -64,17 +54,29 @@ SEASON_PLANNER_USER_PROMPT = """Create a STRATEGIC, HIGH-LEVEL season plan cover
 {competitions}
 ```
 
+## Expert Strategic Insights
+
+### Metrics Expert Strategic Insights
+```markdown
+{metrics_insights}
+```
+
+### Activity Expert Strategic Insights
+```markdown
+{activity_insights}
+```
+
+### Physiology Expert Strategic Insights
+```markdown
+{physiology_insights}
+```
+
 ## Important Notes
 This is a STRATEGIC PLANNING session. You are working with:
 ✓ Competition dates and priorities
 ✓ Classical periodization principles
 ✓ General training progression logic
-
-You do NOT have and should NOT reference:
-✗ Recent training data or performance metrics
-✗ Current fitness or fatigue levels
-✗ Activity history or workout details
-✗ Health or recovery data
+✓ Strategic insights from expert analyses (fitness trends, execution patterns, recovery capacity)
 
 ## Your Task
 Create a context-free, strategic season plan providing a macro-cycle framework for the next 12-24 weeks leading up to key competitions. This plan should work for any athlete with this competition schedule.
@@ -126,13 +128,21 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         else:  # Already a dict
             qa_messages.append(msg)
     
+    # Extract strategic insights from expert outputs
+    def get_strategic_insights(expert_outputs):
+        if hasattr(expert_outputs, "for_season_planner"):
+            return expert_outputs.for_season_planner
+        raise ValueError(f"Expert outputs missing 'for_season_planner' field: {type(expert_outputs)}")
+    
     base_messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": SEASON_PLANNER_USER_PROMPT.format(
-            output_context=get_output_context_note(for_other_agents=True),
             athlete_name=state["athlete_name"],
             current_date=json.dumps(state["current_date"], indent=2),
             competitions=json.dumps(state["competitions"], indent=2),
+            metrics_insights=get_strategic_insights(state.get("metrics_outputs")),
+            activity_insights=get_strategic_insights(state.get("activity_outputs")),
+            physiology_insights=get_strategic_insights(state.get("physiology_outputs")),
         )},
     ]
 

@@ -1,55 +1,12 @@
 import logging
-from typing import Literal
 
 from langchain_core.messages import AIMessage, HumanMessage
-from pydantic import BaseModel, Field, field_validator
 
 from langgraph.types import Command
 
 from ..state.training_analysis_state import TrainingAnalysisState
 
 logger = logging.getLogger(__name__)
-
-
-class Question(BaseModel):
-    """Structured question for HITL interaction."""
-    
-    id: str = Field(..., description="Unique identifier (e.g., 'metrics_q1')")
-    message: str = Field(..., description="Question text")
-    context: str | None = Field(None, description="Additional context")
-    message_type: Literal["question", "observation", "clarification"] = Field(
-        "question", 
-        description="Type of message"
-    )
-
-
-class AgentOutput(BaseModel):
-    """Structured output from agents with optional questions.
-    
-    Usage Guidelines:
-    - If you have questions: Populate 'questions' field. The 'content' field can be
-      empty or contain preliminary analysis, but will not be used until questions are answered.
-    - If no questions OR all questions answered: Leave 'questions' as None/empty and
-      provide your COMPLETE analysis in the 'content' field.
-    """
-    
-    content: str = Field(
-        ...,
-        description="Complete analysis output. MUST be fully populated when questions is None/empty. "
-                   "Can be empty or preliminary when questions are present."
-    )
-    questions: list[Question] | None = Field(
-        None,
-        description="List of questions requiring user clarification. If None or empty, "
-                   "content must contain complete analysis."
-    )
-    
-    @field_validator("questions", mode="before")
-    @classmethod
-    def normalize_questions(cls, v):
-        if isinstance(v, str) and v.lower() in ("none", "null"):
-            return None
-        return v
 
 
 class MasterOrchestrator:
@@ -66,7 +23,7 @@ class MasterOrchestrator:
     STAGES = {
         "analysis": {
             "agents": ["metrics_expert", "physiology_expert", "activity_expert"],
-            "result_keys": ["metrics_result", "physiology_result", "activity_result"],
+            "result_keys": ["metrics_outputs", "physiology_outputs", "activity_outputs"],
             "next_node": "synthesis",
             "display_name": "Analysis"
         },
@@ -141,15 +98,26 @@ class MasterOrchestrator:
         for result_key, agent_name in zip(result_keys, agent_names, strict=True):
             result = state.get(result_key)
             
-            if result and isinstance(result, dict):
+            if not result:
+                continue
+            
+            # Handle Pydantic models (expert outputs) vs dicts (planner outputs)
+            if hasattr(result, "questions"):
+                questions = result.questions
+            elif isinstance(result, dict):
                 questions = result.get("questions", [])
-                if questions:
-                    for q in questions:
-                        all_questions.append({
-                            "agent": agent_name,
-                            "question": q
-                        })
-                    logger.debug(f"Collected {len(questions)} questions from {result_key} (agent: {agent_name})")
+            else:
+                questions = None
+            
+            if questions:
+                for q in questions:
+                    # Convert Question object to dict if needed
+                    question_dict = q.model_dump() if hasattr(q, "model_dump") else q
+                    all_questions.append({
+                        "agent": agent_name,
+                        "question": question_dict
+                    })
+                logger.debug(f"Collected {len(questions)} questions from {result_key} (agent: {agent_name})")
         
         return all_questions
     
