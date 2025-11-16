@@ -91,7 +91,7 @@ async def plan_formatter_node(state: TrainingAnalysisState) -> dict[str, list | 
                 output = value.output
                 if isinstance(output, str):
                     return output
-                raise ValueError(f"AgentOutput contains questions, not content. HITL interaction required.")
+                raise ValueError("AgentOutput contains questions, not content. HITL interaction required.")
             if isinstance(value, dict):
                 return value.get("output", value.get("content", value))
             return value

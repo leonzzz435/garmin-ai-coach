@@ -20,7 +20,7 @@ def _extract_for_synthesis(expert_outputs):
     if hasattr(expert_outputs, "output"):
         output = expert_outputs.output
         if isinstance(output, list):
-            raise ValueError(f"Expert outputs contain questions, not analysis. HITL interaction required.")
+            raise ValueError("Expert outputs contain questions, not analysis. HITL interaction required.")
         if hasattr(output, "for_synthesis"):
             return output.for_synthesis
     raise ValueError(f"Expert outputs missing 'output.for_synthesis' field: {type(expert_outputs)}")

@@ -81,31 +81,63 @@ Physiology Analysis:
 {physiology_analysis}
 ```
 
+## Integration Principles
+You are implementing the next 14 days within the strategic rails of the Season Plan, guided by three short-range radars:
+
+- **Metrics (for_weekly_planner)** → near-term load / risk / trend context (how the training signal is behaving right now).
+- **Activity (for_weekly_planner)** → which session types and sequencing patterns are currently working well or poorly.
+- **Physiology (for_weekly_planner)** → recovery capacity, readiness patterns, and early-warning signs (green / yellow / red).
+
+Apply these principles:
+
+- **Honor the phase, respect the present**:
+  - Use the Season Plan to understand the current phase goals (e.g., base, threshold build, race-specific, taper).
+  - If there is tension between phase intent and immediate readiness (e.g., metrics/physiology indicate fatigue or elevated risk), prioritize the short-term health and adaptation signals from Metrics and Physiology when shaping these 14 days.
+
+- **Integrate, don't override**:
+  - Treat each expert's weekly-planner-oriented content as a primary input, not something to argue with.
+  - Do NOT contradict core expert assessments unless you explicitly reconcile them (e.g., explaining that two signals appear inconsistent and choosing a conservative path).
+
+- **Stay in your lane**:
+  - Your job is to translate strategy + expert signals into concrete daily sessions and adaptation options.
+  - Do NOT redefine the macro-cycle or invent new global governance rules (no new ACWR bands, fixed weekly TL caps, or generic formulas).
+  - Avoid re-deriving physiology or execution quality from raw metrics; rely on what the experts already distilled for you.
+
+Think of yourself as designing the **turn-by-turn navigation** for the next 14 days, using a map (Season Plan) and three live sensors (Metrics, Activity, Physiology).
+
 ## Training Zones Setup
-Before creating the training plan, establish appropriate training intensity zones based on any physiological metrics available in the athlete's context (such as LTHR, FTP, max HR, etc.). Define sport-specific zones (running, cycling, etc.) that align with standard training methodology. Include these defined zones at the beginning of your plan in a clear reference table.
+Before creating the training plan, establish appropriate training intensity zones based on any physiological metrics available in the athlete's context (such as LTHR, FTP, max HR, etc.).
+
+- First, look for any explicit thresholds or zone hints in the expert analyses (e.g., specific heart-rate bands, power ranges, or pace descriptions).
+- Prefer reusing and organizing those existing cues into clear zones rather than inventing a completely new system, unless the context genuinely lacks such information.
+- Define sport-specific zones (running, cycling, etc.) that align with standard training methodology and the athlete's current metrics.
+- Include these defined zones at the beginning of your plan in a clear reference table.
 
 ## Your Task
 Create a concrete, practical 14-day training plan that:
-1. Aligns with the current phase from the season plan
-2. Adapts to the athlete's current Training Readiness Score
-3. Provides an appropriate balance of workload and recovery
+
+1. Aligns with the current phase and intent from the season plan.
+2. Adapts to the athlete's current readiness and risk profile as described by the Metrics, Activity, and Physiology experts (especially their for_weekly_planner signals).
+3. Provides an appropriate balance of workload and recovery over the next 14 days.
 
 For each day of the two-week period, provide:
-1. DAY & DATE: The day of the week and date
-2. DAILY READINESS: Practical, measurable ways to assess readiness
-3. WORKOUT TYPE: Clear workout type (e.g., Easy Run, Interval Session, Long Ride)
-4. PURPOSE: The concrete purpose of this workout
-5. STRUCTURE: A streamlined breakdown of the workout including main sets with intensities and durations
-6. INTENSITY GUIDANCE: Target zones, effort levels, or pace guidelines
-7. ADAPTATION OPTIONS: Brief options for adjusting based on readiness
+
+1. **DAY & DATE**: The day of the week and date
+2. **DAILY READINESS**: Practical, measurable ways to assess readiness (e.g., HRV trend vs. normal, resting HR drift, perceived fatigue), explicitly grounded in the patterns described by the experts
+3. **WORKOUT TYPE**: Clear workout type (e.g., Easy Run, Interval Session, Long Ride)
+4. **PURPOSE**: The concrete purpose of this workout in the context of the current phase
+5. **STRUCTURE**: A streamlined breakdown of the workout including main sets with intensities and durations
+6. **INTENSITY GUIDANCE**: Target zones, effort levels, or pace/power/HR guidelines
+7. **ADAPTATION OPTIONS**: Brief options for adjusting based on readiness (e.g., what to do on a "green day" vs. "yellow day"), consistent with the expert signals
 
 ## Output Requirements
-- Begin with concise overview of how this two-week block fits within the current training phase
-- Keep workout details concise, focusing on most important elements while maintaining execution detail
-- Create workouts that are specific but concise (key parameters only), practical, executable, and adaptable
-- Use clear headings and subheadings with emojis (🎯 for goals, 💪 for workouts, ⚡ for intensity, 🔄 for recovery)
-- Use bullet points for clarity with intensity guidance in bold
-- Provide clear adaptation options for each workout"""
+- Begin with a concise overview of how this two-week block fits within the current training phase and how you are using the three experts' weekly-planner insights.
+- Present the training zones table first as a reference.
+- Then present the 14-day plan, one day per subsection.
+- Keep workout details concise, focusing on the most important elements while maintaining enough execution detail to be directly actionable.
+- Use clear headings and subheadings with emojis (🎯 for goals, 💪 for workouts, ⚡ for intensity, 🔄 for recovery).
+- Use bullet points for clarity with intensity guidance in bold.
+- Provide clear, readiness-based adaptation options for each workout rather than rigid prescriptions."""
 
 
 async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | str]:
@@ -133,7 +165,7 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         if hasattr(expert_outputs, "output"):
             output = expert_outputs.output
             if isinstance(output, list):
-                raise ValueError(f"Expert outputs contain questions, not analysis. HITL interaction required.")
+                raise ValueError("Expert outputs contain questions, not analysis. HITL interaction required.")
             if hasattr(output, "for_weekly_planner"):
                 return output.for_weekly_planner
         raise ValueError(f"Expert outputs missing 'output.for_weekly_planner' field: {type(expert_outputs)}")
@@ -145,7 +177,7 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
             output = value.output
             if isinstance(output, str):
                 return output
-            raise ValueError(f"AgentOutput contains questions, not content. HITL interaction required.")
+            raise ValueError("AgentOutput contains questions, not content. HITL interaction required.")
         if isinstance(value, dict):
             return value.get("output", value.get("content", value))
         return value

@@ -14,122 +14,146 @@ AgentType = Literal[
 
 
 def get_workflow_context(agent_type: AgentType) -> str:
-    """Universal workflow description - complete system understanding for all agents.
+    """Role-specialized workflow context - tailored system understanding per agent type.
     
     Following Federico Faggin's information postulate: The better the information
-    flow is explained, the better agents can act accordingly. Every agent receives
-    the same complete end-to-end system description.
+    flow is explained, the better agents can act accordingly. Each agent receives
+    a focused view of the system relevant to their role.
     """
     
     you_marker = " **(YOU)**"
     
-    return f"""
+    # Summarizer agents: minimal, focused context
+    if agent_type in ["metrics_summarizer", "physiology_summarizer", "activity_summarizer"]:
+        domain = agent_type.replace("_summarizer", "")
+        return f"""
 
-## Complete Multi-Agent Workflow Architecture
+## Your Role in the Multi-Agent System
 
-You are part of a sophisticated multi-agent AI coaching system. This system processes athlete data through two sequential workflows, with clear information flow and state management.
+You are the **{agent_type.replace('_', ' ').title()}**{you_marker}, part of a sophisticated AI coaching system.
 
-### State Management (Shared Memory)
-All agents read from and write to a shared state object containing:
-- **Input Data**: `garmin_data` (raw athlete metrics), `analysis_context`, `planning_context`, `competitions`, `current_date`
-- **Summaries**: `metrics_summary`, `physiology_summary`, `activity_summary` (created by summarizers)
-- **Expert Outputs**: `metrics_outputs`, `physiology_outputs`, `activity_outputs` (structured 3-field objects)
-- **Integration Results**: `synthesis_result`, `season_plan`, `weekly_plan`
-- **Final Outputs**: `analysis_html`, `planning_html`
-- **HITL Storage**: Agent-specific message history for question/answer tracking
+### Your Function
+- **Read**: `garmin_data` (raw athlete metrics from Garmin devices)
+- **Write**: `{domain}_summary` (structured summary of {domain} data)
+- **Consumer**: `{domain}_expert` uses your summary for domain-specific analysis
 
-### Workflow 1: Analysis Workflow (Historical Pattern Recognition)
-**Entry Point**: User provides `garmin_data` + optional `analysis_context`
-**Goal**: Analyze historical training patterns and create comprehensive athlete report
+### How Your Work Flows
+1. You condense raw Garmin data into a structured {domain} summary
+2. The {domain} expert analyzes your summary to extract insights
+3. Expert insights feed into:
+   - Comprehensive athlete report (synthesis)
+   - 12-24 week training strategy (season planner)
+   - 14-day workout plan (weekly planner)
 
-**Execution Flow**:
+Keep your summary factual, well-structured, and focused on {domain}-specific data points."""
 
-1. **Data Summarization Phase** (3 parallel nodes)
-   - `metrics_summarizer`{you_marker if agent_type == "metrics_summarizer" else ""}: Reads `garmin_data` → Writes `metrics_summary`
-     * Condenses training load, VO₂ max trends, training status
-   - `physiology_summarizer`{you_marker if agent_type == "physiology_summarizer" else ""}: Reads `garmin_data` → Writes `physiology_summary`
-     * Condenses HRV, sleep quality, stress levels, recovery metrics
-   - `activity_summarizer`{you_marker if agent_type == "activity_summarizer" else ""}: Reads `garmin_data` → Writes `activity_summary`
-     * Condenses workout execution patterns, progression data
+    # Expert agents: full context for downstream planning
+    elif agent_type in ["metrics", "physiology", "activity"]:
+        return f"""
 
-2. **Expert Analysis Phase** (3 parallel nodes)
-   - `metrics_expert`{you_marker if agent_type == "metrics" else ""}: Reads `metrics_summary` → Writes `metrics_outputs`
-   - `physiology_expert`{you_marker if agent_type == "physiology" else ""}: Reads `physiology_summary` → Writes `physiology_outputs`
-   - `activity_expert`{you_marker if agent_type == "activity" else ""}: Reads `activity_summary` → Writes `activity_outputs`
-   
-   **Expert Output Structure** (ExpertOutputBase with 3 fields):
-   - `for_synthesis`: Complete analysis for comprehensive athlete report
-   - `for_season_planner`: Strategic insights for 12-24 week periodization
-   - `for_weekly_planner`: Tactical details for immediate 14-day training
+## Your Role in the Multi-Agent System
 
-3. **Orchestration & HITL** (`master_orchestrator`)
-   - Reads: All expert outputs (`metrics_outputs`, `physiology_outputs`, `activity_outputs`)
-   - Collects questions from `expert_outputs.output` field (if output is list[Question])
-   - **If questions exist AND hitl_enabled**:
-     * Displays questions to user
-     * Collects answers
-     * Stores Q&A in agent-specific message fields (`metrics_expert_messages`, etc.)
-     * Re-invokes specific experts with conversation history
-   - **If no questions**: Routes to next stage
-   - **Special routing**: After analysis completes → routes to BOTH `synthesis` AND `season_planner` in parallel
+You are part of a sophisticated multi-agent AI coaching system with two sequential workflows.
 
-4. **Synthesis Phase** (`synthesis`{you_marker if agent_type == "synthesis" else ""})
-   - Reads: `metrics_outputs.output.for_synthesis`, `physiology_outputs.output.for_synthesis`, `activity_outputs.output.for_synthesis`
-   - Integrates all expert analyses into unified athlete report
-   - Writes: `synthesis_result`
-   - Sets: `synthesis_complete = True` (workflow marker)
+### Your Position: Expert Analysis Phase
 
-5. **Formatting Phase** (`formatter` → `plot_resolution`)
-   - Reads: `synthesis_result`, `plots`, `available_plots`
-   - Converts markdown to HTML, resolves plot references
-   - Writes: `analysis_html` (final output)
+**Input**: You read `{agent_type}_summary` (structured data created by {agent_type}_summarizer)
 
-**Output**: `analysis_html` - comprehensive athlete report sent to athlete
+**Output**: You write `{agent_type}_outputs` with THREE distinct fields:
+- `for_synthesis`: Complete analysis for comprehensive athlete report
+- `for_season_planner`: Strategic insights for 12-24 week periodization
+- `for_weekly_planner`: Tactical details for immediate 14-day training
 
-### Workflow 2: Planning Workflow (Future Training Prescription)
-**Entry Point**: Expert outputs from Analysis Workflow + optional `planning_context`
-**Goal**: Create actionable training plans (season strategy + 14-day workouts)
+### How Your Analysis Flows
 
-**Execution Flow**:
+1. **Analysis Workflow** (where you operate):
+   - Three summarizers condense raw `garmin_data` into domain summaries
+   - Three experts (metrics, physiology, activity) analyze summaries in parallel **(YOU ARE HERE)**
+   - Master orchestrator may ask you questions if your output includes them (HITL)
+   - Your `for_synthesis` field → feeds synthesis agent (creates comprehensive athlete report)
 
-1. **Season Planning Phase** (`season_planner`{you_marker if agent_type == "season_planner" else ""})
-   - Reads: `metrics_outputs.output.for_season_planner`, `physiology_outputs.output.for_season_planner`, `activity_outputs.output.for_season_planner`, `competitions`, `current_date`
-   - Creates 12-24 week periodization strategy
-   - Writes: `season_plan`
+2. **Planning Workflow** (consumes your insights):
+   - Your `for_season_planner` field → feeds season planner (12-24 week strategy)
+   - Your `for_weekly_planner` field → feeds weekly planner (next 14-day workouts)
+   - Master orchestrator may re-invoke planners with user questions
 
-2. **Orchestration & HITL** (`master_orchestrator`)
-   - Reads: `season_plan`
-   - Checks for questions in season planner output
-   - **If questions**: Re-invokes season_planner with answers
-   - **If no questions**: Routes to `data_integration`
+### Key Constraints
+- Each output field serves a different consumer - tailor content accordingly
+- Stay within your domain expertise ({agent_type})
+- If you need clarification, include questions in your structured output
+- The orchestrator will display your questions to the user and provide answers
+- After receiving answers, you'll be re-invoked with conversation history
 
-3. **Data Integration Phase** (`data_integration`)
-   - Validates availability of all required data for weekly planning
-   - Sets: `season_plan_complete = True` (workflow marker)
-   - Routes to: `weekly_planner`
+**Remember**: You're one of three experts working in parallel. Trust other experts to handle their domains."""
 
-4. **Weekly Planning Phase** (`weekly_planner`{you_marker if agent_type == "weekly_planner" else ""})
-   - Reads: `metrics_outputs.output.for_weekly_planner`, `physiology_outputs.output.for_weekly_planner`, `activity_outputs.output.for_weekly_planner`, `season_plan`, `week_dates`
-   - Creates detailed 14-day workout plan aligned with season strategy
-   - Writes: `weekly_plan`
+    # Synthesis agent: focused on integration
+    elif agent_type == "synthesis":
+        return f"""
 
-5. **Orchestration & HITL** (`master_orchestrator`)
-   - Reads: `weekly_plan`
-   - Checks for questions in weekly planner output
-   - **If questions**: Re-invokes weekly_planner with answers
-   - **If no questions**: Routes to `plan_formatter`
+## Your Role in the Multi-Agent System
 
-6. **Plan Formatting Phase** (`plan_formatter`)
-   - Reads: `season_plan`, `weekly_plan`
-   - Converts to structured HTML
-   - Writes: `planning_html` (final output)
+You are the **Synthesis Agent**{you_marker}, operating at the integration layer of the analysis workflow.
 
-**Output**: `planning_html` - season strategy + 14-day training schedule sent to athlete
+### Your Function
+- **Read**: `for_synthesis` fields from all three experts (metrics, physiology, activity)
+- **Write**: `synthesis_result` - unified comprehensive athlete report
+- **Output**: Converted to `analysis_html` and delivered to athlete
 
-## Your Role in This System
+### Context: How You Receive Data
+1. Raw `garmin_data` → condensed by three summarizers
+2. Summaries → analyzed by three parallel experts (metrics, physiology, activity)
+3. Each expert produces three outputs; you read their `for_synthesis` field
+4. Your job: Integrate these domain-specific analyses into coherent athlete story
 
-You are the **{agent_type.replace('_', ' ').title()}**{you_marker}
-"""
+### After Your Work
+- Your synthesis feeds into the final athlete report
+- Separately, expert insights also flow to planning workflow (season + weekly plans)
+- You focus on historical pattern recognition; planners focus on future prescription
+
+**Your role**: Tell the complete story by weaving together expert insights, not by re-analyzing raw data."""
+
+    # Planner agents: focused on planning context
+    elif agent_type in ["season_planner", "weekly_planner"]:
+        timeframe = "12-24 week strategy" if agent_type == "season_planner" else "next 14-day workouts"
+        reads_season = ", `season_plan`" if agent_type == "weekly_planner" else ""
+        
+        return f"""
+
+## Your Role in the Multi-Agent System
+
+You are the **{agent_type.replace('_', ' ').title()}**{you_marker}, operating in the planning workflow.
+
+### Your Function
+- **Read**: `for_{agent_type}` fields from all three experts (metrics, physiology, activity){reads_season}
+- **Write**: `{agent_type.replace('_planner', '_plan')}` - actionable {timeframe}
+- **Output**: Converted to `planning_html` and delivered to athlete
+
+### Context: How You Receive Expert Insights
+1. Raw `garmin_data` was processed through analysis workflow:
+   - Three summarizers condensed data into domain summaries
+   - Three experts (metrics, physiology, activity) analyzed patterns
+   - Each expert produced three outputs; you read their `for_{agent_type}` field
+
+2. Expert insights are tailored to your timeframe:
+   - Metrics expert: load patterns, fitness trends, training distribution
+   - Physiology expert: recovery capacity, adaptation state, readiness markers
+   - Activity expert: execution quality, progression patterns, session effectiveness
+
+### How Questions Work
+- If you need clarification, include questions in your structured output
+- Master orchestrator will display questions to user and collect answers
+- You'll be re-invoked with conversation history to refine your plan
+
+### Key Constraints
+- Create actionable, athlete-specific {timeframe}
+- Stay within your timeframe (don't over-specify details beyond your scope)
+{'- Align with season plan while adapting to current readiness' if agent_type == 'weekly_planner' else '- Provide strategic direction without over-prescribing daily details'}
+
+**Your role**: Translate expert insights into concrete training prescription for {timeframe}."""
+
+    # Fallback (shouldn't happen with proper typing)
+    else:
+        return f"\n\n## Your Role\n\nYou are the **{agent_type.replace('_', ' ').title()}**{you_marker}\n"
 
 
 def get_plotting_instructions(agent_name: str) -> str:
@@ -201,45 +225,3 @@ Stay within your expertise as the **{agent_name.replace('_', ' ').title()} Agent
 - If you have enough information → Provide your complete final output with `questions` set to `None`
 
 """
-
-
-def get_downstream_consumer_guidance(agent_type: Literal["metrics", "activity", "physiology"]) -> str:
-    """Get guidance on tailoring output for each downstream consumer."""
-    
-    synthesis_needs = {
-        "metrics": "Your complete metrics analysis with all details, patterns, and insights",
-        "activity": "Your complete activity analysis with execution patterns, workout quality, training progression",
-        "physiology": "Your complete physiology analysis with recovery status, adaptation state, HRV patterns, sleep analysis"
-    }
-    
-    season_planner_needs = {
-        "metrics": "Strategic-level insights (overall fitness trends, capacity indicators, chronic patterns)",
-        "activity": "Strategic-level insights (training execution patterns, workout quality trends, session progression)",
-        "physiology": "Strategic-level insights (recovery capacity, adaptation trends, stress accumulation patterns)"
-    }
-    
-    weekly_planner_needs = {
-        "metrics": "Tactical assessment (current readiness, recent performance indicators, acute load/fatigue markers)",
-        "activity": "Tactical assessment (recent 10-day history table, execution quality, pacing insights, immediate recommendations)",
-        "physiology": "Tactical assessment (current recovery status, recent sleep quality, HRV trends, readiness, immediate recovery recommendations)"
-    }
-    
-    return f"""
-## Downstream Consumers & Information Needs
-
-Your analysis will be consumed by three different downstream agents. Tailor your output to each consumer's specific role:
-
-**1. Synthesis Agent** - Creates the final integrated athlete-facing report
-   - Needs: {synthesis_needs[agent_type]}
-   - Include: Comprehensive findings that will be synthesized with other expert analyses
-
-**2. Season Planner Agent** - Designs 12-24 week strategic macro-cycles
-   - Needs: {season_planner_needs[agent_type]}
-   - Include: Long-term patterns relevant for macro-cycle planning
-
-**3. Weekly Planner Agent** - Creates detailed 14-day workout prescriptions
-   - Needs: {weekly_planner_needs[agent_type]}
-   - Include: Current state and recent trends affecting next 2 weeks
-
-**Decision Autonomy:** You decide the specific content for each consumer based on your expertise and their workflow needs."""
-

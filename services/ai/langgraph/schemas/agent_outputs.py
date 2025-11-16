@@ -1,6 +1,6 @@
 """Generic agent output schemas for all agents in the workflow."""
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 
 class Question(BaseModel):
