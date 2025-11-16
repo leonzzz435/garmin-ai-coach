@@ -55,7 +55,7 @@ class MasterOrchestrator:
             if stage == "analysis":
                 if state.get("skip_synthesis", False):
                     logger.info("MasterOrchestrator: skip_synthesis=True, proceeding directly to season_planner")
-                    return Command(goto="season_planner")
+                    return Command(goto="season_planner", update={"synthesis_complete": True})
                 else:
                     logger.info("MasterOrchestrator: No questions found, proceeding to synthesis and season_planner")
                     return Command(goto=["synthesis", "season_planner"])
