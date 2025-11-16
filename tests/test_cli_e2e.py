@@ -22,6 +22,7 @@ async def test_cli_e2e_smoke_with_mocks(tmp_path, monkeypatch):
         week_dates: list,
         plotting_enabled: bool = False,
         hitl_enabled: bool = True,
+        skip_synthesis: bool = False,
         progress_manager=None,
     ) -> dict:
         return {
@@ -125,6 +126,7 @@ async def test_cli_e2e_with_hitl_enabled(tmp_path, monkeypatch):
         week_dates: list,
         plotting_enabled: bool = False,
         hitl_enabled: bool = True,
+        skip_synthesis: bool = False,
         progress_manager=None,
     ) -> dict:
         return {

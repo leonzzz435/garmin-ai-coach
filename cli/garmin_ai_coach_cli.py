@@ -63,6 +63,7 @@ class ConfigParser:
             "ai_mode": self.config.get("extraction", {}).get("ai_mode", "development"),
             "enable_plotting": self.config.get("extraction", {}).get("enable_plotting", False),
             "hitl_enabled": self.config.get("extraction", {}).get("hitl_enabled", True),
+            "skip_synthesis": self.config.get("extraction", {}).get("skip_synthesis", False),
         }
 
     def get_competitions(self) -> list[dict[str, Any]]:
@@ -156,9 +157,11 @@ async def run_analysis_from_config(config_path: Path) -> None:
         now = datetime.now()
         plotting_enabled = extraction_settings.get("enable_plotting", False)
         hitl_enabled = extraction_settings.get("hitl_enabled", True)
+        skip_synthesis = extraction_settings.get("skip_synthesis", False)
         
         logger.info(f"Plotting enabled: {plotting_enabled}")
         logger.info(f"HITL enabled: {hitl_enabled}")
+        logger.info(f"Skip synthesis: {skip_synthesis}")
         
         current_date = {"date": now.strftime("%Y-%m-%d"), "day_name": now.strftime("%A")}
         week_dates = [
@@ -182,6 +185,7 @@ async def run_analysis_from_config(config_path: Path) -> None:
             week_dates=week_dates,
             plotting_enabled=plotting_enabled,
             hitl_enabled=hitl_enabled,
+            skip_synthesis=skip_synthesis,
         )
 
         logger.info("Saving results...")

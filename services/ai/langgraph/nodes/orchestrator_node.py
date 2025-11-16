@@ -51,10 +51,14 @@ class MasterOrchestrator:
         all_questions = self._collect_questions(state, config["result_keys"], config["agents"])
         
         if not all_questions:
-            # For analysis stage, route to BOTH synthesis and season_planner in parallel
+            # For analysis stage, route to BOTH synthesis and season_planner in parallel (or skip synthesis)
             if stage == "analysis":
-                logger.info("MasterOrchestrator: No questions found, proceeding to synthesis and season_planner")
-                return Command(goto=["synthesis", "season_planner"])
+                if state.get("skip_synthesis", False):
+                    logger.info("MasterOrchestrator: skip_synthesis=True, proceeding directly to season_planner")
+                    return Command(goto="season_planner")
+                else:
+                    logger.info("MasterOrchestrator: No questions found, proceeding to synthesis and season_planner")
+                    return Command(goto=["synthesis", "season_planner"])
             else:
                 logger.info(f"MasterOrchestrator: No questions found, proceeding to {config['next_node']}")
                 return Command(goto=config["next_node"])

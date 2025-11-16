@@ -172,6 +172,7 @@ async def run_complete_analysis_and_planning(
     progress_manager=None,
     plotting_enabled: bool = False,
     hitl_enabled: bool = True,
+    skip_synthesis: bool = False,
 ) -> dict:
     execution_id = f"{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_complete"
     cost_tracker = ProgressIntegratedCostTracker(f"garmin_ai_coach_{user_id}", progress_manager)
@@ -189,6 +190,8 @@ async def run_complete_analysis_and_planning(
             week_dates=week_dates,
             execution_id=execution_id,
             plotting_enabled=plotting_enabled,
+            hitl_enabled=hitl_enabled,
+            skip_synthesis=skip_synthesis,
         ),
         execution_id,
         user_id,
