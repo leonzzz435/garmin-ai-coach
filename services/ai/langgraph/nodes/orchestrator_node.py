@@ -10,16 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 class MasterOrchestrator:
-    """Unified orchestrator for all HITL interactions across workflow stages.
-    
-    Single orchestrator instance handles three decision points:
-    1. After experts → routes to synthesis or re-invokes experts
-    2. After season planner → routes to data_integration or re-invokes planner
-    3. After weekly planner → routes to plan_formatter or re-invokes planner
-    
-    Stage detection based on state markers automatically determines context.
-    """
-    
     STAGES = {
         "analysis": {
             "agents": ["metrics_expert", "physiology_expert", "activity_expert"],
@@ -42,7 +32,6 @@ class MasterOrchestrator:
     }
     
     def __call__(self, state: TrainingAnalysisState) -> Command:
-        """Main orchestration logic with stage detection and HITL handling."""
         stage = self._detect_stage(state)
         config = self.STAGES[stage]
         
@@ -51,7 +40,6 @@ class MasterOrchestrator:
         all_questions = self._collect_questions(state, config["result_keys"], config["agents"])
         
         if not all_questions:
-            # For analysis stage, route to BOTH synthesis and season_planner in parallel (or skip synthesis)
             if stage == "analysis":
                 if state.get("skip_synthesis", False):
                     logger.info("MasterOrchestrator: skip_synthesis=True, proceeding directly to season_planner")
@@ -71,10 +59,8 @@ class MasterOrchestrator:
         
         answers = self._collect_answers(all_questions, config["display_name"])
         
-        # Create agent-specific Q&A messages
         agent_qa_updates = self._create_agent_specific_qa_messages(all_questions, answers)
         
-        # Only re-invoke agents that actually had questions
         agents_to_reinvoke = [key.replace("_messages", "") for key in agent_qa_updates.keys()]
         
         logger.info(f"MasterOrchestrator: Re-invoking {agents_to_reinvoke} with agent-specific Q&A messages")
@@ -85,7 +71,6 @@ class MasterOrchestrator:
         )
     
     def _detect_stage(self, state: TrainingAnalysisState) -> str:
-        """Determine current workflow stage from state markers."""
         if state.get("synthesis_complete"):
             if state.get("season_plan_complete"):
                 return "weekly_planning"
@@ -98,30 +83,24 @@ class MasterOrchestrator:
         result_keys: list[str],
         agent_names: list[str]
     ) -> list[dict]:
-        """Collect all questions from stage-specific agent outputs stored in result fields."""
         all_questions = []
         
-        # Map result_keys to agent_names
         for result_key, agent_name in zip(result_keys, agent_names, strict=True):
             result = state.get(result_key)
             
             if not result:
                 continue
             
-            # Handle both ExpertOutput and AgentOutput with union type output field
             questions = None
             if hasattr(result, "output"):
-                # Union type: list[Question] | ReceiverOutputs (experts) or list[Question] | str (agents)
                 output = result.output
                 if isinstance(output, list):
                     questions = output
             elif isinstance(result, dict):
-                # Fallback for dict format (if any legacy code)
                 questions = result.get("questions", [])
             
             if questions:
                 for q in questions:
-                    # Convert Question object to dict if needed
                     question_dict = q.model_dump() if hasattr(q, "model_dump") else q
                     all_questions.append({
                         "agent": agent_name,
@@ -136,7 +115,6 @@ class MasterOrchestrator:
         questions: list[dict],
         stage_name: str
     ) -> list[dict]:
-        """Collect user answers for all questions via interactive CLI prompts."""
         answers = []
         
         print(f"\n{'='*60}")
@@ -152,10 +130,8 @@ class MasterOrchestrator:
             if question_data.get("context"):
                 print(f"  Context: {question_data['context']}")
             
-            # Get real user input from CLI
             user_answer = input("\n👤 Your answer: ").strip()
             
-            # Log the interaction for debugging
             logger.info(f"User answered {agent_name} question {i}: {user_answer}")
             
             answers.append({
@@ -172,7 +148,6 @@ class MasterOrchestrator:
         questions: list[dict],
         answers: list[dict]
     ) -> dict:
-        """Create agent-specific Q&A message updates with accumulated messages per agent."""
         updates = {}
         
         for qa_item, answer_item in zip(questions, answers, strict=True):
@@ -180,14 +155,11 @@ class MasterOrchestrator:
             question = qa_item["question"]["message"]
             answer = answer_item["answer"]
             
-            # Store in agent-specific field
             field_name = f"{agent_name}_messages"
             
-            # Initialize list if not present, then append Q&A pair
             if field_name not in updates:
                 updates[field_name] = []
             
-            # Append Q&A pair for this agent (one pair per question)
             updates[field_name].extend([
                 AIMessage(content=f"{question}"),
                 HumanMessage(content=answer)
@@ -197,6 +169,5 @@ class MasterOrchestrator:
 
 
 def master_orchestrator_node(state: TrainingAnalysisState) -> Command:
-    """Master orchestrator node for unified HITL across all workflow stages."""
     orchestrator = MasterOrchestrator()
     return orchestrator(state)

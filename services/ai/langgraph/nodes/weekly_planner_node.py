@@ -160,7 +160,6 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         (get_hitl_instructions("weekly_planner") if hitl_enabled else "")
     )
     
-    # Extract tactical details from expert outputs
     def get_tactical_details(expert_outputs):
         if hasattr(expert_outputs, "output"):
             output = expert_outputs.output
@@ -170,7 +169,6 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
                 return output.for_weekly_planner
         raise ValueError(f"Expert outputs missing 'output.for_weekly_planner' field: {type(expert_outputs)}")
     
-    # Extract content from AgentOutput (with new union type output field)
     def get_content(field):
         value = state.get(field, "")
         if hasattr(value, "output"):
@@ -182,8 +180,6 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
             return value.get("output", value.get("content", value))
         return value
     
-    # Include Q&A messages from orchestrator if present (for HITL re-invocations)
-    # Read from agent-specific field
     qa_messages_raw = state.get("weekly_planner_messages", [])
     qa_messages = []
     for msg in qa_messages_raw:

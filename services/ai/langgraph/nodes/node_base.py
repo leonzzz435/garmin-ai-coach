@@ -14,12 +14,6 @@ def configure_node_tools(
     plot_storage: PlotStorage | None = None,
     plotting_enabled: bool = False,
 ) -> list:
-    """Configure tools for node execution.
-    
-    Note: HITL is now handled by master_orchestrator_node via expert outputs
-    (ExpertOutputBase.output as list[Question]), not via tools. This function
-    only configures plotting tools.
-    """
     tools = []
     
     if plotting_enabled and plot_storage:

@@ -203,15 +203,12 @@ async def metrics_expert_node(state: TrainingAnalysisState) -> dict[str, list | 
 
     base_llm = ModelSelector.get_llm(AgentRole.METRICS_EXPERT)
     
-    # Bind tools first, then apply structured output
     llm_with_tools = base_llm.bind_tools(tools) if tools else base_llm
     llm_with_structure = llm_with_tools.with_structured_output(MetricsExpertOutputs)
 
     agent_start_time = datetime.now()
 
     async def call_metrics_with_tools():
-        # Include Q&A messages from orchestrator if present (for HITL re-invocations)
-        # Read from agent-specific field
         qa_messages_raw = state.get("metrics_expert_messages", [])
         qa_messages = []
         for msg in qa_messages_raw:

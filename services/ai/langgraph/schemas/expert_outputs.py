@@ -1,5 +1,3 @@
-"""Expert-specific output schemas for analysis agents."""
-
 from pydantic import BaseModel, Field
 
 from .agent_outputs import Question
@@ -43,15 +41,12 @@ class ExpertOutputBase(BaseModel):
 
 
 class MetricsExpertOutputs(ExpertOutputBase):
-    """Structured outputs from Metrics Expert."""
     pass
 
 
 class ActivityExpertOutputs(ExpertOutputBase):
-    """Structured outputs from Activity Expert."""
     pass
 
 
 class PhysiologyExpertOutputs(ExpertOutputBase):
-    """Structured outputs from Physiology Expert."""
     pass

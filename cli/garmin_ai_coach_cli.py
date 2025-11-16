@@ -172,8 +172,6 @@ async def run_analysis_from_config(config_path: Path) -> None:
         
         logger.info("Running AI analysis and planning...")
         
-        # HITL is now handled automatically by master_orchestrator_node
-        # which uses synchronous input() calls when questions are detected
         result = await run_complete_analysis_and_planning(
             user_id="cli_user",
             athlete_name=athlete_name,
@@ -192,20 +190,17 @@ async def run_analysis_from_config(config_path: Path) -> None:
 
         files_generated: list[str] = []
         
-        # Save HTML outputs
         for filename, key in [
             ("analysis.html", "analysis_html"),
             ("planning.html", "planning_html"),
         ]:
             if content := result.get(key):
-                # Handle AgentOutput dict format (from structured output)
                 if isinstance(content, dict):
                     content = content.get("content", "")
                 (output_dir / filename).write_text(content, encoding="utf-8")
                 files_generated.append(filename)
                 logger.info(f"Saved: {output_dir}/{filename}")
         
-        # Save structured outputs as JSON (expert outputs and planner outputs)
         for filename, key in [
             ("metrics_expert.json", "metrics_outputs"),
             ("activity_expert.json", "activity_outputs"),
@@ -214,7 +209,6 @@ async def run_analysis_from_config(config_path: Path) -> None:
             ("weekly_plan.json", "weekly_plan"),
         ]:
             if output := result.get(key):
-                # Convert Pydantic model to dict
                 if hasattr(output, "model_dump"):
                     output_data = output.model_dump(mode="json")
                 elif isinstance(output, dict):

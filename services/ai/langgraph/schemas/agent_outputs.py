@@ -1,11 +1,7 @@
-"""Generic agent output schemas for all agents in the workflow."""
-
 from pydantic import BaseModel, Field
 
 
 class Question(BaseModel):
-    """Structured question for HITL interaction."""
-
     id: str = Field(..., description="Unique identifier (e.g., 'metrics_q1')")
     message: str = Field(..., description="Question text")
     context: str | None = Field(None, description="Additional context")

@@ -48,7 +48,6 @@ def create_analysis_workflow():
 
     workflow.add_edge(["metrics_expert", "physiology_expert", "activity_expert"], "master_orchestrator")
     
-    # Master orchestrator routes to next stage or re-invokes agents
     workflow.add_edge("master_orchestrator", "synthesis")
     workflow.add_edge("master_orchestrator", "metrics_expert")
     workflow.add_edge("master_orchestrator", "physiology_expert")

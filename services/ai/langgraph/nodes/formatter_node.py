@@ -112,7 +112,6 @@ async def formatter_node(state: TrainingAnalysisState) -> dict[str, list | str]:
         agent_start_time = datetime.now()
 
         async def call_html_formatting():
-            # Extract text content from AIMessage object
             synthesis_result = extract_text_content(state.get("synthesis_result", ""))
             
             response = await ModelSelector.get_llm(AgentRole.FORMATTER).ainvoke([

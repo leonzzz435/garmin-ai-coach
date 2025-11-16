@@ -150,8 +150,6 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         (get_hitl_instructions("season_planner") if hitl_enabled else "")
     )
     
-    # Include Q&A messages from orchestrator if present (for HITL re-invocations)
-    # Read from agent-specific field
     qa_messages_raw = state.get("season_planner_messages", [])
     qa_messages = []
     for msg in qa_messages_raw:
@@ -161,7 +159,6 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         else:  # Already a dict
             qa_messages.append(msg)
     
-    # Extract strategic insights from expert outputs
     def get_strategic_insights(expert_outputs):
         if hasattr(expert_outputs, "output"):
             output = expert_outputs.output

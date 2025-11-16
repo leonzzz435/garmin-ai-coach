@@ -205,8 +205,6 @@ async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list
     agent_start_time = datetime.now()
 
     async def call_physiology_analysis():
-        # Include Q&A messages from orchestrator if present (for HITL re-invocations)
-        # Read from agent-specific field
         qa_messages_raw = state.get("physiology_expert_messages", [])
         qa_messages = []
         for msg in qa_messages_raw:

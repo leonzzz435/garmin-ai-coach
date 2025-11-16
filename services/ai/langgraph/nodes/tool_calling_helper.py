@@ -45,10 +45,6 @@ def extract_text_content(response) -> str:
 async def handle_tool_calling_in_node(
     llm_with_tools, messages: list[dict[str, str]], tools: list, max_iterations: int = 5
 ):
-    """Handle tool calling loop and return final response.
-    
-    Returns the LLM response directly (which may be AgentOutput if structured output was applied).
-    """
     conversation = [
         {"role": msg["role"], "content": msg["content"]}
         for msg in messages if msg["role"] in ("system", "user", "assistant")

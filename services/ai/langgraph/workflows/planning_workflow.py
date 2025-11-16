@@ -39,7 +39,6 @@ def create_planning_workflow():
     workflow.add_edge(START, "season_planner")
     workflow.add_edge("season_planner", "master_orchestrator")
     
-    # Master orchestrator routes based on stage detection
     workflow.add_edge("master_orchestrator", "data_integration")
     workflow.add_edge("master_orchestrator", "plan_formatter")
     workflow.add_edge("master_orchestrator", "season_planner")

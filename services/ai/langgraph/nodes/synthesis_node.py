@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 def _extract_for_synthesis(expert_outputs):
-    """Extract for_synthesis field from expert outputs."""
     if expert_outputs is None:
         raise ValueError("Expert outputs cannot be None - synthesis requires all expert analyses")
     if hasattr(expert_outputs, "output"):

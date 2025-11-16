@@ -85,7 +85,6 @@ async def plan_formatter_node(state: TrainingAnalysisState) -> dict[str, list | 
         agent_start_time = datetime.now()
 
         def get_content(field):
-            """Extract content from AgentOutput with new union type output field."""
             value = state.get(field, "")
             if hasattr(value, "output"):
                 output = value.output

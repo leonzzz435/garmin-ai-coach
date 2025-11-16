@@ -24,7 +24,6 @@ class TrainingAnalysisState(MessagesState):
     physiology_summary: str | None
     activity_summary: str | None
     
-    # Structured expert outputs
     metrics_outputs: MetricsExpertOutputs | None
     activity_outputs: ActivityExpertOutputs | None
     physiology_outputs: PhysiologyExpertOutputs | None
@@ -34,7 +33,6 @@ class TrainingAnalysisState(MessagesState):
     season_plan: str | None
     weekly_plan: str | None
     
-    # Boolean flags with OR reducer for concurrent updates
     synthesis_complete: Annotated[bool, lambda x, y: x or y]
     season_plan_complete: Annotated[bool, lambda x, y: x or y]
 
