@@ -219,10 +219,11 @@ async def run_analysis_from_config(config_path: Path) -> None:
             ("weekly_plan.md", "weekly_plan"),
         ]:
             if plan_dict := result.get(key):
-                markdown_content = plan_dict.get("output", plan_dict)
-                (output_dir / filename).write_text(markdown_content, encoding="utf-8")
-                files_generated.append(filename)
-                logger.info(f"Saved: {output_dir}/{filename}")
+                output = plan_dict.get("output", plan_dict)
+                if isinstance(output, str):
+                    (output_dir / filename).write_text(output, encoding="utf-8")
+                    files_generated.append(filename)
+                    logger.info(f"Saved: {output_dir}/{filename}")
 
         cost_total = float(
             result.get("cost_summary", {}).get("total_cost_usd", 0.0) or

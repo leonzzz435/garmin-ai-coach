@@ -97,7 +97,9 @@ class MasterOrchestrator:
                 if isinstance(output, list):
                     questions = output
             elif isinstance(result, dict):
-                questions = result.get("questions", [])
+                output = result.get("output", [])
+                if isinstance(output, list):
+                    questions = output
             
             if questions:
                 for q in questions:
