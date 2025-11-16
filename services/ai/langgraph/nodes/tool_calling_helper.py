@@ -101,9 +101,7 @@ async def handle_tool_calling_in_node(
 
         else:
             logger.info(f"Final response received after {iteration} iterations")
-            # Return response directly - it may be AgentOutput if with_structured_output was used
             return response
 
     logger.warning(f"Max iterations ({max_iterations}) reached in tool calling")
-    # Return response directly - it may be AgentOutput if with_structured_output was used
     return response

@@ -14,6 +14,10 @@ from typing import Any
 
 import yaml
 
+from services.ai.langgraph.workflows.planning_workflow import (
+    run_complete_analysis_and_planning,
+)
+from services.garmin import ExtractionConfig, TriathlonCoachDataExtractor
 from services.outside.client import OutsideApiGraphQlClient
 
 sys.path.append(str(Path(__file__).parent.parent))
@@ -133,10 +137,6 @@ async def run_analysis_from_config(config_path: Path) -> None:
     os.environ["AI_MODE"] = extraction_settings.get("ai_mode", "development")
     logger.info(f"AI Mode: {os.environ['AI_MODE']}")
 
-    from services.ai.langgraph.workflows.planning_workflow import (
-        run_complete_analysis_and_planning,
-    )
-    from services.garmin import ExtractionConfig, TriathlonCoachDataExtractor
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -205,21 +205,22 @@ async def run_analysis_from_config(config_path: Path) -> None:
             ("metrics_expert.json", "metrics_outputs"),
             ("activity_expert.json", "activity_outputs"),
             ("physiology_expert.json", "physiology_outputs"),
-            ("season_plan.json", "season_plan"),
-            ("weekly_plan.json", "weekly_plan"),
         ]:
             if output := result.get(key):
-                if hasattr(output, "model_dump"):
-                    output_data = output.model_dump(mode="json")
-                elif isinstance(output, dict):
-                    output_data = output
-                else:
-                    continue
-                
                 (output_dir / filename).write_text(
-                    json.dumps(output_data, indent=2, ensure_ascii=False),
+                    json.dumps(output.model_dump(mode="json"), indent=2, ensure_ascii=False),
                     encoding="utf-8"
                 )
+                files_generated.append(filename)
+                logger.info(f"Saved: {output_dir}/{filename}")
+        
+        for filename, key in [
+            ("season_plan.md", "season_plan"),
+            ("weekly_plan.md", "weekly_plan"),
+        ]:
+            if plan_dict := result.get(key):
+                markdown_content = plan_dict.get("output", plan_dict)
+                (output_dir / filename).write_text(markdown_content, encoding="utf-8")
                 files_generated.append(filename)
                 logger.info(f"Saved: {output_dir}/{filename}")
 

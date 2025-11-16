@@ -43,14 +43,14 @@ class AISettings:
                 AgentRole.SEASON_PLANNER: "claude-3-haiku",
             },
             AIMode.DEVELOPMENT: {
-                AgentRole.SUMMARIZER: "claude-3-haiku",
-                AgentRole.FORMATTER: "claude-3-haiku",
-                AgentRole.METRICS_EXPERT: "claude-3-haiku",
-                AgentRole.PHYSIOLOGY_EXPERT: "claude-3-haiku",
-                AgentRole.ACTIVITY_EXPERT: "claude-3-haiku",
-                AgentRole.SYNTHESIS: "claude-3-haiku",
-                AgentRole.WORKOUT: "claude-3-haiku",
-                AgentRole.SEASON_PLANNER: "claude-3-haiku",
+                AgentRole.SUMMARIZER: "claude-4",
+                AgentRole.FORMATTER: "claude-4",
+                AgentRole.METRICS_EXPERT: "claude-4",
+                AgentRole.PHYSIOLOGY_EXPERT: "claude-4",
+                AgentRole.ACTIVITY_EXPERT: "claude-4",
+                AgentRole.SYNTHESIS: "claude-4",
+                AgentRole.WORKOUT: "claude-4",
+                AgentRole.SEASON_PLANNER: "claude-4",
             },
         }
     )
