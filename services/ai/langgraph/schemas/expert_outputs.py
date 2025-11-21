@@ -9,7 +9,7 @@ class ReceiverOutputs(BaseModel):
     Provides tailored output for three different consumers:
     - Synthesis Agent: Creates comprehensive athlete report
     - Season Planner: Designs 12-24 week macro-cycles
-    - Weekly Planner: Creates next 14 days of training
+    - Weekly Planner: Creates next 28 days of training
     """
     
     for_synthesis: str = Field(

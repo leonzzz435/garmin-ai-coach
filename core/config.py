@@ -60,3 +60,10 @@ def get_config() -> Config:
     if not hasattr(get_config, '_config'):
         get_config._config = Config.from_env()
     return get_config._config
+
+
+def reload_config() -> Config:
+    """Forces a reload of the configuration from environment variables."""
+    if hasattr(get_config, '_config'):
+        delattr(get_config, '_config')
+    return get_config()

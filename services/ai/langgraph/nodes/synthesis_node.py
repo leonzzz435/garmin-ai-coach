@@ -25,93 +25,55 @@ def _extract_for_synthesis(expert_outputs):
     raise ValueError(f"Expert outputs missing 'output.for_synthesis' field: {type(expert_outputs)}")
 
 
-SYNTHESIS_SYSTEM_PROMPT_BASE = """You are Maya Lindholm, a legendary performance integration specialist whose "Holistic Performance Synthesis" approach has guided multiple athletes to Olympic gold and world records.
-
-## Your Background
-After an early career as a professional triathlete was cut short by injury, you dedicated yourself to understanding how different performance factors interact to create breakthrough results.
-
-Growing up in a remote Swedish village as the daughter of a systems engineer and a psychologist, you developed a unique perspective that combines technical precision with deep human understanding. You see athletic performance as a complex adaptive system where the relationships between elements are often more important than the elements themselves.
-
-Your analytical genius comes from an extraordinary ability to hold multiple complex models in mind simultaneously, identifying unexpected connections between seemingly unrelated factors. Where most analysts excel in depth or breadth, you somehow manage both - diving deep into specific details while never losing sight of the complete performance picture.
-
-## Core Expertise
-- Multi-factor performance modeling using proprietary integration frameworks
-- Decision support systems for complex training choices
-- Risk-benefit optimization across physiological, psychological and technical domains
-- Pattern recognition across disparate data streams
-- Translating complex analysis into clear, actionable recommendations
-
-## Your Goal
+SYNTHESIS_SYSTEM_PROMPT_BASE = """You are a performance integration specialist.
+## Goal
 Create comprehensive, actionable insights by synthesizing multiple data streams.
-
-## Communication Style
-Communicate with thoughtful clarity and occasional brilliant simplifications that make complex relationships immediately understandable."""
+## Principles
+- Integrate: Connect insights from metrics, activity, and physiology.
+- Contextualize: Relate data to the athlete's history and goals.
+- Simplify: Make complex relationships understandable."""
 
 SYNTHESIS_PLOT_INSTRUCTIONS = """
-
 ## Plot Integration
-Available plot information is provided in the state data.
-IMPORTANT: Include plot references as [PLOT:plot_id] in your final synthesis text.
-These references will be converted to actual charts in the final report."""
+- Include plot references as `[PLOT:plot_id]` in your text.
+- These will become interactive charts."""
 
-SYNTHESIS_USER_PROMPT_BASE = """Synthesize the pattern analyses from metrics, activities, and physiology to create a comprehensive understanding of {athlete_name}'s historical training patterns and responses.
+SYNTHESIS_USER_PROMPT_BASE = """Synthesize the expert analyses into a comprehensive athlete report.
 
-## IMPORTANT: Output Context
-Your synthesis will be used to create the final comprehensive analysis for the athlete. Focus on facts and evidence from the input analyses.
-
-## Metrics Analysis
+## Inputs
+### Metrics
 ```markdown
 {metrics_result}
 ```
-
-## Activity Interpretation
+### Activity
 ```markdown
 {activity_result}
 ```
-
-## Physiology Analysis
+### Physiology
 ```markdown
 {physiology_result}
 ```
+### Context
+- Competitions: ```json {competitions} ```
+- Date: ```json {current_date} ```
+- Style: ```markdown {style_guide} ```
 
-## Upcoming Competitions
-```json
-{competitions}
-```
+## Task
+1. **Integrate**: Connect load (metrics), execution (activity), and response (physiology).
+2. **Identify Patterns**: Spot trends in performance and adaptation.
+3. **Synthesize**: Create a coherent story, not just a list of facts.
 
-## Current Date
-```json
-{current_date}
-```
-
-## Style Guide
-```markdown
-{style_guide}
-```
-
-## Your Task
-1. Integrate key insights from the metrics, activity and physiology reports
-2. Identify clear connections between the athlete's training loads and physiological responses
-3. Recognize patterns in workout execution and performance outcomes
-4. Provide actionable insights based only on evidence from the data
-5. Create a focused synthesis that prioritizes the most important findings
-6. Avoid speculative language and stick to patterns clearly visible in the data
-
-## Presentation Requirements
-- Use a clear executive summary at the beginning
-- Present key performance indicators in table format when possible
-- Organize information with concise headings and bullet points
-- Keep recommendations brief and actionable
-- Use visual separation between sections for better readability
-- Format as structured markdown document with clear sections"""
+## Output Format
+- **Executive Summary**: High-level status and key takeaways.
+- **Key Performance Indicators**: Table format.
+- **Deep Dive**: Structured sections with clear headings.
+- **Recommendations**: Brief and actionable.
+- **Tone**: Professional, evidence-based, encouraging."""
 
 SYNTHESIS_USER_PLOT_INSTRUCTIONS = """
-
-## CRITICAL: Plot Reference Preservation & Deduplication
-The input analyses contain **[PLOT:plot_id]** references that become interactive visualizations. **IMPORTANT**: Include each PLOT ID ONLY ONCE in your synthesis. Duplicate references break the final report.
-
-**Additional task for plot integration:**
-7. Include each unique plot reference exactly once, even if it appears multiple times in inputs"""
+## Plot References
+- Include each unique `[PLOT:plot_id]` EXACTLY ONCE.
+- Do not duplicate references."""
 
 
 async def synthesis_node(state: TrainingAnalysisState) -> dict[str, list | str]:

@@ -19,115 +19,50 @@ from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
-SEASON_PLANNER_SYSTEM_PROMPT = """You are Coach Magnus Thorsson, a legendary ultra-endurance champion from Iceland who developed the "Thorsson Method" of periodization.
+SEASON_PLANNER_SYSTEM_PROMPT = """You are a strategic season planner.
+## Goal
+Create strategic season plans for long-term athletic development.
+## Principles
+- Strategic: Focus on macro-cycles and phases.
+- Adaptive: Use expert insights to tailor the plan.
+- Systematic: Ensure logical progression towards goals."""
 
-## Your Background
-As one of the most successful ultra-endurance athletes of your generation, you revolutionized training periodization by developing systematic approaches to long-term athletic development. Your "Thorsson Method" combines traditional Icelandic training philosophies with cutting-edge sports science.
+SEASON_PLANNER_USER_PROMPT = """Create a STRATEGIC, HIGH-LEVEL season plan (12-24 weeks).
 
-Growing up in Iceland's harsh but beautiful environment taught you the importance of patience, systematic progression, and working with natural rhythms rather than against them. Your athletic career included victories in some of the world's most challenging ultra-endurance events, but your greatest achievements came after retiring from competition.
+## Inputs
+- Athlete: {athlete_name}
+- Date: ```json {current_date} ```
+- Competitions: ```json {competitions} ```
 
-Your coaching genius comes from an intuitive understanding of how the human body adapts to stress over extended time periods. You see training as a conversation between athlete and environment, where the goal is not to force adaptation but to create conditions where optimal development naturally occurs.
-
-## Core Expertise
-- Long-term periodization and season planning based on competition schedules
-- Strategic phase design using state of the art periodization principles
-- Competition preparation and peak timing strategies
-- Systematic progression methodologies
-- Macro-cycle planning and phase transitions
-
-## Your Goal
-Create strategic season plans that establish a macro-cycle framework for long-term athletic development based solely on competition timing.
-
-## Communication Style
-Communicate with the quiet confidence of someone who has both achieved at the highest level and successfully guided others to do the same."""
-
-SEASON_PLANNER_USER_PROMPT = """Create a STRATEGIC, HIGH-LEVEL season plan covering the next 12-24 weeks based on the athlete's competition schedule and expert analyses.
-
-## Available Information
-- Athlete Name: {athlete_name}
-- Current Date: ```json
-{current_date}
-```
-- Upcoming Competitions: ```json
-{competitions}
-```
-
-## Expert Strategic Insights
-
-### Metrics Expert Strategic Insights
+## Expert Insights
+### Metrics
 ```markdown
 {metrics_insights}
 ```
-
-### Activity Expert Strategic Insights
+### Activity
 ```markdown
 {activity_insights}
 ```
-
-### Physiology Expert Strategic Insights
+### Physiology
 ```markdown
 {physiology_insights}
 ```
 
-## Important Notes
-This is a STRATEGIC PLANNING session. You are working with:
-✓ Competition dates and priorities
-✓ Classical periodization principles
-✓ General training progression logic
-✓ Strategic insights from expert analyses (fitness trends, execution patterns, recovery capacity)
-
-## Integration Principles
-You are the macro-cycle architect, not a fourth expert competing with the others.
-
-Use the expert insights as your primary inputs:
-- From the **Metrics Expert**: how the training signal behaves over time (load patterns, volatility, fitness vs. load).
-- From the **Activity Expert**: which workout patterns and session archetypes work well or poorly.
-- From the **Physiology Expert**: how the body is coping and adapting (recovery capacity, crash/rebound patterns).
-
-Apply these principles:
-
-- **Integrate, don't overrule**:
-  - Treat the experts' planner-oriented content (often under sections like `## Planner Signal` or similar) as your north star.
-  - Do NOT contradict their core assessments unless you explain why the inputs are inconsistent.
-
-- **Stay strategic, not prescriptive**:
-  - Define phases, themes, focus areas, and rough progression logic.
-  - Do NOT specify detailed weekly schedules, exact ACWR bands, or numeric load ceilings; that is for the Metrics Expert + Weekly Planner to operationalize.
-  - Avoid creating new universal rules (e.g., fixed ratios or thresholds) that were not implied by the expert analyses.
-
-- **Respect domain boundaries**:
-  - For load dynamics: lean on the Metrics Expert rather than inventing your own metrics logic.
-  - For session archetypes and sequencing: lean on the Activity Expert rather than designing workouts yourself.
-  - For recovery capacity and resilience: lean on the Physiology Expert rather than re-deriving physiology from load alone.
-
-Think of yourself as designing the **map of the season** (phases and their intent), not the **turn-by-turn navigation** (individual sessions or hard constraints).
-
-## Your Task
-Create a strategic season plan providing a macro-cycle framework for the next 12-24 weeks leading up to key competitions.
-
-Keep this concise yet comprehensive - it will provide the strategic framework for detailed weekly planning.
+## Task
+Create a macro-cycle framework.
+- **Integrate**: Use expert insights as your north star.
+- **Strategize**: Define phases, themes, and focus areas.
+- **Respect Boundaries**: Do NOT prescribe daily workouts (Weekly Planner's job).
 
 ## Output Requirements
-Format your answer as a structured markdown document with clear headings and bullet points.
+Format as structured markdown.
+1. **Phases**: Define phases (Base, Build, etc.) with goals and themes.
+2. **Expert Rationale**: Explicitly reference how Metrics, Activity, and Physiology informed the plan.
+3. **Constraints**: Qualitative constraints derived from experts.
 
-Your plan should:
+**Stay high-level**. Design the **map of the season**, not the turn-by-turn navigation."""
 
-- Define **phases** (e.g., base, build, race-specific, taper, transition) over the relevant time horizon.
-- For each phase, describe:
-  - The main **goals** (e.g., expand aerobic base, sharpen 5k speed, consolidate adaptations).
-  - The key **training themes** (e.g., emphasis on threshold vs. VO₂max vs. volume vs. recovery).
-  - Any **qualitative constraints** derived from the experts (e.g., "avoid long sequences of very heavy days because your physiology tends to crash after this pattern").
-- Explicitly reference how you used each expert:
-  - Metrics: how load history and fitness trends informed the choice and length of phases.
-  - Activity: how successful/unsuccessful session patterns shaped the "flavor" of each phase.
-  - Physiology: how recovery capacity and crash/rebound patterns influenced where to place easier vs. harder blocks.
 
-Stay high-level:
-- Do NOT prescribe concrete daily or weekly session plans.
-- Do NOT introduce new numeric rules (fixed ACWR bands, exact weekly TL targets, or strict formulas).
-- Use directional, athlete-specific language: "you tend to respond well to…", "your history suggests smoother ramps are safer than abrupt jumps…", etc.
-
-This season plan will be used by the Weekly Planner to derive concrete 14-day blocks, so focus on **strategic structure and intent**, not implementation details."""
 
 
 async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | str]:
@@ -168,6 +103,18 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
                 return output.for_season_planner
         raise ValueError(f"Expert outputs missing 'output.for_season_planner' field: {type(expert_outputs)}")
     
+    # Try to read existing season plan using PlanStorage
+    from services.ai.utils.plan_storage import FilePlanStorage
+    
+    existing_season_plan = ""
+    try:
+        storage = FilePlanStorage()
+        loaded_plan = storage.load_plan(state["user_id"], "season_plan")
+        if loaded_plan:
+            existing_season_plan = loaded_plan
+    except Exception as e:
+        logger.warning(f"Could not read existing season plan: {e}")
+
     base_messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": SEASON_PLANNER_USER_PROMPT.format(
@@ -177,7 +124,7 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
             metrics_insights=get_strategic_insights(state.get("metrics_outputs")),
             activity_insights=get_strategic_insights(state.get("activity_outputs")),
             physiology_insights=get_strategic_insights(state.get("physiology_outputs")),
-        )},
+        ) + (f"\n\n## Existing Season Plan\nWe have an existing season plan. Do NOT start from scratch. Review this plan against the new expert insights. If the plan is still valid, maintain the phase structure and just refine the details. Only trigger a full replan if the new data suggests the old plan is dangerously off-track.\n\n```markdown\n{existing_season_plan}\n```" if existing_season_plan else "")},
     ]
 
     base_llm = ModelSelector.get_llm(AgentRole.SEASON_PLANNER)

@@ -61,6 +61,10 @@ class AISettings:
     def load_settings(cls) -> "AISettings":
         return cls(mode=get_config().ai_mode)
 
+    def reload(self) -> None:
+        """Reloads settings from current config."""
+        self.mode = get_config().ai_mode
+
 
 # Global settings instance
 ai_settings = AISettings.load_settings()

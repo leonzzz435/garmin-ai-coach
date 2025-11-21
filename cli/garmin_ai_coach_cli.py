@@ -14,6 +14,8 @@ from typing import Any
 
 import yaml
 
+from core.config import reload_config
+from services.ai.ai_settings import ai_settings
 from services.ai.langgraph.workflows.planning_workflow import (
     run_complete_analysis_and_planning,
 )
@@ -135,6 +137,11 @@ async def run_analysis_from_config(config_path: Path) -> None:
     password = config_parser.get_password()
 
     os.environ["AI_MODE"] = extraction_settings.get("ai_mode", "development")
+    
+    # Reload config and settings to pick up the new AI_MODE
+    reload_config()
+    ai_settings.reload()
+    
     logger.info(f"AI Mode: {os.environ['AI_MODE']}")
 
 
@@ -224,6 +231,14 @@ async def run_analysis_from_config(config_path: Path) -> None:
                     (output_dir / filename).write_text(output, encoding="utf-8")
                     files_generated.append(filename)
                     logger.info(f"Saved: {output_dir}/{filename}")
+                    
+                    # Also save to persistent storage
+                    from services.ai.utils.plan_storage import FilePlanStorage
+                    storage = FilePlanStorage()
+                    plan_type = "season_plan" if key == "season_plan" else "weekly_plan"
+                    # Use the user_id from the result or default to "cli_user"
+                    user_id = result.get("user_id", "cli_user")
+                    storage.save_plan(user_id, plan_type, output)
 
         cost_total = float(
             result.get("cost_summary", {}).get("total_cost_usd", 0.0) or
