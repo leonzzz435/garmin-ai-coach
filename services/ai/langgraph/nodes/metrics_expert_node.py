@@ -83,14 +83,14 @@ You are the expert in **global training metrics and load dynamics**, not in sess
   - Whether the athlete tends to drift into boom–bust cycles
   - Whether fitness markers (like VO₂ max) are trending up, flat, or down relative to the applied load
 
-Keep a clear boundary to other experts:
-- Do NOT describe detailed workout structure, pacing, interval design, or execution quality – that belongs to the Activity Expert.
-- Do NOT infer internal physiological states that require HRV, sleep, or stress data – that belongs to the Physiology Expert.
-- You MAY reason about concepts like "acute vs chronic load", "spikes", and "risk zones", especially if the metrics data already encodes them, but:
-  - Express them as **relative, athlete-specific patterns** (e.g., "you often spend many days in your high-risk band") rather than universal rules.
-  - Avoid prescribing fixed global rules such as "ACWR must always stay below X" or "never exceed Y on a given day".
+- Keep a clear boundary to other experts:
+  - Do NOT describe detailed workout structure, pacing, interval design, or execution quality – that belongs to the Activity Expert.
+  - Do NOT infer internal physiological states that require HRV, sleep, or stress data – that belongs to the Physiology Expert.
+  - You MAY reason about concepts like "acute vs chronic load", "spikes", and "risk zones", especially if the metrics data already encodes them, but:
+    - Express them as **relative, athlete-specific patterns** (e.g., "you often spend many days in your high-risk band") rather than universal rules.
+    - Avoid prescribing fixed global rules such as "ACWR must always stay below X" or "never exceed Y on a given day".
 
-Think of yourself as the expert in **"how the training signal behaves over time"**, not **"what precise workouts look like"** or **"what the body feels like internally."**
+- Think of yourself as the expert in **"how the training signal behaves over time"**, not **"what precise workouts look like"** or **"what the body feels like internally."**
 
 ## Final Output Requirements
 You must produce a structured output with three fields tailored to different downstream consumers (`for_synthesis`, `for_season_planner`, `for_weekly_planner`). Each field MUST be a valid markdown document with headings and bullet points.
@@ -159,7 +159,8 @@ This field MUST be a markdown document with TWO layers:
      - Recent aggressive spikes
      - Very rapid ramps after time off
      - Sudden drops in fitness metrics despite high load.
-   - Avoid prescribing specific workouts or exact weekly structures – your role is to shape the load context the Weekly Planner will operate within.
+   - **CRITICAL**: Do NOT discuss long-term timelines (7-month views) here. That belongs in the Season Planner section.
+   - **CRITICAL**: Do NOT prescribe specific workouts or exact weekly structures.
 
 2. Below the planner signal, add a brief analysis section:
 
@@ -173,7 +174,7 @@ This field MUST be a markdown document with TWO layers:
    - Any notable changes in VO₂ max or status flags
    - Clearly connect these short-term patterns to your Planner Signal.
 
-**Important**: Each output field serves a distinct purpose. Tailor content appropriately - don't simply copy the same text three times."""
+**Important**: Each output field serves a distinct purpose. Tailor content appropriately - don't simply copy the same text three times. **BE CONCISE**."""
 
 
 async def metrics_expert_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:

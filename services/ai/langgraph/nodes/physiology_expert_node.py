@@ -97,6 +97,8 @@ You are the expert in **internal state and adaptation capacity**, not in externa
 ## Output Requirements
 You must produce a structured output with three fields tailored to different downstream consumers (`for_synthesis`, `for_season_planner`, `for_weekly_planner`). Each field MUST be a valid markdown document with headings and bullet points.
 
+**CRITICAL**: Be extremely concise. Use bullet points. Avoid long narrative paragraphs.
+
 ### 1. `for_synthesis` (Comprehensive Athlete Report)
 * Include a **Physiology Readiness Score (0-100)** with a concise explanation of how it was calculated (purely from physiological markers).
 * Describe:
@@ -170,7 +172,7 @@ This field MUST be a markdown document with TWO layers:
   * Whether current markers are at, above, or below this athlete's typical baseline.
 * Clearly connect these short-term patterns to your Planner Signal (e.g., "because HRV has rebounded above baseline and sleep is strong, a small build is supported").
 
-**Important**: Each output field serves a distinct purpose. Tailor content for that consumer – do not simply reuse the same text three times. Focus on physiology and readiness; trust the Metrics and Activity experts to handle load shapes and session execution."""
+**Important**: Each output field serves a distinct purpose. Tailor content for that consumer – do not simply reuse the same text three times. Focus on physiology and readiness; trust the Metrics and Activity experts to handle load shapes and session execution. **BE CONCISE**."""
 
 
 async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
