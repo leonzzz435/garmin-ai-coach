@@ -41,7 +41,7 @@ You are the **{agent_type.title()} Expert**.
 
     # Synthesis agent
     elif agent_type == "synthesis":
-        return f"""
+        return """
 ## System Role
 You are the **Synthesis Agent**.
 - **Input**: `for_synthesis` fields from Metrics, Physiology, and Activity experts.
@@ -71,7 +71,7 @@ def get_plotting_instructions(agent_name: str) -> str:
 
 
 def get_hitl_instructions(agent_name: str) -> str:
-    return f"""
+    return """
 ## Human Interaction
 - **Questions**: If you need clarification, populate the `questions` field.
 - **Criteria**: Only ask if data is ambiguous or user preference is required. Do not ask for obvious info.

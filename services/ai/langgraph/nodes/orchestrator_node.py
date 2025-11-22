@@ -1,35 +1,76 @@
 import logging
+from typing import Protocol
 
 from langchain_core.messages import AIMessage, HumanMessage
 
 from langgraph.types import Command
+from services.ai.ai_settings import AgentRole
 
 from ..state.training_analysis_state import TrainingAnalysisState
 
 logger = logging.getLogger(__name__)
 
 
+class InteractionProvider(Protocol):
+    def collect_answers(self, questions: list[dict], stage_name: str) -> list[dict]:
+        ...
+
+
+class ConsoleInteractionProvider:
+    def collect_answers(self, questions: list[dict], stage_name: str) -> list[dict]:
+        answers = []
+        
+        print(f"\n{'='*60}")
+        print(f"HITL INTERACTION REQUIRED - {stage_name}")
+        print(f"{'='*60}")
+        
+        for i, qa in enumerate(questions, 1):
+            agent_name = qa["agent"].replace("_", " ").title()
+            question_data = qa["question"]
+            
+            print(f"\nQuestion {i}/{len(questions)} from {agent_name}:")
+            print(f"  {question_data['message']}")
+            if question_data.get("context"):
+                print(f"  Context: {question_data['context']}")
+            
+            user_answer = input("\n👤 Your answer: ").strip()
+            
+            logger.info(f"User answered {agent_name} question {i}: {user_answer}")
+            
+            answers.append({
+                "agent": qa["agent"],
+                "question": question_data["message"],
+                "answer": user_answer
+            })
+        
+        print(f"\n{'='*60}\n")
+        return answers
+
+
 class MasterOrchestrator:
     STAGES = {
         "analysis": {
-            "agents": ["metrics_expert", "physiology_expert", "activity_expert"],
+            "agents": [AgentRole.METRICS_EXPERT.value, AgentRole.PHYSIOLOGY_EXPERT.value, AgentRole.ACTIVITY_EXPERT.value],
             "result_keys": ["metrics_outputs", "physiology_outputs", "activity_outputs"],
             "next_node": "synthesis",
             "display_name": "Analysis"
         },
         "season_planning": {
-            "agents": ["season_planner"],
+            "agents": [AgentRole.SEASON_PLANNER.value],
             "result_keys": ["season_plan"],
             "next_node": "data_integration",
             "display_name": "Season Planning"
         },
         "weekly_planning": {
-            "agents": ["weekly_planner"],
+            "agents": [AgentRole.WORKOUT.value],
             "result_keys": ["weekly_plan"],
             "next_node": "plan_formatter",
             "display_name": "Weekly Planning"
         }
     }
+    
+    def __init__(self, interaction_provider: InteractionProvider = None):
+        self.interaction_provider = interaction_provider or ConsoleInteractionProvider()
     
     def __call__(self, state: TrainingAnalysisState) -> Command:
         stage = self._detect_stage(state)
@@ -57,11 +98,17 @@ class MasterOrchestrator:
         
         logger.info(f"MasterOrchestrator: Found {len(all_questions)} questions, initiating HITL")
         
-        answers = self._collect_answers(all_questions, config["display_name"])
+        answers = self.interaction_provider.collect_answers(all_questions, config["display_name"])
         
         agent_qa_updates = self._create_agent_specific_qa_messages(all_questions, answers)
         
-        agents_to_reinvoke = [key.replace("_messages", "") for key in agent_qa_updates.keys()]
+        agents_to_reinvoke = []
+        for key in agent_qa_updates.keys():
+            agent_role = key.replace("_messages", "")
+            if agent_role == AgentRole.WORKOUT.value:
+                agents_to_reinvoke.append("weekly_planner")
+            else:
+                agents_to_reinvoke.append(agent_role)
         
         logger.info(f"MasterOrchestrator: Re-invoking {agents_to_reinvoke} with agent-specific Q&A messages")
         
@@ -112,39 +159,6 @@ class MasterOrchestrator:
         
         return all_questions
     
-    def _collect_answers(
-        self,
-        questions: list[dict],
-        stage_name: str
-    ) -> list[dict]:
-        answers = []
-        
-        print(f"\n{'='*60}")
-        print(f"HITL INTERACTION REQUIRED - {stage_name}")
-        print(f"{'='*60}")
-        
-        for i, qa in enumerate(questions, 1):
-            agent_name = qa["agent"].replace("_", " ").title()
-            question_data = qa["question"]
-            
-            print(f"\nQuestion {i}/{len(questions)} from {agent_name}:")
-            print(f"  {question_data['message']}")
-            if question_data.get("context"):
-                print(f"  Context: {question_data['context']}")
-            
-            user_answer = input("\n👤 Your answer: ").strip()
-            
-            logger.info(f"User answered {agent_name} question {i}: {user_answer}")
-            
-            answers.append({
-                "agent": qa["agent"],
-                "question": question_data["message"],
-                "answer": user_answer
-            })
-        
-        print(f"\n{'='*60}\n")
-        return answers
-    
     def _create_agent_specific_qa_messages(
         self,
         questions: list[dict],
@@ -157,7 +171,10 @@ class MasterOrchestrator:
             question = qa_item["question"]["message"]
             answer = answer_item["answer"]
             
-            field_name = f"{agent_name}_messages"
+            if agent_name == AgentRole.WORKOUT.value:
+                field_name = "weekly_planner_messages"
+            else:
+                field_name = f"{agent_name}_messages"
             
             if field_name not in updates:
                 updates[field_name] = []

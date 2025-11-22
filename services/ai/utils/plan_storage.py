@@ -37,14 +37,23 @@ class FilePlanStorage(PlanStorage):
                 logger.info(f"Loading {plan_type} for user {user_id} from {plan_path}")
                 return plan_path.read_text(encoding="utf-8")
             return None
+        except OSError as e:
+            logger.error(f"IO Error loading {plan_type} for user {user_id}: {e}", exc_info=True)
+            return None
         except Exception as e:
-            logger.error(f"Failed to load {plan_type} for user {user_id}: {e}")
+            logger.error(f"Unexpected error loading {plan_type} for user {user_id}: {e}", exc_info=True)
             return None
 
     def save_plan(self, user_id: str, plan_type: str, content: str) -> None:
+        if not content:
+            logger.warning(f"Attempted to save empty content for {plan_type} (user: {user_id})")
+            return
+            
         try:
             plan_path = self._get_plan_path(user_id, plan_type)
             plan_path.write_text(content, encoding="utf-8")
             logger.info(f"Saved {plan_type} for user {user_id} to {plan_path}")
+        except OSError as e:
+            logger.error(f"IO Error saving {plan_type} for user {user_id}: {e}", exc_info=True)
         except Exception as e:
-            logger.error(f"Failed to save {plan_type} for user {user_id}: {e}")
+            logger.error(f"Unexpected error saving {plan_type} for user {user_id}: {e}", exc_info=True)

@@ -4,10 +4,12 @@ from datetime import datetime
 
 from services.ai.ai_settings import AgentRole
 from services.ai.model_config import ModelSelector
+from services.ai.utils.plan_storage import FilePlanStorage
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..schemas import AgentOutput
 from ..state.training_analysis_state import TrainingAnalysisState
+from ..utils.output_helper import extract_expert_output
 from .node_base import (
     configure_node_tools,
     create_cost_entry,
@@ -88,23 +90,11 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
     qa_messages_raw = state.get("season_planner_messages", [])
     qa_messages = []
     for msg in qa_messages_raw:
-        if hasattr(msg, "type"):  # LangChain message object
+        if hasattr(msg, "type"):
             role = "assistant" if msg.type == "ai" else "user"
             qa_messages.append({"role": role, "content": msg.content})
-        else:  # Already a dict
+        else:
             qa_messages.append(msg)
-    
-    def get_strategic_insights(expert_outputs):
-        if hasattr(expert_outputs, "output"):
-            output = expert_outputs.output
-            if isinstance(output, list):
-                raise ValueError("Expert outputs contain questions, not analysis. HITL interaction required.")
-            if hasattr(output, "for_season_planner"):
-                return output.for_season_planner
-        raise ValueError(f"Expert outputs missing 'output.for_season_planner' field: {type(expert_outputs)}")
-    
-    # Try to read existing season plan using PlanStorage
-    from services.ai.utils.plan_storage import FilePlanStorage
     
     existing_season_plan = ""
     try:
@@ -121,15 +111,14 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
             athlete_name=state["athlete_name"],
             current_date=json.dumps(state["current_date"], indent=2),
             competitions=json.dumps(state["competitions"], indent=2),
-            metrics_insights=get_strategic_insights(state.get("metrics_outputs")),
-            activity_insights=get_strategic_insights(state.get("activity_outputs")),
-            physiology_insights=get_strategic_insights(state.get("physiology_outputs")),
+            metrics_insights=extract_expert_output(state.get("metrics_outputs"), "for_season_planner"),
+            activity_insights=extract_expert_output(state.get("activity_outputs"), "for_season_planner"),
+            physiology_insights=extract_expert_output(state.get("physiology_outputs"), "for_season_planner"),
         ) + (f"\n\n## Existing Season Plan\nWe have an existing season plan. Do NOT start from scratch. Review this plan against the new expert insights. If the plan is still valid, maintain the phase structure and just refine the details. Only trigger a full replan if the new data suggests the old plan is dangerously off-track.\n\n```markdown\n{existing_season_plan}\n```" if existing_season_plan else "")},
     ]
 
     base_llm = ModelSelector.get_llm(AgentRole.SEASON_PLANNER)
     
-    # Bind tools first, then apply structured output
     llm_with_tools = base_llm.bind_tools(tools) if tools else base_llm
     llm_with_structure = llm_with_tools.with_structured_output(AgentOutput)
     

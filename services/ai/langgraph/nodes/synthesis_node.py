@@ -8,21 +8,13 @@ from services.ai.tools.plotting import PlotStorage
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
 from ..state.training_analysis_state import TrainingAnalysisState
+from ..utils.output_helper import extract_expert_output
 from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
 
-def _extract_for_synthesis(expert_outputs):
-    if expert_outputs is None:
-        raise ValueError("Expert outputs cannot be None - synthesis requires all expert analyses")
-    if hasattr(expert_outputs, "output"):
-        output = expert_outputs.output
-        if isinstance(output, list):
-            raise ValueError("Expert outputs contain questions, not analysis. HITL interaction required.")
-        if hasattr(output, "for_synthesis"):
-            return output.for_synthesis
-    raise ValueError(f"Expert outputs missing 'output.for_synthesis' field: {type(expert_outputs)}")
+
 
 
 SYNTHESIS_SYSTEM_PROMPT_BASE = """You are a performance integration specialist.
@@ -99,9 +91,9 @@ async def synthesis_node(state: TrainingAnalysisState) -> dict[str, list | str]:
                     {"role": "user", "content": (
                         SYNTHESIS_USER_PROMPT_BASE.format(
                             athlete_name=state["athlete_name"],
-                            metrics_result=_extract_for_synthesis(state.get("metrics_outputs")),
-                            activity_result=_extract_for_synthesis(state.get("activity_outputs")),
-                            physiology_result=_extract_for_synthesis(state.get("physiology_outputs")),
+                            metrics_result=extract_expert_output(state.get("metrics_outputs"), "for_synthesis"),
+                            activity_result=extract_expert_output(state.get("activity_outputs"), "for_synthesis"),
+                            physiology_result=extract_expert_output(state.get("physiology_outputs"), "for_synthesis"),
                             competitions=json.dumps(state["competitions"], indent=2),
                             current_date=json.dumps(state["current_date"], indent=2),
                             style_guide=state["style_guide"],
