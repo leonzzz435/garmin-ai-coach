@@ -14,7 +14,6 @@ AgentType = Literal[
 
 
 def get_workflow_context(agent_type: AgentType) -> str:
-    """Role-specialized workflow context."""
     
     # Summarizer agents
     if agent_type in ["metrics_summarizer", "physiology_summarizer", "activity_summarizer"]:

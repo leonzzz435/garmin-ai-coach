@@ -19,6 +19,7 @@ from services.ai.ai_settings import ai_settings
 from services.ai.langgraph.workflows.planning_workflow import (
     run_complete_analysis_and_planning,
 )
+from services.ai.utils.plan_storage import FilePlanStorage
 from services.garmin import ExtractionConfig, TriathlonCoachDataExtractor
 from services.outside.client import OutsideApiGraphQlClient
 
@@ -233,7 +234,6 @@ async def run_analysis_from_config(config_path: Path) -> None:
                     logger.info(f"Saved: {output_dir}/{filename}")
                     
                     # Also save to persistent storage
-                    from services.ai.utils.plan_storage import FilePlanStorage
                     storage = FilePlanStorage()
                     plan_type = "season_plan" if key == "season_plan" else "weekly_plan"
                     # Use the user_id from the result or default to "cli_user"

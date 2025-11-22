@@ -4,13 +4,7 @@ from .agent_outputs import Question
 
 
 class ReceiverOutputs(BaseModel):
-    """Analysis outputs for downstream consumers.
-    
-    Provides tailored output for three different consumers:
-    - Synthesis Agent: Creates comprehensive athlete report
-    - Season Planner: Designs 12-24 week macro-cycles
-    - Weekly Planner: Creates next 28 days of training
-    """
+    """Tailored outputs for Synthesis Agent, Season Planner, and Weekly Planner."""
     
     for_synthesis: str = Field(
         ...,
@@ -27,12 +21,7 @@ class ReceiverOutputs(BaseModel):
 
 
 class ExpertOutputBase(BaseModel):
-    """Base class for expert outputs with mutually exclusive modes.
-    
-    Expert must produce EITHER:
-    - Questions for HITL (first invocation when clarification needed)
-    - Output for downstream consumers (after HITL or when no questions needed)
-    """
+    """Expert produces EITHER questions for HITL OR outputs for downstream consumers."""
 
     output: list[Question] | ReceiverOutputs = Field(
         ...,

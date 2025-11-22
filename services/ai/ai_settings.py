@@ -62,7 +62,6 @@ class AISettings:
         return cls(mode=get_config().ai_mode)
 
     def reload(self) -> None:
-        """Reloads settings from current config."""
         self.mode = get_config().ai_mode
 
 

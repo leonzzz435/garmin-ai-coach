@@ -9,12 +9,7 @@ class Question(BaseModel):
 
 
 class AgentOutput(BaseModel):
-    """Structured output from agents with mutually exclusive modes.
-    
-    Agent must produce EITHER:
-    - Questions for HITL (first invocation when clarification needed)
-    - Content for downstream consumers (after HITL or when no questions needed)
-    """
+    """Agent produces EITHER questions for HITL OR content for downstream consumers."""
 
     output: list[Question] | str = Field(
         ...,

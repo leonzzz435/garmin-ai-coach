@@ -63,7 +63,6 @@ def get_config() -> Config:
 
 
 def reload_config() -> Config:
-    """Forces a reload of the configuration from environment variables."""
     if hasattr(get_config, '_config'):
         delattr(get_config, '_config')
     return get_config()
