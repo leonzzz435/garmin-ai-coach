@@ -64,6 +64,11 @@ Translate the Season Plan strategy and Expert signals into concrete daily sessio
    - **WORKOUT**: Concise structure string.
    - **PURPOSE**: One short sentence.
    - **ADAPTATION**: "If tired: ..."
+
+**Important:**
+- Use recent activity data to continue the current training flow and don't start a new phase.
+- Use the Season Plan as a guide, but don't force it.
+- place sessions smartly to avoid back to back high intensity sessions or strength sessions etc.
 """
 
 

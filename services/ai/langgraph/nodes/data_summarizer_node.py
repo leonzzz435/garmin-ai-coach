@@ -46,7 +46,7 @@ GENERIC_SUMMARIZER_USER_PROMPT = """Extract and organize ALL important metrics f
 - NEVER skip numbers for conciseness.
 - NEVER interpret or speculate.
 
-Deliver a complete, number-rich summary."""
+Deliver a complete, number-rich but token efficient summary."""
 
 
 def create_data_summarizer_node(

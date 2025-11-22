@@ -60,7 +60,7 @@ Format as structured markdown.
 2. **Expert Rationale**: Explicitly reference how Metrics, Activity, and Physiology informed the plan.
 3. **Constraints**: Qualitative constraints derived from experts.
 
-**Stay high-level**. Design the **map of the season**, not the turn-by-turn navigation."""
+**Stay high-level**. Design the **map of the season**, not the turn-by-turn navigation. **BE CONCISE**."""
 
 
 

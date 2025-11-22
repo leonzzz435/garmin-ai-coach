@@ -31,12 +31,12 @@ Input Data:
 * Duration: [time]
 * Distance: [distance]
 * Elevation: [elevation]
-* Avg HR: [HR] | Avg Pace/Power: [pace/power]
+* Avg HR: [HR] | Avg Pace/Power: [pace/power] 
 
 ## Lap Details
-| Lap | Dist | Time | Pace | Avg HR | Max HR |
-|-----|------|------|------|--------|--------|
-| 1   | ...  | ...  | ...  | ...    | ...    |
+| Lap | Dist | Time | Pace | Avg HR | Max HR | ... |
+|-----|------|------|------|--------|--------|-----|
+| 1   | ...  | ...  | ...  | ...    | ...    | ... |
 
 Repeat for each activity, newest to oldest."""
 
