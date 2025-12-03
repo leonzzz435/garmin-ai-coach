@@ -14,6 +14,13 @@ from typing import Any
 
 import yaml
 
+from core.config import reload_config
+from services.ai.ai_settings import ai_settings
+from services.ai.langgraph.workflows.planning_workflow import (
+    run_complete_analysis_and_planning,
+)
+from services.ai.utils.plan_storage import FilePlanStorage
+from services.garmin import ExtractionConfig, TriathlonCoachDataExtractor
 from services.outside.client import OutsideApiGraphQlClient
 
 sys.path.append(str(Path(__file__).parent.parent))
@@ -63,6 +70,7 @@ class ConfigParser:
             "ai_mode": self.config.get("extraction", {}).get("ai_mode", "development"),
             "enable_plotting": self.config.get("extraction", {}).get("enable_plotting", False),
             "hitl_enabled": self.config.get("extraction", {}).get("hitl_enabled", True),
+            "skip_synthesis": self.config.get("extraction", {}).get("skip_synthesis", False),
         }
 
     def get_competitions(self) -> list[dict[str, Any]]:
@@ -130,17 +138,13 @@ async def run_analysis_from_config(config_path: Path) -> None:
     password = config_parser.get_password()
 
     os.environ["AI_MODE"] = extraction_settings.get("ai_mode", "development")
+    
+    # Reload config and settings to pick up the new AI_MODE
+    reload_config()
+    ai_settings.reload()
+    
     logger.info(f"AI Mode: {os.environ['AI_MODE']}")
 
-    from langsmith.run_helpers import trace
-
-    from services.ai.langgraph.state.training_analysis_state import create_initial_state
-    from services.ai.langgraph.workflows.interactive_runner import run_workflow_with_hitl
-    from services.ai.langgraph.workflows.planning_workflow import (
-        create_integrated_analysis_and_planning_workflow,
-        run_complete_analysis_and_planning,
-    )
-    from services.garmin import ExtractionConfig, TriathlonCoachDataExtractor
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -161,9 +165,11 @@ async def run_analysis_from_config(config_path: Path) -> None:
         now = datetime.now()
         plotting_enabled = extraction_settings.get("enable_plotting", False)
         hitl_enabled = extraction_settings.get("hitl_enabled", True)
+        skip_synthesis = extraction_settings.get("skip_synthesis", False)
         
         logger.info(f"Plotting enabled: {plotting_enabled}")
         logger.info(f"HITL enabled: {hitl_enabled}")
+        logger.info(f"Skip synthesis: {skip_synthesis}")
         
         current_date = {"date": now.strftime("%Y-%m-%d"), "day_name": now.strftime("%A")}
         week_dates = [
@@ -174,73 +180,19 @@ async def run_analysis_from_config(config_path: Path) -> None:
         
         logger.info("Running AI analysis and planning...")
         
-        if hitl_enabled:
-            def prompt_user(question: str) -> str:
-                print(f"\n{'='*70}")
-                print(f"🤖 {question}")
-                print(f"{'='*70}")
-                response = input("\n👤 Your answer: ").strip()
-                return response
-            
-            def show_progress(message: str) -> None:
-                print(message)
-            
-            workflow = create_integrated_analysis_and_planning_workflow()
-            execution_id = f"cli_user_{datetime.now().strftime('%Y%m%d_%H%M%S')}_complete"
-            config = {"configurable": {"thread_id": execution_id}}
-            
-            async with trace(
-                name="Garmin HITL Session",
-                project_name="garmin_ai_coach_analysis",
-                inputs={
-                    "thread_id": execution_id,
-                    "athlete": athlete_name,
-                    "plotting_enabled": plotting_enabled,
-                    "hitl_enabled": True,
-                },
-                tags=[f"thread:{execution_id}", "garmin", "hitl", "cli"],
-            ) as run:
-                logger.info("Created parent LangSmith run for HITL session")
-                
-                result = await run_workflow_with_hitl(
-                    workflow_app=workflow,
-                    initial_state=create_initial_state(
-                        user_id="cli_user",
-                        athlete_name=athlete_name,
-                        garmin_data=asdict(garmin_data),
-                        analysis_context=analysis_context,
-                        planning_context=planning_context,
-                        competitions=competitions,
-                        current_date=current_date,
-                        week_dates=week_dates,
-                        execution_id=execution_id,
-                        plotting_enabled=plotting_enabled,
-                        hitl_enabled=True,
-                    ),
-                    config=config,
-                    prompt_callback=prompt_user,
-                    progress_callback=show_progress,
-                )
-                
-                run.end(outputs={
-                    "status": "completed",
-                    "execution_id": execution_id,
-                    "cancelled": result.get("cancelled", False),
-                })
-                logger.info("Parent LangSmith run completed successfully")
-        else:
-            result = await run_complete_analysis_and_planning(
-                user_id="cli_user",
-                athlete_name=athlete_name,
-                garmin_data=asdict(garmin_data),
-                analysis_context=analysis_context,
-                planning_context=planning_context,
-                competitions=competitions,
-                current_date=current_date,
-                week_dates=week_dates,
-                plotting_enabled=plotting_enabled,
-                hitl_enabled=False,
-            )
+        result = await run_complete_analysis_and_planning(
+            user_id="cli_user",
+            athlete_name=athlete_name,
+            garmin_data=asdict(garmin_data),
+            analysis_context=analysis_context,
+            planning_context=planning_context,
+            competitions=competitions,
+            current_date=current_date,
+            week_dates=week_dates,
+            plotting_enabled=plotting_enabled,
+            hitl_enabled=hitl_enabled,
+            skip_synthesis=skip_synthesis,
+        )
 
         logger.info("Saving results...")
 
@@ -249,15 +201,44 @@ async def run_analysis_from_config(config_path: Path) -> None:
         for filename, key in [
             ("analysis.html", "analysis_html"),
             ("planning.html", "planning_html"),
-            ("metrics_result.md", "metrics_result"),
-            ("activity_result.md", "activity_result"),
-            ("physiology_result.md", "physiology_result"),
-            ("season_plan.md", "season_plan"),
         ]:
             if content := result.get(key):
+                if isinstance(content, dict):
+                    content = content.get("content", "")
                 (output_dir / filename).write_text(content, encoding="utf-8")
                 files_generated.append(filename)
                 logger.info(f"Saved: {output_dir}/{filename}")
+        
+        for filename, key in [
+            ("metrics_expert.json", "metrics_outputs"),
+            ("activity_expert.json", "activity_outputs"),
+            ("physiology_expert.json", "physiology_outputs"),
+        ]:
+            if output := result.get(key):
+                (output_dir / filename).write_text(
+                    json.dumps(output.model_dump(mode="json"), indent=2, ensure_ascii=False),
+                    encoding="utf-8"
+                )
+                files_generated.append(filename)
+                logger.info(f"Saved: {output_dir}/{filename}")
+        
+        for filename, key in [
+            ("season_plan.md", "season_plan"),
+            ("weekly_plan.md", "weekly_plan"),
+        ]:
+            if plan_dict := result.get(key):
+                output = plan_dict.get("output", plan_dict)
+                if isinstance(output, str):
+                    (output_dir / filename).write_text(output, encoding="utf-8")
+                    files_generated.append(filename)
+                    logger.info(f"Saved: {output_dir}/{filename}")
+                    
+                    # Also save to persistent storage
+                    storage = FilePlanStorage()
+                    plan_type = "season_plan" if key == "season_plan" else "weekly_plan"
+                    # Use the user_id from the result or default to "cli_user"
+                    user_id = result.get("user_id", "cli_user")
+                    storage.save_plan(user_id, plan_type, output)
 
         cost_total = float(
             result.get("cost_summary", {}).get("total_cost_usd", 0.0) or

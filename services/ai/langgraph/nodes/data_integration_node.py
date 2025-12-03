@@ -15,10 +15,10 @@ async def data_integration_node(state: TrainingAnalysisState) -> dict[str, list]
 
         data_available = [
             name for name, key in [
-                ("metrics analysis", "metrics_result"),
-                ("activity analysis", "activity_result"),
-                ("physiology analysis", "physiology_result")
-            ] if state.get(key, "")
+                ("metrics analysis", "metrics_outputs"),
+                ("activity analysis", "activity_outputs"),
+                ("physiology analysis", "physiology_outputs")
+            ] if state.get(key)
         ]
 
         logger.info(
@@ -29,6 +29,7 @@ async def data_integration_node(state: TrainingAnalysisState) -> dict[str, list]
         logger.info(f"Data integration completed in {execution_time:.2f}s")
 
         return {
+            "season_plan_complete": True,
             "costs": [{
                 "agent": "data_integration",
                 "execution_time": execution_time,

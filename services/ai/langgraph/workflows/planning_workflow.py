@@ -11,6 +11,7 @@ from ..nodes.data_integration_node import data_integration_node
 from ..nodes.formatter_node import formatter_node
 from ..nodes.metrics_expert_node import metrics_expert_node
 from ..nodes.metrics_summarizer_node import metrics_summarizer_node
+from ..nodes.orchestrator_node import master_orchestrator_node
 from ..nodes.physiology_expert_node import physiology_expert_node
 from ..nodes.physiology_summarizer_node import physiology_summarizer_node
 from ..nodes.plan_formatter_node import plan_formatter_node
@@ -30,14 +31,21 @@ def create_planning_workflow():
     workflow = StateGraph(TrainingAnalysisState)
 
     workflow.add_node("season_planner", season_planner_node)
+    workflow.add_node("master_orchestrator", master_orchestrator_node)
     workflow.add_node("data_integration", data_integration_node)
     workflow.add_node("weekly_planner", weekly_planner_node)
     workflow.add_node("plan_formatter", plan_formatter_node)
 
     workflow.add_edge(START, "season_planner")
-    workflow.add_edge("season_planner", "data_integration")
+    workflow.add_edge("season_planner", "master_orchestrator")
+    
+    workflow.add_edge("master_orchestrator", "data_integration")
+    workflow.add_edge("master_orchestrator", "plan_formatter")
+    workflow.add_edge("master_orchestrator", "season_planner")
+    workflow.add_edge("master_orchestrator", "weekly_planner")
+    
     workflow.add_edge("data_integration", "weekly_planner")
-    workflow.add_edge("weekly_planner", "plan_formatter")
+    workflow.add_edge("weekly_planner", "master_orchestrator")
     workflow.add_edge("plan_formatter", END)
 
     checkpointer = MemorySaver()
@@ -55,9 +63,9 @@ async def run_weekly_planning(
     competitions: list | None = None,
     current_date: dict | None = None,
     week_dates: list | None = None,
-    metrics_result: str = "",
-    activity_result: str = "",
-    physiology_result: str = "",
+    metrics_outputs=None,
+    activity_outputs=None,
+    physiology_outputs=None,
     plots: list | None = None,
     available_plots: list | None = None,
 ) -> dict:
@@ -75,9 +83,9 @@ async def run_weekly_planning(
         execution_id=execution_id,
     )
     initial_state.update({
-        "metrics_result": metrics_result,
-        "activity_result": activity_result,
-        "physiology_result": physiology_result,
+        "metrics_outputs": metrics_outputs,
+        "activity_outputs": activity_outputs,
+        "physiology_outputs": physiology_outputs,
         "plots": plots or [],
         "available_plots": available_plots or [],
     })
@@ -107,6 +115,7 @@ def create_integrated_analysis_and_planning_workflow():
     workflow.add_node("plot_resolution", plot_resolution_node)
 
     workflow.add_node("season_planner", season_planner_node)
+    workflow.add_node("master_orchestrator", master_orchestrator_node)
     workflow.add_node("data_integration", data_integration_node)
     workflow.add_node("weekly_planner", weekly_planner_node)
     workflow.add_node("plan_formatter", plan_formatter_node)
@@ -121,14 +130,20 @@ def create_integrated_analysis_and_planning_workflow():
     workflow.add_edge("physiology_summarizer", "physiology_expert")
     workflow.add_edge("activity_summarizer", "activity_expert")
 
-    workflow.add_edge(["metrics_expert", "physiology_expert", "activity_expert"], "synthesis")
+    workflow.add_edge(["metrics_expert", "physiology_expert", "activity_expert"], "master_orchestrator")
+    
+    # Master orchestrator uses ONLY Command(goto=...) for dynamic routing
+    # NO unconditional edges from orchestrator - it routes dynamically based on stage
+    
     workflow.add_edge("synthesis", "formatter")
     workflow.add_edge("formatter", "plot_resolution")
 
-    workflow.add_edge(["metrics_expert", "physiology_expert", "activity_expert"], "season_planner")
-    workflow.add_edge("season_planner", "data_integration")
+    # Season planner routes back to orchestrator for HITL handling
+    workflow.add_edge("season_planner", "master_orchestrator")
+    
+    # Data integration → weekly planner → orchestrator
     workflow.add_edge("data_integration", "weekly_planner")
-    workflow.add_edge("weekly_planner", "plan_formatter")
+    workflow.add_edge("weekly_planner", "master_orchestrator")
     
     workflow.add_edge("plot_resolution", "finalize")
     workflow.add_edge("plan_formatter", "finalize")
@@ -156,6 +171,7 @@ async def run_complete_analysis_and_planning(
     progress_manager=None,
     plotting_enabled: bool = False,
     hitl_enabled: bool = True,
+    skip_synthesis: bool = False,
 ) -> dict:
     execution_id = f"{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_complete"
     cost_tracker = ProgressIntegratedCostTracker(f"garmin_ai_coach_{user_id}", progress_manager)
@@ -173,6 +189,8 @@ async def run_complete_analysis_and_planning(
             week_dates=week_dates,
             execution_id=execution_id,
             plotting_enabled=plotting_enabled,
+            hitl_enabled=hitl_enabled,
+            skip_synthesis=skip_synthesis,
         ),
         execution_id,
         user_id,

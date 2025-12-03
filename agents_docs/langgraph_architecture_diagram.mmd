@@ -47,6 +47,7 @@ flowchart TD
     %% Integrated Workflow
     subgraph IW ["Integrated Analysis + Planning"]
         direction TB
+        MO[Master Orchestrator<br/>Routing & HITL]
         IAW[Analysis Phase<br/>2-Stage: 3 Summarizers + 3 Experts<br/>+ Synthesis + Formatting]
         IPW[Planning Phase<br/>4 Agents Sequential]
     end
@@ -104,37 +105,37 @@ flowchart TD
     PSN --> PEN
     ADN --> AIN
 
-    %% Synthesis combines all expert outputs
-    MEN --> SN
-    PEN --> SN
-    AIN --> SN
+    %% Experts feed Master Orchestrator
+    MEN --> MO
+    PEN --> MO
+    AIN --> MO
+
+    %% Master Orchestrator Routing
+    MO --> SN
+    MO --> SPN
+    MO --> DIN
+    MO --> WPN
+    
+    %% HITL Loops (Orchestrator manages re-entry)
+    SPN --> MO
+    WPN --> MO
+
+    %% Synthesis & Formatting
     SN --> FN
     FN --> PRN
 
-    MEN --> SPN
-    PEN --> SPN
-    AIN --> SPN
-    
-    SPN --> DIN
+    %% Planning Flow
     DIN --> WPN
-    %% Weekly planner uses the three expert results directly
-    MEN --> WPN
-    AIN --> WPN
-    PEN --> WPN
     WPN --> PFN
     
-    %% Both branches converge at deferred finalizer (not shown, implicit END join)
-
-    %% Tool Integration (Only Experts have tools)
+    %% Tool Integration
     MEN -.-> PT
-    MEN -.-> HT
     PEN -.-> PT
-    PEN -.-> HT
     AIN -.-> PT
-    AIN -.-> HT
     SN -.-> WS
-    SPN -.-> HT
-    WPN -.-> HT
+    
+    %% Orchestrator handles HITL interactions
+    MO -.-> HT
 
     PT --> PS
     PS --> PRN
@@ -175,7 +176,7 @@ flowchart TD
     classDef external fill:#f1f8e9,stroke:#33691e,stroke-width:2px
 
     class GC,UC,CD,TD inputData
-    class AW,PW,IW,MSN,PSN,ADN,MEN,PEN,AIN,SN,FN,PRN,SPN,DIN,WPN,PFN,S1,S2 workflow
+    class AW,PW,IW,MSN,PSN,ADN,MEN,PEN,AIN,SN,FN,PRN,SPN,DIN,WPN,PFN,S1,S2,MO workflow
     class TS,PT,PS,WS,HT tools
     class SMS,TAS,MS,SR,ES,CPT,LS,WCT,PM state
     class OG,AH,PH,PC,CS,EM output
