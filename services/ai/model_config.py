@@ -40,10 +40,10 @@ class ModelSelector:
             name="claude-sonnet-4-5-20250929", base_url="https://api.anthropic.com"
         ),
         "claude-opus": ModelConfiguration(
-            name="claude-opus-4-1-20250805", base_url="https://api.anthropic.com"
+            name="claude-opus-4-5-20251101", base_url="https://api.anthropic.com"
         ),
         "claude-opus-thinking": ModelConfiguration(
-            name="claude-opus-4-1-20250805", base_url="https://api.anthropic.com"
+            name="claude-opus-4-5-20251101", base_url="https://api.anthropic.com"
         ),
         "claude-3-haiku": ModelConfiguration(
             name="claude-3-haiku-20240307", base_url="https://api.anthropic.com"
