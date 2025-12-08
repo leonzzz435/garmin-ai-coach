@@ -15,35 +15,76 @@ logger = logging.getLogger(__name__)
 class ModelConfiguration:
     name: str
     base_url: str
+    openrouter_name: str | None = None
 
 
 class ModelSelector:
 
     CONFIGURATIONS: dict[str, ModelConfiguration] = {
         # OpenAI Models
-        "gpt-4o": ModelConfiguration(name="gpt-4o", base_url="https://api.openai.com/v1"),
-        "gpt-4.1": ModelConfiguration(name="gpt-4.1", base_url="https://api.openai.com/v1"),
+        "gpt-4o": ModelConfiguration(
+            name="gpt-4o",
+            base_url="https://api.openai.com/v1",
+            openrouter_name="openai/gpt-4o",
+        ),
+        "gpt-4.1": ModelConfiguration(
+            name="gpt-4.1",
+            base_url="https://api.openai.com/v1",
+            openrouter_name="openai/gpt-4.1",
+        ),
         "gpt-4.5": ModelConfiguration(name="gpt-4.5-preview", base_url="https://api.openai.com/v1"),
-        "gpt-4o-mini": ModelConfiguration(name="gpt-4o-mini", base_url="https://api.openai.com/v1"),
+        "gpt-4o-mini": ModelConfiguration(
+            name="gpt-4o-mini",
+            base_url="https://api.openai.com/v1",
+            openrouter_name="openai/gpt-4o-mini",
+        ),
         "o1": ModelConfiguration(name="o1-preview", base_url="https://api.openai.com/v1"),
         "o1-mini": ModelConfiguration(name="o1-mini", base_url="https://api.openai.com/v1"),
-        "o3": ModelConfiguration(name="o3", base_url="https://api.openai.com/v1"),
-        "o3-mini": ModelConfiguration(name="o3-mini", base_url="https://api.openai.com/v1"),
-        "o4-mini": ModelConfiguration(name="o4-mini", base_url="https://api.openai.com/v1"),
-        "gpt-5": ModelConfiguration(name="gpt-5.1", base_url="https://api.openai.com/v1"),
-        "gpt-5-mini": ModelConfiguration(name="gpt-5-mini", base_url="https://api.openai.com/v1"),
+        "o3": ModelConfiguration(
+            name="o3",
+            base_url="https://api.openai.com/v1",
+            openrouter_name="openai/o3",
+        ),
+        "o3-mini": ModelConfiguration(
+            name="o3-mini",
+            base_url="https://api.openai.com/v1",
+            openrouter_name="openai/o3-mini",
+        ),
+        "o4-mini": ModelConfiguration(
+            name="o4-mini",
+            base_url="https://api.openai.com/v1",
+            openrouter_name="openai/o4-mini",
+        ),
+        "gpt-5": ModelConfiguration(
+            name="gpt-5.1",
+            base_url="https://api.openai.com/v1",
+            openrouter_name="openai/gpt-5.1",
+        ),
+        "gpt-5-mini": ModelConfiguration(
+            name="gpt-5-mini",
+            base_url="https://api.openai.com/v1",
+            openrouter_name="openai/gpt-5-mini",
+        ),
         # Anthropic Models
         "claude-4": ModelConfiguration(
-            name="claude-sonnet-4-5-20250929", base_url="https://api.anthropic.com"
+            name="claude-sonnet-4-5-20250929",
+            base_url="https://api.anthropic.com",
+            openrouter_name="anthropic/claude-sonnet-4.5",
         ),
         "claude-4-thinking": ModelConfiguration(
-            name="claude-sonnet-4-5-20250929", base_url="https://api.anthropic.com"
+            name="claude-sonnet-4-5-20250929",
+            base_url="https://api.anthropic.com",
+            openrouter_name="anthropic/claude-sonnet-4.5",
         ),
         "claude-opus": ModelConfiguration(
-            name="claude-opus-4-1-20250805", base_url="https://api.anthropic.com"
+            name="claude-opus-4-1-20250805",
+            base_url="https://api.anthropic.com",
+            openrouter_name="anthropic/claude-opus-4.1",
         ),
         "claude-opus-thinking": ModelConfiguration(
-            name="claude-opus-4-1-20250805", base_url="https://api.anthropic.com"
+            name="claude-opus-4-1-20250805",
+            base_url="https://api.anthropic.com",
+            openrouter_name="anthropic/claude-opus-4.1",
         ),
         "claude-3-haiku": ModelConfiguration(
             name="claude-3-haiku-20240307", base_url="https://api.anthropic.com"
@@ -74,15 +115,57 @@ class ModelSelector:
         model_config = cls.CONFIGURATIONS[model_name]
         config = get_config()
         
-        api_key_map = {
-            "anthropic": config.anthropic_api_key,
-            "openrouter": config.openrouter_api_key,
-        }
-        api_key = next((api_key_map[k] for k in api_key_map if k in model_config.base_url), config.openai_api_key)
+        base_url = model_config.base_url
+        final_model_name = model_config.name
+        model_provider = "openrouter"
+        if "anthropic" in base_url:
+            model_provider = "anthropic"
+        elif "openai.com" in base_url:
+            model_provider = "openai"
+        use_openrouter_fallback = False
+        openrouter_base = "https://openrouter.ai/api/v1"
 
-        logger.info(f"Configuring LLM for role {role.value} with model {model_config.name}")
+        if model_provider == "anthropic":
+            api_key = config.anthropic_api_key
+            if not api_key:
+                if config.openrouter_api_key:
+                    use_openrouter_fallback = True
+                    api_key = config.openrouter_api_key
+                    base_url = openrouter_base
+                    final_model_name = model_config.openrouter_name or f"anthropic/{model_config.name}"
+                    logger.info(
+                        "Routing Anthropic model %s through OpenRouter (no Anthropic API key available)",
+                        model_config.name,
+                    )
+                else:
+                    raise RuntimeError("Anthropic API key or OpenRouter API key is required")
+        elif model_provider == "openai":
+            api_key = config.openai_api_key
+            if not api_key:
+                if config.openrouter_api_key and model_config.openrouter_name:
+                    use_openrouter_fallback = True
+                    api_key = config.openrouter_api_key
+                    base_url = openrouter_base
+                    final_model_name = model_config.openrouter_name
+                    logger.info(
+                        "Routing OpenAI model %s through OpenRouter (no OpenAI API key available)",
+                        model_config.name,
+                    )
+                elif config.openrouter_api_key:
+                    raise RuntimeError(
+                        f"OpenAI model {model_config.name} is not available via OpenRouter; "
+                        "provide an OPENAI_API_KEY"
+                    )
+                else:
+                    raise RuntimeError("OpenAI API key or OpenRouter API key is required")
+        else:
+            api_key = config.openrouter_api_key
+            if not api_key:
+                raise RuntimeError("OpenRouter API key is required for OpenRouter-hosted models")
 
-        llm_params = {"model": model_config.name, "api_key": api_key}
+        logger.info(f"Configuring LLM for role {role.value} with model {final_model_name}")
+        
+        llm_params = {"model": final_model_name, "api_key": api_key}
         
         model_configs = {
             "claude-opus-thinking": {
@@ -122,14 +205,19 @@ class ModelSelector:
         }
         
         if model_name in model_configs:
-            config_data = model_configs[model_name]
+            config_data = model_configs[model_name].copy()
             log_msg = config_data.pop("log", None)
             llm_params.update(config_data)
             if log_msg:
                 logger.info(log_msg.format(role=role.value))
 
-        if "anthropic" in model_config.base_url:
+        if base_url == openrouter_base:
+            llm_params.pop("use_responses_api", None)
+            if model_provider == "anthropic":
+                llm_params.pop("thinking", None)
+
+        if model_provider == "anthropic" and not use_openrouter_fallback:
             return ChatAnthropic(**llm_params)
-        
-        llm_params["base_url"] = model_config.base_url
+
+        llm_params["base_url"] = base_url
         return ChatOpenAI(**llm_params)
