@@ -5,7 +5,7 @@ import pytest
 from core.config import AIMode, Config
 from services.ai import model_config
 from services.ai.ai_settings import AgentRole
-from services.ai.model_config import ModelSelector, OPENROUTER_BASE_URL
+from services.ai.model_config import OPENROUTER_BASE_URL, ModelSelector
 
 
 class _StubSettings:
