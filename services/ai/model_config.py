@@ -10,6 +10,9 @@ from .ai_settings import AgentRole, ai_settings
 
 logger = logging.getLogger(__name__)
 
+# OpenRouter API base URL
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
 
 @dataclass
 class ModelConfiguration:
@@ -19,6 +22,24 @@ class ModelConfiguration:
 
 
 class ModelSelector:
+
+    @staticmethod
+    def _detect_provider(base_url: str) -> str:
+        """
+        Detect the model provider from the base URL.
+        
+        Args:
+            base_url: The base URL of the model API
+            
+        Returns:
+            One of: "anthropic", "openai", or "openrouter"
+        """
+        if "anthropic" in base_url:
+            return "anthropic"
+        elif "openai.com" in base_url:
+            return "openai"
+        else:
+            return "openrouter"
 
     CONFIGURATIONS: dict[str, ModelConfiguration] = {
         # OpenAI Models
@@ -32,14 +53,26 @@ class ModelSelector:
             base_url="https://api.openai.com/v1",
             openrouter_name="openai/gpt-4.1",
         ),
-        "gpt-4.5": ModelConfiguration(name="gpt-4.5-preview", base_url="https://api.openai.com/v1"),
+        "gpt-4.5": ModelConfiguration(
+            name="gpt-4.5-preview",
+            base_url="https://api.openai.com/v1",
+            openrouter_name="openai/gpt-4.5-preview",
+        ),
         "gpt-4o-mini": ModelConfiguration(
             name="gpt-4o-mini",
             base_url="https://api.openai.com/v1",
             openrouter_name="openai/gpt-4o-mini",
         ),
-        "o1": ModelConfiguration(name="o1-preview", base_url="https://api.openai.com/v1"),
-        "o1-mini": ModelConfiguration(name="o1-mini", base_url="https://api.openai.com/v1"),
+        "o1": ModelConfiguration(
+            name="o1-preview",
+            base_url="https://api.openai.com/v1",
+            openrouter_name="openai/o1-preview",
+        ),
+        "o1-mini": ModelConfiguration(
+            name="o1-mini",
+            base_url="https://api.openai.com/v1",
+            openrouter_name="openai/o1-mini",
+        ),
         "o3": ModelConfiguration(
             name="o3",
             base_url="https://api.openai.com/v1",
@@ -87,43 +120,60 @@ class ModelSelector:
             openrouter_name="anthropic/claude-opus-4.1",
         ),
         "claude-3-haiku": ModelConfiguration(
-            name="claude-3-haiku-20240307", base_url="https://api.anthropic.com"
+            name="claude-3-haiku-20240307",
+            base_url="https://api.anthropic.com",
+            openrouter_name="anthropic/claude-3-haiku",
         ),
         # DeepSeek Models
         "deepseek-chat": ModelConfiguration(
-            name="openrouter/deepseek/deepseek-chat", base_url="https://openrouter.ai/api/v1"
+            name="openrouter/deepseek/deepseek-chat", base_url=OPENROUTER_BASE_URL
         ),
         "deepseek-reasoner": ModelConfiguration(
-            name="openrouter/deepseek/deepseek-r1", base_url="https://openrouter.ai/api/v1"
+            name="openrouter/deepseek/deepseek-r1", base_url=OPENROUTER_BASE_URL
         ),
         "deepseek-v3.2-exp": ModelConfiguration(
-            name="deepseek/deepseek-v3.2-exp", base_url="https://openrouter.ai/api/v1"
+            name="deepseek/deepseek-v3.2-exp", base_url=OPENROUTER_BASE_URL
         ),
         # Google Models (via OpenRouter)
         "gemini-2.5-pro": ModelConfiguration(
-            name="google/gemini-2.5-pro", base_url="https://openrouter.ai/api/v1"
+            name="google/gemini-2.5-pro", base_url=OPENROUTER_BASE_URL
         ),
         # xAI Models (via OpenRouter)
         "grok-4": ModelConfiguration(
-            name="x-ai/grok-4", base_url="https://openrouter.ai/api/v1"
+            name="x-ai/grok-4", base_url=OPENROUTER_BASE_URL
         ),
     }
 
     @classmethod
     def get_llm(cls, role: AgentRole):
+        """
+        Get an LLM instance for the given role.
+        
+        This method implements a fallback strategy for model routing:
+        1. For Anthropic/OpenAI models: Prefer direct API if key is available
+        2. If direct API key is missing: Fall back to OpenRouter (if model has openrouter_name)
+        3. For native OpenRouter models: Always use OpenRouter API
+        
+        Provider-specific parameters (thinking, responses_api, reasoning, etc.) are automatically
+        stripped when routing through OpenRouter, as they are not supported by OpenRouter's API.
+        
+        Args:
+            role: The agent role determining which model to use
+            
+        Returns:
+            ChatAnthropic or ChatOpenAI instance configured for the selected model
+            
+        Raises:
+            RuntimeError: If required API keys are missing or model is not available via OpenRouter
+        """
         model_name = ai_settings.get_model_for_role(role)
         model_config = cls.CONFIGURATIONS[model_name]
         config = get_config()
         
         base_url = model_config.base_url
         final_model_name = model_config.name
-        model_provider = "openrouter"
-        if "anthropic" in base_url:
-            model_provider = "anthropic"
-        elif "openai.com" in base_url:
-            model_provider = "openai"
+        model_provider = cls._detect_provider(base_url)
         use_openrouter_fallback = False
-        openrouter_base = "https://openrouter.ai/api/v1"
 
         if model_provider == "anthropic":
             api_key = config.anthropic_api_key
@@ -131,7 +181,7 @@ class ModelSelector:
                 if config.openrouter_api_key:
                     use_openrouter_fallback = True
                     api_key = config.openrouter_api_key
-                    base_url = openrouter_base
+                    base_url = OPENROUTER_BASE_URL
                     final_model_name = model_config.openrouter_name or f"anthropic/{model_config.name}"
                     logger.info(
                         "Routing Anthropic model %s through OpenRouter (no Anthropic API key available)",
@@ -145,7 +195,7 @@ class ModelSelector:
                 if config.openrouter_api_key and model_config.openrouter_name:
                     use_openrouter_fallback = True
                     api_key = config.openrouter_api_key
-                    base_url = openrouter_base
+                    base_url = OPENROUTER_BASE_URL
                     final_model_name = model_config.openrouter_name
                     logger.info(
                         "Routing OpenAI model %s through OpenRouter (no OpenAI API key available)",
@@ -211,7 +261,9 @@ class ModelSelector:
             if log_msg:
                 logger.info(log_msg.format(role=role.value))
 
-        if base_url == openrouter_base:
+        if base_url == OPENROUTER_BASE_URL:
+            # Strip provider-specific parameters when routing through OpenRouter
+            # as they are not supported by OpenRouter's API
             llm_params.pop("use_responses_api", None)
             llm_params.pop("reasoning", None)
             llm_params.pop("model_kwargs", None)
