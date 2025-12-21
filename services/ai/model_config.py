@@ -213,6 +213,8 @@ class ModelSelector:
 
         if base_url == openrouter_base:
             llm_params.pop("use_responses_api", None)
+            llm_params.pop("reasoning", None)
+            llm_params.pop("model_kwargs", None)
             if model_provider == "anthropic":
                 llm_params.pop("thinking", None)
 

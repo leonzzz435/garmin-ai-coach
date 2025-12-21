@@ -3,8 +3,8 @@ import types
 import pytest
 
 from core.config import AIMode, Config
+from services.ai import model_config
 from services.ai.ai_settings import AgentRole
-import services.ai.model_config as model_config
 from services.ai.model_config import ModelSelector
 
 
@@ -70,10 +70,25 @@ def test_routes_anthropic_through_openrouter_when_missing_key(monkeypatch):
     assert "use_responses_api" not in captured
 
 
-def test_routes_openai_through_openrouter_when_missing_key(monkeypatch):
+@pytest.mark.parametrize(
+    ("model_name", "expected_openrouter_name"),
+    [
+        ("gpt-4.1", "openai/gpt-4.1"),
+        ("gpt-4o", "openai/gpt-4o"),
+        ("gpt-4o-mini", "openai/gpt-4o-mini"),
+        ("o3", "openai/o3"),
+        ("o3-mini", "openai/o3-mini"),
+        ("o4-mini", "openai/o4-mini"),
+        ("gpt-5", "openai/gpt-5.1"),
+        ("gpt-5-mini", "openai/gpt-5-mini"),
+    ],
+)
+def test_routes_openai_through_openrouter_when_missing_key(
+    monkeypatch, model_name, expected_openrouter_name
+):
     config = Config(openrouter_api_key="sk-or-test", ai_mode=AIMode.STANDARD)
     monkeypatch.setattr(model_config, "get_config", lambda: config)
-    monkeypatch.setattr(model_config, "ai_settings", _StubSettings("gpt-4o"))
+    monkeypatch.setattr(model_config, "ai_settings", _StubSettings(model_name))
 
     captured = {}
 
@@ -89,16 +104,17 @@ def test_routes_openai_through_openrouter_when_missing_key(monkeypatch):
 
     ModelSelector.get_llm(AgentRole.SUMMARIZER)
 
-    assert captured["model"] == "openai/gpt-4o"
+    assert captured["model"] == expected_openrouter_name
     assert captured["api_key"] == "sk-or-test"
     assert captured["base_url"] == "https://openrouter.ai/api/v1"
     assert "use_responses_api" not in captured
 
 
-def test_routes_openai_gpt5_through_openrouter_and_strips_responses_api(monkeypatch):
+@pytest.mark.parametrize("model_name", ["gpt-5", "gpt-5-mini"])
+def test_openai_responses_params_stripped_for_openrouter(monkeypatch, model_name):
     config = Config(openrouter_api_key="sk-or-test", ai_mode=AIMode.STANDARD)
     monkeypatch.setattr(model_config, "get_config", lambda: config)
-    monkeypatch.setattr(model_config, "ai_settings", _StubSettings("gpt-5"))
+    monkeypatch.setattr(model_config, "ai_settings", _StubSettings(model_name))
 
     captured = {}
 
@@ -114,16 +130,17 @@ def test_routes_openai_gpt5_through_openrouter_and_strips_responses_api(monkeypa
 
     ModelSelector.get_llm(AgentRole.SUMMARIZER)
 
-    assert captured["model"] == "openai/gpt-5.1"
-    assert captured["api_key"] == "sk-or-test"
     assert captured["base_url"] == "https://openrouter.ai/api/v1"
     assert "use_responses_api" not in captured
+    assert "reasoning" not in captured
+    assert "model_kwargs" not in captured
 
 
-def test_openai_model_without_openrouter_alias_requires_openai_key(monkeypatch):
+@pytest.mark.parametrize("model_name", ["gpt-4.5", "o1", "o1-mini"])
+def test_openai_model_without_openrouter_alias_requires_openai_key(monkeypatch, model_name):
     config = Config(openrouter_api_key="sk-or-test", ai_mode=AIMode.STANDARD)
     monkeypatch.setattr(model_config, "get_config", lambda: config)
-    monkeypatch.setattr(model_config, "ai_settings", _StubSettings("gpt-4.5"))
+    monkeypatch.setattr(model_config, "ai_settings", _StubSettings(model_name))
 
     monkeypatch.setattr(model_config, "ChatOpenAI", lambda **_kwargs: None)
     monkeypatch.setattr(model_config, "ChatAnthropic", lambda **_kwargs: None)
