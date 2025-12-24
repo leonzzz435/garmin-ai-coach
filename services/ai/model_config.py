@@ -143,51 +143,37 @@ class ModelSelector:
         
         base_url = selected_config.base_url
         final_model_name = selected_config.name
-        model_provider = cls._detect_provider(base_url)
-        use_openrouter_fallback = False
-
-        if model_provider == "anthropic":
-            api_key = config.anthropic_api_key
-            if not api_key:
-                if config.openrouter_api_key:
-                    if not selected_config.openrouter_name:
-                        raise RuntimeError(
-                            f"Anthropic model {selected_config.name} is not available via OpenRouter; "
-                            "provide an ANTHROPIC_API_KEY"
-                        )
-                    use_openrouter_fallback = True
-                    api_key = config.openrouter_api_key
-                    base_url = OPENROUTER_BASE_URL
-                    final_model_name = selected_config.openrouter_name
-                    logger.info(
-                        "Routing Anthropic model %s through OpenRouter (no Anthropic API key available)",
-                        selected_config.name,
-                    )
-                else:
-                    raise RuntimeError("Anthropic API key or OpenRouter API key is required")
-        elif model_provider == "openai":
-            api_key = config.openai_api_key
-            if not api_key:
-                if config.openrouter_api_key:
-                    if not selected_config.openrouter_name:
-                        raise RuntimeError(
-                            f"OpenAI model {selected_config.name} is not available via OpenRouter; "
-                            "provide an OPENAI_API_KEY"
-                        )
-                    use_openrouter_fallback = True
-                    api_key = config.openrouter_api_key
-                    base_url = OPENROUTER_BASE_URL
-                    final_model_name = selected_config.openrouter_name
-                    logger.info(
-                        "Routing OpenAI model %s through OpenRouter (no OpenAI API key available)",
-                        selected_config.name,
-                    )
-                else:
-                    raise RuntimeError("OpenAI API key or OpenRouter API key is required")
-        else:
+        provider = cls._detect_provider(base_url)
+        
+        key_map = {
+            "anthropic": config.anthropic_api_key,
+            "openai": config.openai_api_key,
+            "openrouter": config.openrouter_api_key,
+        }
+        
+        api_key = key_map.get(provider)
+        use_fallback = False
+        
+        if not api_key and provider in ("anthropic", "openai"):
+            if not config.openrouter_api_key:
+                raise RuntimeError(f"{provider.title()} API key or OpenRouter API key is required")
+            if not selected_config.openrouter_name:
+                raise RuntimeError(
+                    f"{provider.title()} model {selected_config.name} is not available via OpenRouter; "
+                    f"provide an {provider.upper()}_API_KEY"
+                )
             api_key = config.openrouter_api_key
-            if not api_key:
-                raise RuntimeError("OpenRouter API key is required for OpenRouter-hosted models")
+            base_url = OPENROUTER_BASE_URL
+            final_model_name = selected_config.openrouter_name
+            use_fallback = True
+            logger.info(
+                "Routing %s model %s through OpenRouter (no %s API key available)",
+                provider.title(),
+                selected_config.name,
+                provider.title(),
+            )
+        elif not api_key:
+            raise RuntimeError("OpenRouter API key is required for OpenRouter-hosted models")
 
         logger.info(f"Configuring LLM for role {role.value} with model {final_model_name}")
         
@@ -243,10 +229,10 @@ class ModelSelector:
             llm_params.pop("use_responses_api", None)
             llm_params.pop("reasoning", None)
             llm_params.pop("model_kwargs", None)
-            if model_provider == "anthropic":
+            if provider == "anthropic":
                 llm_params.pop("thinking", None)
 
-        if model_provider == "anthropic" and not use_openrouter_fallback:
+        if provider == "anthropic" and not use_fallback:
             return ChatAnthropic(**llm_params)
 
         llm_params["base_url"] = base_url
