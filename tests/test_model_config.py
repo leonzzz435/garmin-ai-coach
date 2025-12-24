@@ -149,8 +149,6 @@ def test_openai_responses_params_stripped_for_openrouter(monkeypatch, model_name
     assert "model_kwargs" not in captured
 
 
-
-
 @pytest.mark.parametrize(
     ("model_name", "expected_model_name"),
     [
