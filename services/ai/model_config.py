@@ -25,15 +25,6 @@ class ModelSelector:
 
     @staticmethod
     def _detect_provider(base_url: str) -> str:
-        """
-        Detect the model provider from the base URL.
-        
-        Args:
-            base_url: The base URL of the model API
-            
-        Returns:
-            One of: "anthropic", "openai", or "openrouter"
-        """
         if "anthropic" in base_url:
             return "anthropic"
         elif "openai.com" in base_url:
