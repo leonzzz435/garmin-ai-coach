@@ -137,26 +137,6 @@ class ModelSelector:
 
     @classmethod
     def get_llm(cls, role: AgentRole):
-        """
-        Get an LLM instance for the given role.
-        
-        This method implements a fallback strategy for model routing:
-        1. For Anthropic/OpenAI models: Prefer direct API if key is available
-        2. If direct API key is missing: Fall back to OpenRouter (if model has openrouter_name)
-        3. For native OpenRouter models: Always use OpenRouter API
-        
-        Provider-specific parameters (thinking, responses_api, reasoning, etc.) are automatically
-        stripped when routing through OpenRouter, as they are not supported by OpenRouter's API.
-        
-        Args:
-            role: The agent role determining which model to use
-            
-        Returns:
-            ChatAnthropic or ChatOpenAI instance configured for the selected model
-            
-        Raises:
-            RuntimeError: If required API keys are missing or model is not available via OpenRouter
-        """
         model_name = ai_settings.get_model_for_role(role)
         model_config = cls.CONFIGURATIONS[model_name]
         config = get_config()
