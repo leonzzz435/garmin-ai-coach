@@ -122,8 +122,8 @@ class ModelSelector:
         "deepseek-reasoner": ModelConfiguration(
             name="openrouter/deepseek/deepseek-r1", base_url=OPENROUTER_BASE_URL
         ),
-        "deepseek-v3.2-exp": ModelConfiguration(
-            name="deepseek/deepseek-v3.2-exp", base_url=OPENROUTER_BASE_URL
+        "deepseek-v3.2": ModelConfiguration(
+            name="deepseek/deepseek-v3.2", base_url=OPENROUTER_BASE_URL
         ),
         # Google Models (via OpenRouter)
         "gemini-2.5-pro": ModelConfiguration(
@@ -138,7 +138,9 @@ class ModelSelector:
     @classmethod
     def get_llm(cls, role: AgentRole):
         model_name = ai_settings.get_model_for_role(role)
-        selected_config = cls.CONFIGURATIONS[model_name]
+        selected_config = cls.CONFIGURATIONS.get(model_name)
+        if not selected_config:
+            raise RuntimeError(f"Unknown model '{model_name}' in configuration")
         config = get_config()
         
         base_url = selected_config.base_url
@@ -210,9 +212,9 @@ class ModelSelector:
                 "model_kwargs": {"text": {"verbosity": "high"}},
                 "log": "Using GPT-5-mini with Responses API for {role} (verbosity: high, reasoning_effort: high)",
             },
-            "deepseek-v3.2-exp": {
+            "deepseek-v3.2": {
                 "extra_body": {"reasoning": {"enabled": True}},
-                "log": "Using DeepSeek V3.2 Exp with reasoning enabled for {role}",
+                "log": "Using DeepSeek V3.2 with reasoning enabled for {role}",
             },
         }
         
@@ -229,11 +231,13 @@ class ModelSelector:
             llm_params.pop("use_responses_api", None)
             llm_params.pop("reasoning", None)
             llm_params.pop("model_kwargs", None)
+            llm_params.pop("extra_body", None)
             if provider == "anthropic":
                 llm_params.pop("thinking", None)
 
         if provider == "anthropic" and not use_fallback:
             return ChatAnthropic(**llm_params)
 
-        llm_params["base_url"] = base_url
+        if base_url == OPENROUTER_BASE_URL:
+            llm_params["base_url"] = base_url
         return ChatOpenAI(**llm_params)

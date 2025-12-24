@@ -172,7 +172,7 @@ def test_openai_responses_params_stripped_for_openrouter(monkeypatch, model_name
     [
         ("deepseek-chat", "openrouter/deepseek/deepseek-chat"),
         ("deepseek-reasoner", "openrouter/deepseek/deepseek-r1"),
-        ("deepseek-v3.2-exp", "deepseek/deepseek-v3.2-exp"),
+        ("deepseek-v3.2", "deepseek/deepseek-v3.2"),
         ("gemini-2.5-pro", "google/gemini-2.5-pro"),
         ("grok-4", "x-ai/grok-4"),
     ],
