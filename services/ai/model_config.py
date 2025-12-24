@@ -168,7 +168,12 @@ class ModelSelector:
         elif model_provider == "openai":
             api_key = config.openai_api_key
             if not api_key:
-                if config.openrouter_api_key and selected_config.openrouter_name:
+                if config.openrouter_api_key:
+                    if not selected_config.openrouter_name:
+                        raise RuntimeError(
+                            f"OpenAI model {selected_config.name} is not available via OpenRouter; "
+                            "provide an OPENAI_API_KEY"
+                        )
                     use_openrouter_fallback = True
                     api_key = config.openrouter_api_key
                     base_url = OPENROUTER_BASE_URL
@@ -176,11 +181,6 @@ class ModelSelector:
                     logger.info(
                         "Routing OpenAI model %s through OpenRouter (no OpenAI API key available)",
                         selected_config.name,
-                    )
-                elif config.openrouter_api_key:
-                    raise RuntimeError(
-                        f"OpenAI model {selected_config.name} is not available via OpenRouter; "
-                        "provide an OPENAI_API_KEY"
                     )
                 else:
                     raise RuntimeError("OpenAI API key or OpenRouter API key is required")
