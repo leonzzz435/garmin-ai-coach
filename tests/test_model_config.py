@@ -16,32 +16,50 @@ class _StubSettings:
         return self.model_name
 
 
-def test_prefers_direct_anthropic_when_key_available(monkeypatch):
-    config = Config(
-        anthropic_api_key="sk-ant-api03-test",
-        openrouter_api_key="sk-or-test",
-        ai_mode=AIMode.STANDARD,
-    )
+@pytest.mark.parametrize(
+    ("model_name", "api_key_field", "expected_model", "expected_client"),
+    [
+        ("claude-4", "anthropic_api_key", "claude-sonnet-4-5-20250929", "ChatAnthropic"),
+        ("gpt-4o", "openai_api_key", "gpt-4o", "ChatOpenAI"),
+    ],
+)
+def test_prefers_direct_api_when_key_available(
+    monkeypatch, model_name, api_key_field, expected_model, expected_client
+):
+    api_key_values = {
+        "anthropic_api_key": "sk-ant-api03-test",
+        "openai_api_key": "sk-test",
+    }
+    config_dict = {
+        api_key_field: api_key_values[api_key_field],
+        "openrouter_api_key": "sk-or-test",
+        "ai_mode": AIMode.STANDARD,
+    }
+    config = Config(**config_dict)
     monkeypatch.setattr(model_config, "get_config", lambda: config)
-    monkeypatch.setattr(model_config, "ai_settings", _StubSettings("claude-4"))
+    monkeypatch.setattr(model_config, "ai_settings", _StubSettings(model_name))
 
     captured = {}
 
     def fake_chat_anthropic(**kwargs):
         captured.update(kwargs)
+        captured["client"] = "ChatAnthropic"
         return types.SimpleNamespace(**kwargs)
 
-    def fake_chat_openai(**_kwargs):
-        raise AssertionError("ChatOpenAI should not be used when Anthropic key is present")
+    def fake_chat_openai(**kwargs):
+        captured.update(kwargs)
+        captured["client"] = "ChatOpenAI"
+        return types.SimpleNamespace(**kwargs)
 
     monkeypatch.setattr(model_config, "ChatAnthropic", fake_chat_anthropic)
     monkeypatch.setattr(model_config, "ChatOpenAI", fake_chat_openai)
 
     ModelSelector.get_llm(AgentRole.SUMMARIZER)
 
-    assert captured["model"] == "claude-sonnet-4-5-20250929"
-    assert captured["api_key"] == "sk-ant-api03-test"
+    assert captured["model"] == expected_model
+    assert captured["api_key"] == api_key_values[api_key_field]
     assert "base_url" not in captured
+    assert captured["client"] == expected_client
 
 
 @pytest.mark.parametrize(
