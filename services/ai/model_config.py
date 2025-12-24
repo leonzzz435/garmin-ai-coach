@@ -138,11 +138,11 @@ class ModelSelector:
     @classmethod
     def get_llm(cls, role: AgentRole):
         model_name = ai_settings.get_model_for_role(role)
-        model_config = cls.CONFIGURATIONS[model_name]
+        selected_config = cls.CONFIGURATIONS[model_name]
         config = get_config()
         
-        base_url = model_config.base_url
-        final_model_name = model_config.name
+        base_url = selected_config.base_url
+        final_model_name = selected_config.name
         model_provider = cls._detect_provider(base_url)
         use_openrouter_fallback = False
 
@@ -153,28 +153,30 @@ class ModelSelector:
                     use_openrouter_fallback = True
                     api_key = config.openrouter_api_key
                     base_url = OPENROUTER_BASE_URL
-                    final_model_name = model_config.openrouter_name or f"anthropic/{model_config.name}"
+                    final_model_name = (
+                        selected_config.openrouter_name or f"anthropic/{selected_config.name}"
+                    )
                     logger.info(
                         "Routing Anthropic model %s through OpenRouter (no Anthropic API key available)",
-                        model_config.name,
+                        selected_config.name,
                     )
                 else:
                     raise RuntimeError("Anthropic API key or OpenRouter API key is required")
         elif model_provider == "openai":
             api_key = config.openai_api_key
             if not api_key:
-                if config.openrouter_api_key and model_config.openrouter_name:
+                if config.openrouter_api_key and selected_config.openrouter_name:
                     use_openrouter_fallback = True
                     api_key = config.openrouter_api_key
                     base_url = OPENROUTER_BASE_URL
-                    final_model_name = model_config.openrouter_name
+                    final_model_name = selected_config.openrouter_name
                     logger.info(
                         "Routing OpenAI model %s through OpenRouter (no OpenAI API key available)",
-                        model_config.name,
+                        selected_config.name,
                     )
                 elif config.openrouter_api_key:
                     raise RuntimeError(
-                        f"OpenAI model {model_config.name} is not available via OpenRouter; "
+                        f"OpenAI model {selected_config.name} is not available via OpenRouter; "
                         "provide an OPENAI_API_KEY"
                     )
                 else:
