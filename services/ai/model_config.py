@@ -150,28 +150,17 @@ class ModelSelector:
             api_key = config.anthropic_api_key
             if not api_key:
                 if config.openrouter_api_key:
-                    use_openrouter_fallback = True
-                    api_key = config.openrouter_api_key
-                    base_url = OPENROUTER_BASE_URL
-                    final_model_name = (
-                        selected_config.openrouter_name or f"anthropic/{selected_config.name}"
-                    )
-                    logger.info(
-                        "Routing Anthropic model %s through OpenRouter (no Anthropic API key available)",
-                        selected_config.name,
-                    )
-                else:
-                    raise RuntimeError("Anthropic API key or OpenRouter API key is required")
-        elif model_provider == "openai":
-            api_key = config.openai_api_key
-            if not api_key:
-                if config.openrouter_api_key and selected_config.openrouter_name:
+                    if not selected_config.openrouter_name:
+                        raise RuntimeError(
+                            f"Anthropic model {selected_config.name} is not available via OpenRouter; "
+                            "provide an ANTHROPIC_API_KEY"
+                        )
                     use_openrouter_fallback = True
                     api_key = config.openrouter_api_key
                     base_url = OPENROUTER_BASE_URL
                     final_model_name = selected_config.openrouter_name
                     logger.info(
-                        "Routing OpenAI model %s through OpenRouter (no OpenAI API key available)",
+                        "Routing Anthropic model %s through OpenRouter (no Anthropic API key available)",
                         selected_config.name,
                     )
                 elif config.openrouter_api_key:
