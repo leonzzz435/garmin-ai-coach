@@ -2,6 +2,8 @@ from typing import Annotated, Any
 
 from langgraph.graph import MessagesState
 
+from ..schemas import ActivityExpertOutputs, MetricsExpertOutputs, PhysiologyExpertOutputs
+
 
 class TrainingAnalysisState(MessagesState):
     user_id: str
@@ -16,17 +18,23 @@ class TrainingAnalysisState(MessagesState):
     style_guide: str
     plotting_enabled: bool
     hitl_enabled: bool
+    skip_synthesis: bool
 
     metrics_summary: str | None
     physiology_summary: str | None
-    metrics_result: str | None
     activity_summary: str | None
-    activity_result: str | None
-    physiology_result: str | None
+    
+    metrics_outputs: MetricsExpertOutputs | None
+    activity_outputs: ActivityExpertOutputs | None
+    physiology_outputs: PhysiologyExpertOutputs | None
+    
     synthesis_result: str | None
 
     season_plan: str | None
     weekly_plan: str | None
+    
+    synthesis_complete: Annotated[bool, lambda x, y: x or y]
+    season_plan_complete: Annotated[bool, lambda x, y: x or y]
 
     analysis_html: str | None
     planning_html: str | None
@@ -40,6 +48,13 @@ class TrainingAnalysisState(MessagesState):
 
     available_plots: Annotated[list[str], lambda x, y: x + y]
     execution_id: str
+    
+    # Agent-specific HITL message storage (with append reducer)
+    metrics_expert_messages: Annotated[list, lambda x, y: (x or []) + y]
+    activity_expert_messages: Annotated[list, lambda x, y: (x or []) + y]
+    physiology_expert_messages: Annotated[list, lambda x, y: (x or []) + y]
+    season_planner_messages: Annotated[list, lambda x, y: (x or []) + y]
+    weekly_planner_messages: Annotated[list, lambda x, y: (x or []) + y]
 
 
 def create_initial_state(
@@ -55,6 +70,7 @@ def create_initial_state(
     execution_id: str = "",
     plotting_enabled: bool = False,
     hitl_enabled: bool = True,
+    skip_synthesis: bool = False,
 ) -> TrainingAnalysisState:
     return TrainingAnalysisState(
         user_id=user_id,
@@ -68,16 +84,19 @@ def create_initial_state(
         style_guide=style_guide,
         plotting_enabled=plotting_enabled,
         hitl_enabled=hitl_enabled,
+        skip_synthesis=skip_synthesis,
         execution_id=execution_id,
         metrics_summary=None,
         physiology_summary=None,
-        metrics_result=None,
         activity_summary=None,
-        activity_result=None,
-        physiology_result=None,
+        metrics_outputs=None,
+        activity_outputs=None,
+        physiology_outputs=None,
         synthesis_result=None,
         season_plan=None,
         weekly_plan=None,
+        synthesis_complete=False,
+        season_plan_complete=False,
         analysis_html=None,
         planning_html=None,
         plot_resolution_stats=None,
@@ -87,4 +106,9 @@ def create_initial_state(
         errors=[],
         tool_usage={},
         available_plots=[],
+        metrics_expert_messages=[],
+        activity_expert_messages=[],
+        physiology_expert_messages=[],
+        season_planner_messages=[],
+        weekly_planner_messages=[],
     )

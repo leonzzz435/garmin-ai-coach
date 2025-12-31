@@ -44,10 +44,10 @@ def extract_text_content(response) -> str:
 
 async def handle_tool_calling_in_node(
     llm_with_tools, messages: list[dict[str, str]], tools: list, max_iterations: int = 5
-) -> str:
+):
     conversation = [
         {"role": msg["role"], "content": msg["content"]}
-        for msg in messages if msg["role"] in ("system", "user")
+        for msg in messages if msg["role"] in ("system", "user", "assistant")
     ]
 
     iteration = 0
@@ -100,11 +100,8 @@ async def handle_tool_calling_in_node(
                 conversation.append(tool_message)
 
         else:
-            content = response.content if hasattr(response, "content") else str(response)
-            final_response = extract_text_content(content)
             logger.info(f"Final response received after {iteration} iterations")
-            return final_response
+            return response
 
     logger.warning(f"Max iterations ({max_iterations}) reached in tool calling")
-    content = response.content if hasattr(response, "content") else str(response)
-    return extract_text_content(content)
+    return response

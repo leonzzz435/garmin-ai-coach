@@ -40,7 +40,7 @@ def test_state_creation(sample_garmin_data):
     assert state["user_id"] == "user123"
     assert state["athlete_name"] == "John Doe"
     assert state["garmin_data"] == sample_garmin_data
-    assert state["metrics_result"] is None
+    assert state["metrics_outputs"] is None
     assert state["plots"] == []
 
 
@@ -76,10 +76,10 @@ async def test_metrics_expert_node_basic(mock_retry, mock_plot_storage, mock_get
 
     result = await metrics_expert_node(sample_state)
 
-    assert "metrics_result" in result
+    assert "metrics_outputs" in result
     assert "plots" in result
     assert "costs" in result
-    assert result["metrics_result"] == "Test analysis result"
+    assert result["metrics_outputs"] == "Test analysis result"
 
     mock_llm.bind_tools.assert_called_once()
     mock_get_llm.assert_called_once()

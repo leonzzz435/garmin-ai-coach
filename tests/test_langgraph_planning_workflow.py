@@ -39,9 +39,9 @@ class TestWorkflowStability:
         assert "planning_html" in state
         assert "planning_context" in state
 
-        assert "metrics_result" in state
-        assert "activity_result" in state
-        assert "physiology_result" in state
+        assert "metrics_outputs" in state
+        assert "activity_outputs" in state
+        assert "physiology_outputs" in state
         assert "analysis_html" in state
 
 
@@ -107,7 +107,7 @@ class TestWorkflowDataFlow:
         for field in ["season_plan", "weekly_plan", "planning_html"]:
             assert field in state
 
-        for field in ["metrics_result", "activity_result", "physiology_result"]:
+        for field in ["metrics_outputs", "activity_outputs", "physiology_outputs"]:
             assert field in state
 
     def test_state_update_functionality(self):

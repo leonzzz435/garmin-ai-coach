@@ -26,4 +26,5 @@ physiology_summarizer_node = create_data_summarizer_node(
     agent_role=AgentRole.SUMMARIZER,
     data_extractor=extract_physiology_data,
     state_output_key="physiology_summary",
+    agent_type="physiology_summarizer",
 )

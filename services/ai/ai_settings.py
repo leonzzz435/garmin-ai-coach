@@ -11,7 +11,6 @@ class AgentRole(Enum):
     ACTIVITY_EXPERT = "activity_expert"
     SYNTHESIS = "synthesis"
     WORKOUT = "workout"
-    COMPETITION_PLANNER = "competition_planner"
     SEASON_PLANNER = "season_planner"
     FORMATTER = "formatter"
 
@@ -30,7 +29,6 @@ class AISettings:
                 AgentRole.ACTIVITY_EXPERT: "gpt-5",
                 AgentRole.SYNTHESIS: "gpt-5",
                 AgentRole.WORKOUT: "gpt-5",
-                AgentRole.COMPETITION_PLANNER: "gpt-5",
                 AgentRole.SEASON_PLANNER: "gpt-5",
             },
             AIMode.COST_EFFECTIVE: {
@@ -41,7 +39,6 @@ class AISettings:
                 AgentRole.ACTIVITY_EXPERT: "claude-3-haiku",
                 AgentRole.SYNTHESIS: "claude-3-haiku",
                 AgentRole.WORKOUT: "claude-3-haiku",
-                AgentRole.COMPETITION_PLANNER: "claude-3-haiku",
                 AgentRole.SEASON_PLANNER: "claude-3-haiku",
             },
             AIMode.DEVELOPMENT: {
@@ -52,7 +49,6 @@ class AISettings:
                 AgentRole.ACTIVITY_EXPERT: "claude-4",
                 AgentRole.SYNTHESIS: "claude-4",
                 AgentRole.WORKOUT: "claude-4",
-                AgentRole.COMPETITION_PLANNER: "claude-4",
                 AgentRole.SEASON_PLANNER: "claude-4",
             },
         }
@@ -64,6 +60,9 @@ class AISettings:
     @classmethod
     def load_settings(cls) -> "AISettings":
         return cls(mode=get_config().ai_mode)
+
+    def reload(self) -> None:
+        self.mode = get_config().ai_mode
 
 
 # Global settings instance

@@ -83,7 +83,7 @@ flowchart LR
 * **Maya Lindholm** (Synthesis) — Combines insights into comprehensive analysis
 * **James Morrison** (Analysis Formatter) — Creates analysis HTML and handoff artifacts
 * **Coach Magnus Thorsson** (Season Planner) — Long-term periodization frameworks and peak timing
-* **Coach Magnus Thorsson** (Weekly Planner) — Practical 14‑day training plans with zones and adaptations
+* **Coach Magnus Thorsson** (Weekly Planner) — Practical **28‑day** training plans with zones and adaptations
 * **Data Integration** (Planning) — Integrates analysis, plots, and competitions to contextualize planning
 * **Pixel** (Plan Formatter) — Produces professional planning HTML with interactive checklists
 
@@ -312,6 +312,7 @@ extraction:
   metrics_days: 14
   ai_mode: "development"   # or "standard" or "cost_effective"
   hitl_enabled: true       # Enable conversational agents (default: true)
+  skip_synthesis: false    # Skip synthesis stage to save tokens (default: false)
 
 competitions:
   - name: "Target Race"
@@ -412,12 +413,16 @@ When enabled (default), AI agents can pause during analysis or planning to ask y
 Modern state-based AI orchestration with built-in observability:
 
 ```python
-# Parallel Analysis Phase
-START → [Metrics, Physiology, Activity Data] → Activity Interpreter
-                ↓                ↓                    ↓
-            Synthesis Agent ← ← ← ← ← ← ← ← ← ← ← ← ←
-                ↓
-         HTML Formatter → Plot Resolution → END
+# Orchestrated Workflow
+START → Master Orchestrator → [Metrics, Physiology, Activity Data]
+              ↓
+        Synthesis Agent (Optional)
+              ↓
+        Season Planner (Persisted)
+              ↓
+        Weekly Planner (28 Days)
+              ↓
+             END
 ```
 
 **Key Benefits:**

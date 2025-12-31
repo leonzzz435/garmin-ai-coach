@@ -16,7 +16,7 @@ markers = [
 
 [project]
 name = "garmin-ai-coach"
-version = "2.0.0"
+version = "2.1.0"
 description = "CLI tool for Garmin data analysis with AI-powered insights"
 requires-python = ">=3.13"
 authors = [

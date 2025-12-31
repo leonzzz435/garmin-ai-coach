@@ -17,4 +17,5 @@ metrics_summarizer_node = create_data_summarizer_node(
     agent_role=AgentRole.SUMMARIZER,
     data_extractor=extract_metrics_data,
     state_output_key="metrics_summary",
+    agent_type="metrics_summarizer",
 )

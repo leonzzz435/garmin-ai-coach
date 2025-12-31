@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2025-11-22
+
+### Added
+
+#### Orchestrator & Workflow
+- **Master Orchestrator Node**: Centralized routing logic that manages stage transitions (Analysis → Season Planning → Weekly Planning) and HITL interactions.
+- **Plan Persistence**: New `FilePlanStorage` allows season plans to be saved and reloaded in subsequent runs, enabling iterative weekly planning without re-generating the season plan.
+- **Extended Planning Horizon**: Weekly planner now generates a **28-day (4-week)** plan instead of 14 days, providing better visibility.
+- **Skip Synthesis Option**: New `skip_synthesis` configuration to bypass the synthesis stage when only planning updates are needed.
+
+#### Structured Outputs
+- **Pydantic Models**: Expert agents (`MetricsExpert`, `ActivityExpert`, `PhysiologyExpert`) now return strictly typed `Pydantic` models.
+- **Targeted Insights**: Expert outputs are split into specific sections for different consumers (`for_synthesis`, `for_season_planner`, `for_weekly_planner`).
+
+### Improved
+
+#### Code Quality & Refactoring
+- **Decoupled I/O**: Orchestrator interaction logic separated from core node logic using `InteractionProvider` pattern.
+- **Shared Utilities**: Created `output_helper.py` to centralize output extraction and reduce duplication across planner nodes.
+- **Prompt Engineering**: Significantly refined system and user prompts for all agents to be more concise, direct, and effective.
+- **Error Handling**: Improved error catching and logging in `PlanStorage`.
+
+### Fixed
+- **Test Stability**: Resolved issues with test hangs by improving mocking strategies.
+
+---
+
 ## [2.0.0] - 2025-11-02
 
 ### 🚨 Breaking Changes

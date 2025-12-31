@@ -30,7 +30,7 @@ class ModelSelector:
         "o3": ModelConfiguration(name="o3", base_url="https://api.openai.com/v1"),
         "o3-mini": ModelConfiguration(name="o3-mini", base_url="https://api.openai.com/v1"),
         "o4-mini": ModelConfiguration(name="o4-mini", base_url="https://api.openai.com/v1"),
-        "gpt-5": ModelConfiguration(name="gpt-5", base_url="https://api.openai.com/v1"),
+        "gpt-5": ModelConfiguration(name="gpt-5.1", base_url="https://api.openai.com/v1"),
         "gpt-5-mini": ModelConfiguration(name="gpt-5-mini", base_url="https://api.openai.com/v1"),
         # Anthropic Models
         "claude-4": ModelConfiguration(
@@ -106,8 +106,8 @@ class ModelSelector:
             "gpt-5": {
                 "use_responses_api": True,
                 "reasoning": {"effort": "high"},
-                "model_kwargs": {"text": {"verbosity": "high"}},
-                "log": "Using GPT-5 with Responses API for {role} (verbosity: high, reasoning_effort: high)",
+                "model_kwargs": {"text": {"verbosity": "medium"}},
+                "log": "Using GPT-5 with Responses API for {role} (verbosity: medium, reasoning_effort: high)",
             },
             "gpt-5-mini": {
                 "use_responses_api": True,
