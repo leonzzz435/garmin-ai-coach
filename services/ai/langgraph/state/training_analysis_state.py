@@ -23,16 +23,16 @@ class TrainingAnalysisState(MessagesState):
     metrics_summary: str | None
     physiology_summary: str | None
     activity_summary: str | None
-    
+
     metrics_outputs: MetricsExpertOutputs | None
     activity_outputs: ActivityExpertOutputs | None
     physiology_outputs: PhysiologyExpertOutputs | None
-    
+
     synthesis_result: str | None
 
     season_plan: str | None
     weekly_plan: str | None
-    
+
     synthesis_complete: Annotated[bool, lambda x, y: x or y]
     season_plan_complete: Annotated[bool, lambda x, y: x or y]
 
@@ -48,13 +48,17 @@ class TrainingAnalysisState(MessagesState):
 
     available_plots: Annotated[list[str], lambda x, y: x + y]
     execution_id: str
-    
+
     # Agent-specific HITL message storage (with append reducer)
     metrics_expert_messages: Annotated[list, lambda x, y: (x or []) + y]
     activity_expert_messages: Annotated[list, lambda x, y: (x or []) + y]
     physiology_expert_messages: Annotated[list, lambda x, y: (x or []) + y]
     season_planner_messages: Annotated[list, lambda x, y: (x or []) + y]
     weekly_planner_messages: Annotated[list, lambda x, y: (x or []) + y]
+
+    hitl_questions_total: Annotated[int, lambda x, y: (x or 0) + (y or 0)]
+    hitl_interactions_completed: Annotated[int, lambda x, y: (x or 0) + (y or 0)]
+    hitl_sessions: Annotated[list[dict[str, Any]], lambda x, y: (x or []) + (y or [])]
 
 
 def create_initial_state(
@@ -111,4 +115,7 @@ def create_initial_state(
         physiology_expert_messages=[],
         season_planner_messages=[],
         weekly_planner_messages=[],
+        hitl_questions_total=0,
+        hitl_interactions_completed=0,
+        hitl_sessions=[],
     )

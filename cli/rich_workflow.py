@@ -42,6 +42,8 @@ class RichWorkflowAggregator:
         self.workflow_ready: bool = False
         self.nodes_started: dict[str, int] = {}
         self.roles_model: dict[str, str] = {}
+        self.hitl_total_questions: int = 0
+        self.hitl_sessions: list[dict] = []
 
         self._seen_nodes: set[str] = set()
 
@@ -63,6 +65,14 @@ class RichWorkflowAggregator:
             return
         short = (producer or "").split(".")[-1]
         self.general_logs.append(f"[{short}] {message}")
+
+    def note_hitl_prompt(self, questions: int, stage: str) -> None:
+        self.hitl_total_questions += questions
+        self.hitl_sessions.append({"stage": stage, "questions": questions, "answered": 0})
+
+    def set_hitl_summary(self, total_questions: int, sessions: list[dict]) -> None:
+        self.hitl_total_questions = total_questions
+        self.hitl_sessions = sessions or []
 
     def parse_and_note(self, logger_name: str, msg: str) -> bool:
         matched = False
@@ -129,6 +139,10 @@ class RichWorkflowAggregator:
             "Workflow",
             "[magenta]ready[/magenta]" if self.workflow_ready else "[yellow]initializing[/yellow]",
         )
+        hitl_txt = (
+            f"[green]{self.hitl_total_questions} questions[/green]" if self.hitl_total_questions else "[dim]none[/dim]"
+        )
+        tbl.add_row("HITL", hitl_txt)
         return Panel(tbl, title="Workflow Status", border_style="blue", box=box.SQUARE)
 
     def _render_nodes(self) -> Panel:
@@ -153,6 +167,22 @@ class RichWorkflowAggregator:
             tbl.add_row("[dim]—[/dim]", "[dim]—[/dim]")
         return Panel(tbl, title="LLM Configuration", border_style="blue", box=box.SQUARE)
 
+    def _render_hitl(self) -> Panel:
+        tbl = Table(show_header=True, header_style="bold", box=box.SIMPLE_HEAVY)
+        tbl.add_column("Stage")
+        tbl.add_column("Questions", justify="right")
+        tbl.add_column("Answered", justify="right")
+        if self.hitl_sessions:
+            for sess in self.hitl_sessions:
+                tbl.add_row(
+                    str(sess.get("stage", "")),
+                    str(sess.get("questions", 0)),
+                    str(sess.get("answered", 0)),
+                )
+        else:
+            tbl.add_row("[dim]None[/dim]", "0", "0")
+        return Panel(tbl, title="HITL Sessions", border_style="yellow", box=box.SQUARE)
+
     def _render_general(self) -> Panel | None:
         if not self.enable_general_logging or not self.general_logs:
             return None
@@ -160,7 +190,7 @@ class RichWorkflowAggregator:
         return Panel(txt, title="Recent Logs", border_style="blue", box=box.SQUARE)
 
     def render(self) -> Group:
-        parts = [self._render_summary(), self._render_nodes(), self._render_llms()]
+        parts = [self._render_summary(), self._render_nodes(), self._render_llms(), self._render_hitl()]
         gl = self._render_general()
         if gl:
             parts.append(gl)
@@ -230,6 +260,43 @@ class DashboardSession:
             lg.addHandler(handler)
             self.handlers.append(handler)
             self.loggers.append(lg)
+
+    def set_hitl_summary(self, total_questions: int, sessions: list[dict]) -> None:
+        self.aggregator.set_hitl_summary(total_questions, sessions)
+
+    def begin_hitl(self, questions: list[dict], stage_name: str) -> None:
+        self.aggregator.note_hitl_prompt(len(questions), stage_name)
+        try:
+            self.live.stop()
+        except Exception:
+            pass
+
+        tbl = Table(show_header=True, header_style="bold", box=box.SIMPLE_HEAVY)
+        tbl.add_column("#", justify="right")
+        tbl.add_column("Agent", style="magenta")
+        tbl.add_column("Question")
+        tbl.add_column("Context", style="cyan")
+
+        for idx, qa in enumerate(questions, 1):
+            q = qa.get("question", {}) or {}
+            tbl.add_row(str(idx), qa.get("agent", ""), q.get("message", ""), q.get("context", ""))
+
+        instructions = "Press Enter to answer below. Live view resumes after input."
+        self.console.print(
+            Panel(
+                Group(tbl),
+                title=f"HITL required • {stage_name}",
+                subtitle=instructions,
+                border_style="yellow",
+            )
+        )
+
+    def end_hitl(self) -> None:
+        try:
+            self.live.start()
+            self.live.update(Group(self.aggregator.render(), self.progress))
+        except Exception:
+            pass
 
     def prompt(self, question: str) -> str:
         try:

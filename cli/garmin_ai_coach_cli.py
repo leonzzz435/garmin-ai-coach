@@ -16,6 +16,7 @@ import yaml
 from cli.rich_workflow import WorkflowUI
 from core.config import reload_config
 from services.ai.ai_settings import ai_settings
+from services.ai.langgraph.nodes.orchestrator_node import clear_hitl_hooks, register_hitl_hooks
 from services.ai.langgraph.workflows.planning_workflow import run_complete_analysis_and_planning
 from services.ai.utils.plan_storage import FilePlanStorage
 from services.garmin import ExtractionConfig, TriathlonCoachDataExtractor
@@ -62,7 +63,7 @@ class ConfigParser:
             "activities_days": self.config.get("extraction", {}).get("activities_days", 7),
             "metrics_days": self.config.get("extraction", {}).get("metrics_days", 14),
             "ai_mode": self.config.get("extraction", {}).get("ai_mode", "development"),
-            "enable_plotting": self.config.get("extraction", {}).get("enable_plotting", False),
+            "enable_plotting": self.config.get("extraction", {}).get("enable_plotting", True),
             "hitl_enabled": self.config.get("extraction", {}).get("hitl_enabled", True),
             "skip_synthesis": self.config.get("extraction", {}).get("skip_synthesis", False),
         }
@@ -375,6 +376,8 @@ async def run_analysis_from_config(config_path: Path, output_dir_override: Path 
 
         total_steps_estimate = 14
         target_loggers = [
+            "__main__",
+            "services.ai.utils.plan_storage",
             "services.ai.langgraph.config.langsmith_config",
             "services.ai.langgraph.workflows.planning_workflow",
             "services.ai.langgraph.nodes.activity_summarizer_node",
@@ -388,20 +391,28 @@ async def run_analysis_from_config(config_path: Path, output_dir_override: Path 
         ]
 
         with ui.workflow_dashboard(total_steps_estimate=total_steps_estimate) as dash:
-            dash.attach_loggers(target_loggers)
-            result = await run_complete_analysis_and_planning(
-                user_id="cli_user",
-                athlete_name=athlete_name,
-                garmin_data=gd,
-                analysis_context=analysis_context,
-                planning_context=planning_context,
-                competitions=competitions,
-                current_date=current_date,
-                week_dates=week_dates,
-                plotting_enabled=plotting_enabled,
-                hitl_enabled=hitl_enabled,
-                skip_synthesis=skip_synthesis,
-            )
+            register_hitl_hooks(dash.begin_hitl, dash.end_hitl)
+            try:
+                dash.attach_loggers(target_loggers)
+                result = await run_complete_analysis_and_planning(
+                    user_id="cli_user",
+                    athlete_name=athlete_name,
+                    garmin_data=gd,
+                    analysis_context=analysis_context,
+                    planning_context=planning_context,
+                    competitions=competitions,
+                    current_date=current_date,
+                    week_dates=week_dates,
+                    plotting_enabled=plotting_enabled,
+                    hitl_enabled=hitl_enabled,
+                    skip_synthesis=skip_synthesis,
+                )
+                dash.set_hitl_summary(
+                    int(result.get("hitl_questions_total", 0) or 0),
+                    result.get("hitl_sessions", []),
+                )
+            finally:
+                clear_hitl_hooks()
 
         files_generated: list[Path] = []
 
