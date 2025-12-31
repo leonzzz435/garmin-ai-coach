@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 import logging
 from pathlib import Path
 
@@ -12,7 +13,14 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
-wf = pytest.importorskip("cli.workflow_ui", reason="cli.workflow_ui module not available")
+wf = pytest.importorskip("cli.rich_workflow", reason="cli.rich_workflow module not available")
+
+
+def _clear_unified_handlers(logger_name: str) -> None:
+    lg = logging.getLogger(logger_name)
+    for handler in list(lg.handlers):
+        if isinstance(handler, wf.UnifiedHandler):
+            lg.removeHandler(handler)
 
 
 class _FakeLive:
@@ -221,6 +229,22 @@ def test_workflow_ui_dashboard_seeds_prelogs(console):
             "LangSmith observability enabled for project: dash_proj"
         )
         assert session.aggregator.observability_project == "dash_proj"
+
+
+def test_workflow_dashboard_detaches_handlers(console):
+    ui = wf.WorkflowUI(console_=console)
+    logger_name = "services.ai.langgraph.nodes.metrics_expert_node"
+
+    _clear_unified_handlers(logger_name)
+
+    with ui.workflow_dashboard(total_steps_estimate=1) as session:
+        session.attach_loggers([logger_name])
+        lg = logging.getLogger(logger_name)
+        assert any(isinstance(h, wf.UnifiedHandler) for h in lg.handlers)
+        lg.info("Starting Metrics Expert analysis node")
+
+    lg = logging.getLogger(logger_name)
+    assert not any(isinstance(h, wf.UnifiedHandler) for h in lg.handlers)
 
 
 def test_workflow_ui_headers_panels_progress_and_tables(console, tmp_path: Path):

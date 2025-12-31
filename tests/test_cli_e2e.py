@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 import importlib
 import json
 from unittest.mock import AsyncMock, patch
@@ -265,3 +266,99 @@ credentials:
     assert summary["activities_days"] == 3
     assert summary["metrics_days"] == 7
     assert "cache_dir" in summary
+    assert summary["stats"]["range_calls"] == {"activities": True, "body_comp": True}
+
+
+@pytest.mark.asyncio
+async def test_cli_cache_only_records_failures(tmp_path, monkeypatch, caplog):
+    class PartialAPI:
+        def get_user_profile(self):
+            return {"ok": True}
+
+        def get_stats(self, day):
+            return {"s": day}
+
+        def get_sleep_data(self, day):
+            return {"sl": day}
+
+        def get_stress_data(self, day):
+            return {"st": day}
+
+        def get_hrv_data(self, day):
+            return {"hrv": day}
+
+        def get_hydration_data(self, day):
+            return {"hy": day}
+
+        def get_training_status(self, day):
+            return {"ts": day}
+
+        def get_rhr_day(self, day):
+            return {"rhr": day}
+
+        def get_user_summary(self, day):
+            return {"us": day}
+
+        def get_activities_by_date(self, start, end):
+            raise RuntimeError("activities boom")
+
+        def get_body_composition(self, start, end):
+            return {"bc": [start, end]}
+
+    class FakeGarminConnectClient:
+        def __init__(self):
+            self._client = PartialAPI()
+
+        def connect(self, email, password, mfa_callback=None):
+            return None
+
+        @property
+        def client(self):
+            return self._client
+
+    monkeypatch.setattr(
+        importlib.import_module("services.garmin.client"),
+        "GarminConnectClient",
+        FakeGarminConnectClient,
+        raising=True,
+    )
+
+    cache_dir = tmp_path / "cache_fail_dir"
+    monkeypatch.setenv("GARMIN_CACHE_DIR", cache_dir.as_posix())
+
+    output_directory = tmp_path / "out_cache_fail"
+    config_path = tmp_path / "config_cache_fail.yaml"
+    config_path.write_text(
+        f"""
+athlete:
+  name: \"Cache Only Fail\"
+  email: \"user@example.com\"
+
+context:
+  analysis: \"n/a\"
+  planning: \"n/a\"
+
+extraction:
+  activities_days: 2
+  metrics_days: 4
+  ai_mode: \"development\"
+  hitl_enabled: false
+
+output:
+  directory: \"{output_directory.as_posix()}\"
+
+credentials:
+  password: \"dummy\"
+""",
+        encoding="utf-8",
+    )
+
+    with caplog.at_level("WARNING"):
+        await cache_only_from_config(config_path)
+
+    summary_path = output_directory / "cache_summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    range_calls = summary["stats"]["range_calls"]
+    assert range_calls["activities"] is False
+    assert range_calls["body_comp"] is True
+    assert any("Activities range fetch failed" in rec.message for rec in caplog.records)

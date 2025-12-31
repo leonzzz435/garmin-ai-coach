@@ -195,15 +195,29 @@ async def cache_only_from_config(config_path: Path, output_dir_override: Path | 
                     )
             advance()
 
+    activities_cached = False
     try:
         client.get_activities_by_date(a_start.isoformat(), end.isoformat())
     except Exception as e:
-        logger.debug("Activities range fetch failed: %s", e)
+        logger.warning("Activities range fetch failed: %s", e)
+        ui.banner(
+            "⚠️  Failed to cache recent activities. Future analysis may re-fetch from Garmin.",
+            border_style="yellow",
+        )
+    else:
+        activities_cached = True
 
+    body_comp_cached = False
     try:
         client.get_body_composition(m_start.isoformat(), end.isoformat())
     except Exception as e:
-        logger.debug("Body composition range fetch failed: %s", e)
+        logger.warning("Body composition range fetch failed: %s", e)
+        ui.banner(
+            "⚠️  Body composition data was not cached due to an error.",
+            border_style="yellow",
+        )
+    else:
+        body_comp_cached = True
 
     summary = {
         "athlete": athlete_name,
@@ -213,7 +227,7 @@ async def cache_only_from_config(config_path: Path, output_dir_override: Path | 
         "cache_dir": cache_root.as_posix(),
         "stats": {
             "metrics_days_cached": len(days),
-            "range_calls": {"activities": True, "body_comp": True},
+            "range_calls": {"activities": activities_cached, "body_comp": body_comp_cached},
         },
     }
     (output_dir / "cache_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")

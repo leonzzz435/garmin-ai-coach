@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 from __future__ import annotations
 
 import logging
@@ -167,9 +168,7 @@ class RichWorkflowAggregator:
 
 
 class UnifiedHandler(logging.Handler):
-    def __init__(
-        self, live: Live, progress: Progress, task_id: int, aggregator: RichWorkflowAggregator
-    ):
+    def __init__(self, live: Live, progress: Progress, task_id: int, aggregator: RichWorkflowAggregator):
         super().__init__(level=logging.INFO)
         self.live = live
         self.progress = progress
@@ -307,13 +306,14 @@ class WorkflowUI:
         class _SessionCtx:
             def __enter__(_self):
                 live.start()
-                if getattr(self, "_prelog_session", None) and self._prelog_session.buffer:
-                    for line in self._prelog_session.buffer:
+                prelog_session = getattr(self, "_prelog_session", None)
+                if prelog_session and prelog_session.buffer:
+                    for line in prelog_session.buffer:
                         aggregator.note_general("prelog", line)
-                    self._prelog_session.detach()
+                    prelog_session.detach()
                     self._prelog_session = None
                 live.update(Group(aggregator.render(), progress))
-                return DashboardSession(
+                _self.session = DashboardSession(
                     live=live,
                     progress=progress,
                     task_id=task_id,
@@ -322,12 +322,18 @@ class WorkflowUI:
                     handlers=[],
                     loggers=[],
                 )
+                return _self.session
 
             def __exit__(_self, exc_type, exc, tb):
+                session = getattr(_self, "session", None)
                 try:
-                    progress.stop()
+                    if session is not None:
+                        session.detach()
                 finally:
-                    live.stop()
+                    try:
+                        progress.stop()
+                    finally:
+                        live.stop()
 
         return _SessionCtx()
 
@@ -349,9 +355,7 @@ class WorkflowUI:
         header.add_row("AI Mode", f"[magenta]{ai_mode}[/magenta]")
         header.add_row("Plotting", "enabled" if plotting else "disabled")
         header.add_row("HITL", "enabled" if hitl else "disabled")
-        self.console.print(
-            Panel(header, title="Garmin AI Coach - Analysis", border_style="blue", box=box.ROUNDED)
-        )
+        self.console.print(Panel(header, title="Garmin AI Coach - Analysis", border_style="blue", box=box.ROUNDED))
 
     def show_outside_competitions(self, summary: list[dict]) -> None:
         counts_tbl = Table.grid()
@@ -420,15 +424,9 @@ class WorkflowUI:
         summary_tbl = Table(title="Extraction Summary", box=box.SIMPLE_HEAVY, show_edge=False)
         summary_tbl.add_column("Dataset", style="bold")
         summary_tbl.add_column("Count", justify="right")
-        summary_tbl.add_row(
-            "Recent activities", str(len((gd or {}).get("recent_activities", []) or []))
-        )
-        summary_tbl.add_row(
-            "Recovery indicators (days)", str(len((gd or {}).get("recovery_indicators", []) or []))
-        )
-        summary_tbl.add_row(
-            "Training load points", str(len((gd or {}).get("training_load_history", []) or []))
-        )
+        summary_tbl.add_row("Recent activities", str(len((gd or {}).get("recent_activities", []) or [])))
+        summary_tbl.add_row("Recovery indicators (days)", str(len((gd or {}).get("recovery_indicators", []) or [])))
+        summary_tbl.add_row("Training load points", str(len((gd or {}).get("training_load_history", []) or [])))
         vm = (gd or {}).get("vo2_max_history", {}) or {}
         summary_tbl.add_row("VO2max (running)", str(len(vm.get("running", []) or [])))
         summary_tbl.add_row("VO2max (cycling)", str(len(vm.get("cycling", []) or [])))
@@ -444,26 +442,22 @@ class WorkflowUI:
                 kb = round((p.stat().st_size if p.exists() else 0) / 1024, 1)
             except Exception:
                 kb = 0.0
-            files_table.add_row(
-                p.name, f"{kb}", "[bold]saved[/bold]" if kb > 0 else "[dim]n/a[/dim]"
-            )
+            files_table.add_row(p.name, f"{kb}", "[bold]saved[/bold]" if kb > 0 else "[dim]n/a[/dim]")
         self.console.print(files_table)
 
     def print_cost_panel(self, total_cost_usd: float, total_tokens: int, meta: dict) -> None:
         panel = Panel.fit(
             f"[bold]Total cost[/bold]: ${float(total_cost_usd):.2f}\n"
             f"[bold]Tokens[/bold]: {int(total_tokens)}\n"
-            f"[bold]Trace ID[/bold]: {str((meta or {}).get('trace_id',''))}\n"
-            f"[bold]Root Run[/bold]: {str((meta or {}).get('root_run_id',''))}",
+            f"[bold]Trace ID[/bold]: {str((meta or {}).get('trace_id', ''))}\n"
+            f"[bold]Root Run[/bold]: {str((meta or {}).get('root_run_id', ''))}",
             title="Run Summary",
             border_style="green",
         )
         self.console.print(panel)
 
     def print_results_saved(self, output_dir) -> None:
-        self.console.print(
-            Panel.fit(f"Results saved to: [cyan]{output_dir}[/cyan]", border_style="blue")
-        )
+        self.console.print(Panel.fit(f"Results saved to: [cyan]{output_dir}[/cyan]", border_style="blue"))
 
 
 @dataclass
