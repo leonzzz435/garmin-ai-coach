@@ -58,7 +58,10 @@ def test_prefers_direct_api_when_key_available(
 
     assert captured["model"] == expected_model
     assert captured["api_key"] == api_key_values[api_key_field]
-    assert "base_url" not in captured
+    if expected_client == "ChatOpenAI":
+        assert captured["base_url"] == "https://api.openai.com/v1"
+    else:
+        assert "base_url" not in captured
     assert captured["client"] == expected_client
 
 
