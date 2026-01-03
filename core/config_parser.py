@@ -1,5 +1,5 @@
-import json
 import getpass
+import json
 from pathlib import Path
 from typing import Any
 
