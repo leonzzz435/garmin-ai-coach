@@ -10,7 +10,6 @@ from .ai_settings import AgentRole, ai_settings
 
 logger = logging.getLogger(__name__)
 
-# OpenRouter API base URL
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 
