@@ -237,6 +237,5 @@ class ModelSelector:
         if provider == "anthropic" and not use_fallback:
             return ChatAnthropic(**llm_params)
 
-        if base_url == OPENROUTER_BASE_URL:
-            llm_params["base_url"] = base_url
+        llm_params["base_url"] = base_url
         return ChatOpenAI(**llm_params)
