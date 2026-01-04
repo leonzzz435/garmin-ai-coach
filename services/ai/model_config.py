@@ -30,8 +30,9 @@ class ModelSelector:
         "o3": ModelConfiguration(name="o3", base_url="https://api.openai.com/v1"),
         "o3-mini": ModelConfiguration(name="o3-mini", base_url="https://api.openai.com/v1"),
         "o4-mini": ModelConfiguration(name="o4-mini", base_url="https://api.openai.com/v1"),
-        "gpt-5": ModelConfiguration(name="gpt-5.1", base_url="https://api.openai.com/v1"),
+        "gpt-5": ModelConfiguration(name="gpt-5.2", base_url="https://api.openai.com/v1"),
         "gpt-5-mini": ModelConfiguration(name="gpt-5-mini", base_url="https://api.openai.com/v1"),
+        "gpt-5-search": ModelConfiguration(name="gpt-5.2", base_url="https://api.openai.com/v1"),
         # Anthropic Models
         "claude-4": ModelConfiguration(
             name="claude-sonnet-4-5-20250929", base_url="https://api.anthropic.com"
@@ -114,6 +115,16 @@ class ModelSelector:
                 "reasoning": {"effort": "high"},
                 "model_kwargs": {"text": {"verbosity": "high"}},
                 "log": "Using GPT-5-mini with Responses API for {role} (verbosity: high, reasoning_effort: high)",
+            },
+            "gpt-5-search": {
+                "use_responses_api": True,
+                "reasoning": {"effort": "high"},
+                "model_kwargs": {
+                    "text": {"verbosity": "medium"},
+                    "tools": [{"type": "web_search"}],
+                    "include": ["web_search_call.action.sources"],
+                },
+                "log": "Using GPT-5.2 with web search + Responses API for {role} (verbosity: medium, reasoning_effort: high)",
             },
             "deepseek-v3.2-exp": {
                 "extra_body": {"reasoning": {"enabled": True}},

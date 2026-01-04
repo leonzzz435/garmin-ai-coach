@@ -24,12 +24,12 @@ class AISettings:
             AIMode.STANDARD: {
                 AgentRole.SUMMARIZER: "gpt-5",
                 AgentRole.FORMATTER: "gpt-5",
-                AgentRole.METRICS_EXPERT: "gpt-5",
-                AgentRole.PHYSIOLOGY_EXPERT: "gpt-5",
-                AgentRole.ACTIVITY_EXPERT: "gpt-5",
+                AgentRole.METRICS_EXPERT: "gpt-5-search",
+                AgentRole.PHYSIOLOGY_EXPERT: "gpt-5-search",
+                AgentRole.ACTIVITY_EXPERT: "gpt-5-search",
                 AgentRole.SYNTHESIS: "gpt-5",
-                AgentRole.WORKOUT: "gpt-5",
-                AgentRole.SEASON_PLANNER: "gpt-5",
+                AgentRole.WORKOUT: "gpt-5-search",
+                AgentRole.SEASON_PLANNER: "gpt-5-search",
             },
             AIMode.COST_EFFECTIVE: {
                 AgentRole.SUMMARIZER: "claude-3-haiku",
