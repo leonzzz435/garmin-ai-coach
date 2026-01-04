@@ -41,7 +41,7 @@ PHYSIOLOGY_USER_PROMPT = """Analyze the physiology summary to assess recovery an
 ### Context
 - Competitions: ```json {competitions} ```
 - Date: ```json {current_date} ```
-- Notes: ``` {analysis_context} ```
+- **User Context**: ``` {analysis_context} ```
 
 ## Task
 Extract insights on recovery status, adaptation state, and readiness.

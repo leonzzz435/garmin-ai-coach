@@ -40,7 +40,7 @@ WEEKLY_PLANNER_USER_PROMPT = """Create a detailed 28-day (4-week) training plan.
 - Date: ```json {current_date} ```
 - Upcoming Weeks: ```json {week_dates} ```
 - Competitions: ```json {competitions} ```
-- Instructions: ``` {planning_context} ```
+- **User Context**: ``` {planning_context} ```
 
 ### Expert Analysis
 - Metrics: ``` {metrics_analysis} ```

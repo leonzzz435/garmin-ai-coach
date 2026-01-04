@@ -41,7 +41,7 @@ ACTIVITY_EXPERT_USER_PROMPT = """Interpret activity summaries to identify patter
 ### Context
 - Competitions: ```json {competitions} ```
 - Date: ```json {current_date} ```
-- Notes: ``` {analysis_context} ```
+- **User Context**: ``` {analysis_context} ```
 
 ## Task
 Extract insights on workout execution, progression, and quality.
