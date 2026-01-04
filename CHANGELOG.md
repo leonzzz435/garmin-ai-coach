@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+#### Long-Term Fitness Trends
+- **Long-term VO2 max tracking**: Bi-weekly sampling over 360 days to capture year-long fitness evolution
+- **Long-term chronic training load**: Historical training load trend at configurable intervals
+- New `ExtractionConfig` options: `include_long_term_trends`, `long_term_range`, `long_term_interval`
+- AI metrics summarizer now receives long-term trend data for deeper analysis
+
+---
+
 ## [2.1.0] - 2025-11-22
 
 ### Added

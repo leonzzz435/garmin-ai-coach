@@ -142,9 +142,11 @@ class DataExtractor:
         end_date = date.today()
         act_days = max(0, int(getattr(config, "activities_range", 21) or 21))
         met_days = max(0, int(getattr(config, "metrics_range", 56) or 56))
+        lt_days = max(0, int(getattr(config, "long_term_range", 360) or 360))
         return {
             "activities": {"start": end_date - timedelta(days=act_days), "end": end_date},
             "metrics": {"start": end_date - timedelta(days=met_days), "end": end_date},
+            "long_term": {"start": end_date - timedelta(days=lt_days), "end": end_date},
         }
 
 
@@ -176,6 +178,20 @@ class TriathlonCoachDataExtractor(DataExtractor):
                     "training_status": self.get_training_status(mend),
                     "vo2_max_history": self.get_vo2_max_history(mstart, mend),
                     "training_load_history": self.get_training_load_history(mstart, mend),
+                }
+            )
+
+        if getattr(config, "include_long_term_trends", True):
+            lt_start, lt_end = date_ranges["long_term"]["start"], date_ranges["long_term"]["end"]
+            lt_interval = getattr(config, "long_term_interval", 14) or 14
+            data.update(
+                {
+                    "long_term_vo2_max_trend": self.get_long_term_vo2_max_trend(
+                        lt_start, lt_end, lt_interval
+                    ),
+                    "long_term_training_load_trend": self.get_long_term_training_load_trend(
+                        lt_start, lt_end, lt_interval
+                    ),
                 }
             )
 
@@ -974,3 +990,103 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
         logger.info("Collected %d training load history entries", len(history))
         return history
+
+    def get_long_term_vo2_max_trend(
+        self, start_date: date, end_date: date, interval_days: int = 14
+    ) -> dict[str, list[dict[str, Any]]]:
+        trend = {"running": [], "cycling": []}
+        processed_dates = {"running": set(), "cycling": set()}
+        sample_dates = self._generate_sample_dates(start_date, end_date, interval_days)
+        logger.info(
+            "Fetching long-term VO2 max trend: %d sample dates from %s to %s",
+            len(sample_dates), start_date, end_date
+        )
+
+        for sample_date in sample_dates:
+            try:
+                data = self.garmin.client.get_training_status(sample_date.isoformat())
+                if not isinstance(data, dict):
+                    continue
+
+                mr = data.get("mostRecentVO2Max") or {}
+
+                gen = _dg(mr, "generic", {}) or {}
+                r_val = _to_float(gen.get("vo2MaxValue"))
+                r_date = gen.get("calendarDate")
+                if r_val is not None and r_date and r_date not in processed_dates["running"]:
+                    trend["running"].append({"date": r_date, "value": r_val})
+                    processed_dates["running"].add(r_date)
+
+                cyc = None
+                for field in ("cycling", "bike", "cycle"):
+                    if isinstance(mr, dict) and field in mr:
+                        cyc = mr.get(field)
+                        break
+                if cyc is None and isinstance(mr, dict) and "sportSpecific" in mr:
+                    ss = mr.get("sportSpecific") or {}
+                    for field in ("cycling", "bike", "cycle"):
+                        if field in ss:
+                            cyc = ss.get(field)
+                            break
+
+                if isinstance(cyc, dict):
+                    c_val = _to_float(cyc.get("vo2MaxValue"))
+                    c_date = cyc.get("calendarDate")
+                    if c_val is not None and c_date and c_date not in processed_dates["cycling"]:
+                        trend["cycling"].append({"date": c_date, "value": c_val})
+                        processed_dates["cycling"].add(c_date)
+            except Exception:
+                logger.exception("Long-term VO2 max fetch failed for %s", sample_date)
+
+        trend["running"].sort(key=lambda x: x["date"])
+        trend["cycling"].sort(key=lambda x: x["date"])
+        logger.info(
+            "Collected %d running and %d cycling long-term VO2 max entries",
+            len(trend["running"]), len(trend["cycling"])
+        )
+        return trend
+
+    def get_long_term_training_load_trend(
+        self, start_date: date, end_date: date, interval_days: int = 14
+    ) -> list[dict[str, Any]]:
+        trend: list[dict[str, Any]] = []
+        sample_dates = self._generate_sample_dates(start_date, end_date, interval_days)
+        logger.info(
+            "Fetching long-term training load trend: %d sample dates from %s to %s",
+            len(sample_dates), start_date, end_date
+        )
+
+        for sample_date in sample_dates:
+            try:
+                data = self.garmin.client.get_training_status(sample_date.isoformat())
+                if not isinstance(data, dict):
+                    continue
+
+                latest = _deep_get(data, ["mostRecentTrainingStatus", "latestTrainingStatusData"], {}) or {}
+                if not isinstance(latest, dict) or not latest:
+                    continue
+
+                status_key = next(iter(latest), None)
+                status_data = latest.get(status_key, {}) if status_key else {}
+                atl_dto = _dg(status_data, "acuteTrainingLoadDTO", None)
+                if not isinstance(atl_dto, dict):
+                    continue
+
+                chronic_load = _to_float(atl_dto.get("dailyTrainingLoadChronic"))
+                if chronic_load is not None:
+                    trend.append({"date": sample_date.isoformat(), "chronic_load": chronic_load})
+            except Exception:
+                logger.exception("Long-term training load fetch failed for %s", sample_date)
+
+        trend.sort(key=lambda x: x["date"])
+        logger.info("Collected %d long-term training load entries", len(trend))
+        return trend
+
+    @staticmethod
+    def _generate_sample_dates(start_date: date, end_date: date, interval_days: int) -> list[date]:
+        sample_dates = []
+        current_date = end_date
+        while current_date >= start_date:
+            sample_dates.append(current_date)
+            current_date -= timedelta(days=interval_days)
+        return sample_dates

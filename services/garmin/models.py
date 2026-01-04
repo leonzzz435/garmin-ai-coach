@@ -6,8 +6,10 @@ from typing import Any
 
 class TimeRange(Enum):
     # Values are determined by AI_MODE environment variable
-    RECENT = 7 if os.getenv('AI_MODE') == 'development' else 21
-    EXTENDED = 14 if os.getenv('AI_MODE') == 'development' else 56
+    RECENT = 7 if os.getenv("AI_MODE") == "development" else 21
+    EXTENDED = 14 if os.getenv("AI_MODE") == "development" else 56
+    LONG_TERM_RANGE = 360
+    LONG_TERM_INTERVAL = 14
 
 
 @dataclass
@@ -17,6 +19,9 @@ class ExtractionConfig:
     include_detailed_activities: bool = True
     include_metrics: bool = True
     include_mindfulness: bool = True
+    include_long_term_trends: bool = True
+    long_term_range: int = TimeRange.LONG_TERM_RANGE.value
+    long_term_interval: int = TimeRange.LONG_TERM_INTERVAL.value
 
 
 @dataclass
@@ -162,3 +167,5 @@ class GarminData:
     training_status: TrainingStatus | None = None
     vo2_max_history: dict[str, list[dict[str, Any]]] | None = None
     training_load_history: list[dict[str, Any]] | None = None
+    long_term_vo2_max_trend: dict[str, list[dict[str, Any]]] | None = None
+    long_term_training_load_trend: list[dict[str, Any]] | None = None

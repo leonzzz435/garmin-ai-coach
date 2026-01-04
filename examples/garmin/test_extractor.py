@@ -13,7 +13,13 @@ from services.garmin.models import ExtractionConfig
 logger = logging.getLogger(__name__)
 
 config = ExtractionConfig(
-    activities_range=7, metrics_range=14, include_detailed_activities=True, include_metrics=True
+    activities_range=7,
+    metrics_range=14,
+    include_detailed_activities=True,
+    include_metrics=True,
+    include_long_term_trends=True,
+    long_term_range=360,
+    long_term_interval=14,
 )
 
 

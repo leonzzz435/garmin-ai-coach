@@ -9,6 +9,8 @@ def extract_metrics_data(state: TrainingAnalysisState) -> dict:
         "training_load_history": state["garmin_data"].get("training_load_history", []),
         "vo2_max_history": state["garmin_data"].get("vo2_max_history", {}),
         "training_status": state["garmin_data"].get("training_status", {}),
+        "long_term_vo2_max_trend": state["garmin_data"].get("long_term_vo2_max_trend", {}),
+        "long_term_training_load_trend": state["garmin_data"].get("long_term_training_load_trend", []),
     }
 
 
