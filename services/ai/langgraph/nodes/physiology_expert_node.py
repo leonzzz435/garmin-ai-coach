@@ -55,22 +55,22 @@ Extract insights on recovery status, adaptation state, and readiness.
 ## Output Requirements
 Produce 3 structured fields:
 
+**Important**: Tailor content for each consumer.
+
 ### 1. `for_synthesis` (Comprehensive Report)
-- **Readiness Score (0-100)** based on physiological markers.
-- **Status**: Current recovery, adaptation patterns, risks/strengths.
-- Focus on the **body's internal conversation**.
+- **Context**: This feeds the **"Whole Athlete"** view (Summary & Synthesis). It acts as the "Internal Body Check".
+- **Goal**: Provide a qualitative assessment of recovery and adaptation.
+- **Freedom**: Highlight recovery costs, adaptation status, or internal signals.
 
 ### 2. `for_season_planner` (12-24 Weeks)
-- **Planner Signal**: Robustness of recovery, crash patterns, sleep/HRV stability.
-- **Analysis**: Justification based on long-term trends.
-- Goal: Guide long-term planning based on physiological resilience.
+- **Context**: This informs **Long-Term Structural Decisions** (Macro-cycle).
+- **Goal**: Inform the athlete's **"Absorptive Capacity"**.
+- **Freedom**: Focus on long-term robustness, crash risks, and resilience.
 
 ### 3. `for_weekly_planner` (Next 28 Days)
-- **Planner Signal**: Current state (Green/Yellow/Red), near-term guidance (build/consolidate/recover), signals to watch.
-- **Analysis**: Summary of last 14 days.
-- **CRITICAL**: Avoid prescribing exact workouts. Speak in **readiness corridors**.
-
-**Important**: Tailor content for each consumer. BE CONCISE."""
+- **Context**: This acts as the **"Traffic Light"** (readiness limiter) for the next block.
+- **Goal**: Provide readiness guidance.
+- **Freedom**: Speak in **readiness corridors** (e.g., "High readiness, go for overload" or "Sympathetic dominance, limit intensity")."""
 
 
 

@@ -80,22 +80,23 @@ Extract insights on training patterns, fitness progression, and readiness.
 ## Output Requirements
 Produce 3 structured fields:
 
+**Important**: Tailor content for each consumer.
+
 ### 1. `for_synthesis` (Comprehensive Report)
-- **Readiness Score (0-100)**.
-- **Story**: Load behavior, fitness trends, risks/opportunities.
-- Focus on patterns and relationships.
+- **Context**: This provides the **"Quantitative Backbone"** (load/stress reality) for the report.
+- **Goal**: Provide the quantitative truth of training load.
+- **Freedom**: Highlight load behavior, fitness trends, or important ratios.
 
 ### 2. `for_season_planner` (12-24 Weeks)
-- **Planner Signal**: High-level guidance on load capacity, volatility, and structural patterns.
-- **Analysis**: Justification based on load history and fitness metrics.
-- Goal: Give the planner a map of the athlete's capacity.
+- **Context**: This informs **"Load Architecture"** (ramp rates, volume ceilings) for the season.
+- **Goal**: Provide high-level guidance on capacity and structural patterns.
+- **Freedom**: Identify safe ramp rates, max sustainable chronic load, or volatility limits.
 
 ### 3. `for_weekly_planner` (Next 28 Days)
-- **Planner Signal**: Current load situation (acute vs chronic), directional guidance (push/hold/pull back), short-term risks.
-- **Analysis**: Summary of last 14 days.
-- **CRITICAL**: Do NOT prescribe specific workouts.
-
-**Important**: Tailor content for each consumer. BE CONCISE."""
+- **Context**: This acts as the **"Acute Load Guardrail"** for the next few weeks.
+- **Goal**: Provide immediate load guidance and limits.
+- **Freedom**: Define safety limits, push/pull signals, or specific load targets.
+- **CRITICAL**: Do NOT prescribe specific workouts. Provide limits and load guidance."""
 
 
 

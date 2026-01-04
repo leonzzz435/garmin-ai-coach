@@ -106,9 +106,9 @@ class ModelSelector:
             },
             "gpt-5": {
                 "use_responses_api": True,
-                "reasoning": {"effort": "high"},
-                "model_kwargs": {"text": {"verbosity": "medium"}},
-                "log": "Using GPT-5 with Responses API for {role} (verbosity: medium, reasoning_effort: high)",
+                "reasoning": {"effort": "xhigh"},
+                "model_kwargs": {"text": {"verbosity": "high"}},
+                "log": "Using GPT-5 with Responses API for {role} (verbosity: high, reasoning_effort: xhigh)",
             },
             "gpt-5-mini": {
                 "use_responses_api": True,
@@ -118,13 +118,13 @@ class ModelSelector:
             },
             "gpt-5-search": {
                 "use_responses_api": True,
-                "reasoning": {"effort": "high"},
+                "reasoning": {"effort": "xhigh"},
                 "model_kwargs": {
-                    "text": {"verbosity": "medium"},
+                    "text": {"verbosity": "high"},
                     "tools": [{"type": "web_search"}],
                     "include": ["web_search_call.action.sources"],
                 },
-                "log": "Using GPT-5.2 with web search + Responses API for {role} (verbosity: medium, reasoning_effort: high)",
+                "log": "Using GPT-5.2 with web search + Responses API for {role} (verbosity: high, reasoning_effort: xhigh)",
             },
             "deepseek-v3.2-exp": {
                 "extra_body": {"reasoning": {"enabled": True}},

@@ -55,21 +55,25 @@ Extract insights on workout execution, progression, and quality.
 ## Output Requirements
 Produce 3 structured fields:
 
+**Important**: Tailor content for each consumer.
+
+**Important**: Tailor content for each consumer.
+
 ### 1. `for_synthesis` (Comprehensive Report)
-- **Quality Score (0-100)**.
-- **Insights**: Execution patterns, progression quality, consistency.
+- **Context**: This feeds the **"Whole Athlete"** view (Summary & Synthesis).
+- **Goal**: Provide a qualitative assessment of execution quality.
+- **Freedom**: Highlight what matters most—execution patterns, progression quality, or consistency.
 
 ### 2. `for_season_planner` (12-24 Weeks)
-- **Planner Signal**: Diagnostic guidance on workout types, success patterns, sequencing preferences.
-- **Analysis**: Justification based on past execution.
-- Goal: Identify which building blocks work best.
+- **Context**: This informs **Long-Term Structural Decisions** (Macro-cycle).
+- **Goal**: Identify which "building blocks" (workout types) are effective for this specific athlete.
+- **Freedom**: Focus on success patterns and sequencing preferences.
 
 ### 3. `for_weekly_planner` (Next 28 Days)
-- **Planner Signal**: Constraints/opportunities, session load hints.
-- **Analysis**: Summary of recent execution.
-- **CRITICAL**: Do NOT propose a schedule. Provide rules and building blocks.
-
-**Important**: Tailor content for each consumer. BE CONCISE."""
+- **Context**: This informs **Immediate Scheduling & Constraints** (Mesocycle).
+- **Goal**: Provide actionable rules for the next block.
+- **Freedom**: define constraints, opportunities, and session load hints as needed.
+- **CRITICAL**: Do NOT propose a schedule. Provide rules and building blocks."""
 
 
 async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
