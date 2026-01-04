@@ -1,7 +1,9 @@
 # data_extractor.py
 import logging
 from collections.abc import Iterable
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+from math import log
+from statistics import mean, pstdev
 from typing import Any
 
 from .client import GarminConnectClient
@@ -93,7 +95,7 @@ class DataExtractor:
                 ts = activity_data.get("beginTimestamp")
                 if isinstance(ts, (int, float)):
                     # beginTimestamp is ms epoch in many payloads
-                    return datetime.fromtimestamp(ts / 1000).isoformat()
+                    return datetime.fromtimestamp(ts / 1000, tz=timezone.utc).isoformat()
             return start_time
         except Exception:
             logger.exception("extract_start_time failed with payload keys=%s", list(activity_data or {}).keys())
@@ -178,6 +180,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
                     "training_status": self.get_training_status(mend),
                     "vo2_max_history": self.get_vo2_max_history(mstart, mend),
                     "training_load_history": self.get_training_load_history(mstart, mend),
+                    "training_load_v2_history": self.get_training_load_v2_history(mstart, mend),
                 }
             )
 
@@ -1081,6 +1084,274 @@ class TriathlonCoachDataExtractor(DataExtractor):
         trend.sort(key=lambda x: x["date"])
         logger.info("Collected %d long-term training load entries", len(trend))
         return trend
+
+
+    @staticmethod
+    def _parse_local_date(start_time: str | None) -> date | None:
+        """Parse Garmin-ish timestamps into a date (robust to Z / offsets)."""
+        if not start_time or not isinstance(start_time, str):
+            return None
+        s = start_time.strip()
+        # Handle Zulu timezone
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        try:
+            # Works for "YYYY-MM-DDTHH:MM:SS(.fff)(+HH:MM)"
+            dt = datetime.fromisoformat(s)
+            return dt.date()
+        except Exception:
+            # Fallback: take first 10 chars if it looks like YYYY-MM-DD
+            try:
+                return date.fromisoformat(s[:10])
+            except Exception:
+                return None
+
+    def get_daily_activity_loads(self, start_date: date, end_date: date) -> dict[str, float]:
+        """
+        Build daily load series L_t by summing activityTrainingLoad per day.
+        Uses activities list endpoint (cheap) rather than per-activity details.
+        """
+        loads: dict[str, float] = {}
+        cur = start_date
+        while cur <= end_date:
+            loads[cur.isoformat()] = 0.0
+            cur += timedelta(days=1)
+
+        try:
+            activities = self.garmin.client.get_activities_by_date(
+                start_date.isoformat(), end_date.isoformat()
+            ) or []
+        except Exception:
+            logger.exception("get_activities_by_date failed for daily loads")
+            return loads
+
+        if not isinstance(activities, list):
+            return loads
+
+
+        for a in activities:
+            if not isinstance(a, dict):
+                continue
+
+            # Prevent double-counting multisport legs
+            if a.get("parentActivityId"):
+                continue
+
+            # Determine activity date
+            st = self.extract_start_time(a)
+            d = self._parse_local_date(st)
+            if d is None:
+                # last-ditch: sometimes calendarDate exists in list payloads
+                d_str = a.get("calendarDate")
+                try:
+                    d = date.fromisoformat(d_str) if isinstance(d_str, str) else None
+                except Exception:
+                    d = None
+            if d is None:
+                continue
+
+            key = d.isoformat()
+            if key not in loads:
+                continue
+
+            # Extract load. In list payloads it's often direct, but also may live in summaryDTO.
+            load = (
+                _to_float(a.get("activityTrainingLoad"))
+                or _to_float(_deep_get(a, ["summaryDTO", "activityTrainingLoad"]))
+                or 0.0
+            )
+            loads[key] = float(loads.get(key, 0.0) + (load or 0.0))
+
+        return loads
+
+    @staticmethod
+    def _ewma(values: list[float], span_days: int) -> list[float]:
+        """
+        EWMA with alpha = 2/(span+1). Assumes daily cadence.
+        """
+        if span_days <= 0:
+            return values[:]
+        alpha = 2.0 / (span_days + 1.0)
+        out: list[float] = []
+        prev: float | None = None
+        for x in values:
+            if prev is None:
+                prev = x
+            else:
+                prev = alpha * x + (1.0 - alpha) * prev
+            out.append(prev)
+        return out
+
+    def get_training_load_v2_history(
+        self,
+        start_date: date,
+        end_date: date,
+        acute_span: int = 7,
+        chronic_span: int = 28,   # consider 42 if you want "more stable base" for triathlon
+        uncouple_days: int = 7,
+        eps: float = 1e-6,
+    ) -> list[dict[str, Any]]:
+        """
+        Returns a daily series with:
+          - daily_load (sum of activityTrainingLoad)
+          - acute_ewma, chronic_ewma
+          - chronic_uncoupled (chronic shifted back by `uncouple_days`)
+          - acwr_uncoupled, log_ratio
+          - tsb (chronic - acute)
+          - ramp_7d (chronic now minus chronic 7d ago)
+          - monotony + strain (from last 7 days of daily_load)
+        """
+        # Fetch extra history for warm-up
+        warmup_days = chronic_span * 2  # rule of thumb for EWMA stabilization
+        fetch_start = start_date - timedelta(days=warmup_days)
+        loads_map = self.get_daily_activity_loads(fetch_start, end_date)
+
+        # Ensure ordered daily vector
+        # We need the full vector from fetch_start to do the rolling calc properly
+        full_dates: list[date] = []
+        full_loads: list[float] = []
+        cur = fetch_start
+        while cur <= end_date:
+            full_dates.append(cur)
+            full_loads.append(float(loads_map.get(cur.isoformat(), 0.0) or 0.0))
+            cur += timedelta(days=1)
+
+        acute = self._ewma(full_loads, acute_span)
+        chronic = self._ewma(full_loads, chronic_span)
+
+        # Precompute rolling sums using prefix sums for O(1) lookups
+        # pref[i] = sum(loads[0]...loads[i-1])
+        pref = [0.0]
+        for x in full_loads:
+            pref.append(pref[-1] + x)
+
+        def sum_range(start_idx: int, end_idx: int) -> float:
+            # Sum of full_loads[start_idx : end_idx + 1]
+            start_idx = max(start_idx, 0)
+            if end_idx >= len(full_loads):
+                end_idx = len(full_loads) - 1
+            if start_idx > end_idx:
+                return 0.0
+            return pref[end_idx + 1] - pref[start_idx]
+
+        # Precompute acute 7d history for chronic baseline
+        # acute7_series[i] = sum(loads[i-6...i])
+        acute7_series = []
+        for i in range(len(full_loads)):
+            acute7_series.append(sum_range(i - 6, i) if i >= 6 else None)
+        
+        # Prefix sum of the acute7 series (treating None as 0 for sum, handling count separately)
+        # But specifically we need "average of last 28 valid acute sums". 
+        # Since our arrays are dense (daily), valid is just index checks.
+        pref_acute7 = [0.0]
+        for v in acute7_series:
+            pref_acute7.append(pref_acute7[-1] + (v or 0.0))
+
+        def avg_acute7_last_n(idx_end: int, n: int) -> float | None:
+            # Average of acute7_series[idx_end - n + 1 ... idx_end]
+            idx_start = idx_end - n + 1
+            if idx_start < 6: # Need at least one full acute sum to start? Actually just need bounds.
+                # If idx_start < 6, those acute7 entries are None (incomplete history for acute).
+                # To be "Garmin comparable", we usually need full windows. 
+                return None
+            
+            total = pref_acute7[idx_end + 1] - pref_acute7[idx_start]
+            return total / n
+
+        history: list[dict[str, Any]] = []
+        
+        # O(1) start index calculation
+        start_offset_days = (start_date - fetch_start).days
+        start_idx = max(0, start_offset_days)
+        
+        for i in range(start_idx, len(full_dates)):
+            d = full_dates[i]
+            
+            # --- EWMA Metrics ---
+            chronic_unc = None
+            if i - uncouple_days >= 0:
+                chronic_unc = chronic[i - uncouple_days]
+
+            acwr_unc = None
+            log_ratio = None
+            if chronic_unc is not None and chronic_unc > eps:
+                acwr_unc = acute[i] / chronic_unc
+                # symmetric spike measure
+                log_ratio = log(acwr_unc) if acwr_unc > eps else None
+
+            tsb = chronic[i] - acute[i]
+
+            ramp_7d = None
+            if i - 7 >= 0:
+                ramp_7d = chronic[i] - chronic[i - 7]
+
+            monotony = None
+            strain = None
+            # Need window i-6 to i
+            start_window = i - 6
+            if start_window >= 0:
+                # Slicing is okay here since window is small (7)
+                window = full_loads[start_window : i + 1]
+                weekly_load = sum(window)
+                # Monotony floor to prevent noise on rest weeks
+                if weekly_load > 50.0:
+                    mu = mean(window)
+                    sd = pstdev(window)
+                    if sd > eps:
+                        monotony = mu / sd
+                    else:
+                        monotony = 4.0 if weekly_load > eps else 0.0
+                    strain = weekly_load * monotony
+                else:
+                    monotony = 0.0
+                    strain = 0.0
+
+            # --- Rolling Sum Metrics ---
+            # Acute 7d Sum
+            acute_7d_sum = acute7_series[i]
+
+            # Chronic 28d Avg (Coupled)
+            chronic_28d_avg_acute = avg_acute7_last_n(i, 28)
+
+            # ACWR Coupled
+            acwr_7d28d = None
+            if acute_7d_sum is not None and chronic_28d_avg_acute and chronic_28d_avg_acute > eps:
+                acwr_7d28d = acute_7d_sum / chronic_28d_avg_acute
+
+            # Chronic 28d Avg (Uncoupled: Rolling sum excluded last 7 days)
+            # Window ends at i - 7
+            chronic_28d_avg_acute_unc = None
+            idx_unc_end = i - 7
+            if idx_unc_end >= 0:
+                chronic_28d_avg_acute_unc = avg_acute7_last_n(idx_unc_end, 28)
+            
+            acwr_7d28d_unc = None
+            if acute_7d_sum is not None and chronic_28d_avg_acute_unc and chronic_28d_avg_acute_unc > eps:
+                 acwr_7d28d_unc = acute_7d_sum / chronic_28d_avg_acute_unc
+
+            history.append(
+                {
+                    "date": d.isoformat(),
+                    "daily_load": _round(full_loads[i], 1),
+                    # EWMA V2
+                    "acute_ewma": _round(acute[i], 1),
+                    "chronic_ewma": _round(chronic[i], 1),
+                    "chronic_uncoupled": _round(chronic_unc, 1),
+                    "acwr_uncoupled": _round(acwr_unc, 2),
+                    "log_ratio": _round(log_ratio, 2),
+                    "tsb": _round(tsb, 1),
+                    "ramp_7d": _round(ramp_7d, 1),
+                    "monotony_7d": _round(monotony, 2),
+                    "strain_7d": _round(strain, 1),
+                    # Rolling Sum (Garmin-like)
+                    "acute_7d_sum": _round(acute_7d_sum, 1),
+                    "chronic_28d_avg": _round(chronic_28d_avg_acute, 1),
+                    "acwr_7d28d": _round(acwr_7d28d, 2),
+                    "acwr_7d28d_uncoupled": _round(acwr_7d28d_unc, 2),
+                }
+            )
+
+        return history
 
     @staticmethod
     def _generate_sample_dates(start_date: date, end_date: date, interval_days: int) -> list[date]:

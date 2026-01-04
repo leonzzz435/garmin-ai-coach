@@ -19,6 +19,18 @@ All notable changes to this project will be documented in this file.
 - New `ExtractionConfig` options: `include_long_term_trends`, `long_term_range`, `long_term_interval`
 - AI metrics summarizer now receives long-term trend data for deeper analysis
 
+#### ACWR v2 Implementation
+- **Enhanced Load Calculation**: Replaced basic Garmin metrics with a robust **Acute:Chronic Workload Ratio (v2)** model
+- **Multiple Interpretations**:
+  - **EWMA (Scientific)**: Exponentially Weighted Moving Average (7d/28d) for physiological accuracy
+  - **Rolling Sum (Garmin-like)**: 7-day rolling sums for direct comparison with Garmin reports
+- **Uncoupled Chronic Load**: Chronic load calculation excluding the acute period (t-7) to prevent "mathematically coupled" spike masking
+- **Advanced Physiological Signals**:
+  - **Ramp Rate**: 7-day change in chronic load
+  - **Monotony & Strain**: Variation and stress indices to detectstaleness/overtraining
+  - **TSB (Training Stress Balance)**: Form measurement (chronic - acute)
+- **Robustness**: Timezone-aware date parsing (UTC) and multisport double-counting prevention
+
 ---
 
 ## [2.1.0] - 2025-11-22
