@@ -166,7 +166,7 @@ The CLI will set `AI_MODE` from your config’s `extraction.ai_mode` (see [`pyth
 
 Provider selection depends on AI mode mapping:
 - Default mapping in [`services/ai/ai_settings.py`](../services/ai/ai_settings.py:24) within [`python.AISettings()`](../services/ai/ai_settings.py:19):
-  - `standard` → `gpt-5` (OpenAI)
+  - `standard` → `gpt-5` / `gpt-5-search` (OpenAI, with web search for experts/planners)
   - `development` → `claude-4` (Anthropic)
   - `cost_effective` → `claude-3-haiku` (Anthropic)
 - Model IDs and providers are declared in [`python.ModelSelector.CONFIGURATIONS`](../services/ai/model_config.py:22), and the provider API key is auto-selected in [`python.ModelSelector.get_llm()`](../services/ai/model_config.py:61).

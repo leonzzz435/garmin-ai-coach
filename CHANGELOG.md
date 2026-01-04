@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+#### Web Search Capabilities
+- **New `gpt-5-search` model**: GPT-5.2 with OpenAI's hosted web search tool for real-time information retrieval
+- Web search runs during the model's reasoning chain-of-thought (agentic search)
+- Sources automatically included via `include: ["web_search_call.action.sources"]`
+- Fully compatible with structured JSON output and Pydantic models
+- Enabled for expert nodes (Metrics, Physiology, Activity) and planners (Workout, Season) in STANDARD mode
+
 #### Long-Term Fitness Trends
 - **Long-term VO2 max tracking**: Bi-weekly sampling over 360 days to capture year-long fitness evolution
 - **Long-term chronic training load**: Historical training load trend at configurable intervals

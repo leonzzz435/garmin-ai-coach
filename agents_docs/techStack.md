@@ -10,7 +10,7 @@
 
 ### Supported Models
 - **Anthropic Claude** - claude-sonnet-4, claude-opus-4, claude-3-haiku (with extended thinking support)
-- **OpenAI** - gpt-5, gpt-5-mini, gpt-4o, o1, o3, o4-mini
+- **OpenAI** - gpt-5, gpt-5-mini, gpt-5-search (with web search), gpt-4o, o1, o3, o4-mini
 - **OpenRouter/DeepSeek** - deepseek-chat, deepseek-r1, deepseek-v3.2-exp (with reasoning support)
 
 ### Model Assignment Strategy
@@ -25,11 +25,15 @@ The system uses a **role-based model assignment strategy** that optimizes model 
 - **HTML Formatters**: `claude-4` - Fast, clean HTML generation without thinking overhead
   - Analysis Formatter (`AgentRole.FORMATTER`)
   - Planning Formatter (`AgentRole.FORMATTER`)
-- **Expert Nodes**: `gpt-5` - Advanced reasoning with Responses API (high verbosity, high reasoning effort)
-  - Metrics Expert (`AgentRole.METRICS`)
-  - Physiology Expert (`AgentRole.PHYSIO`)
-- **Other Nodes**: `gpt-5` - Consistent high-quality output
-  - Activity Interpreter, Synthesis, Workout Planning, Competition Planning, Season Planning
+- **Expert Nodes**: `gpt-5-search` - Advanced reasoning + web search via Responses API
+  - Metrics Expert (`AgentRole.METRICS_EXPERT`) - Can search for latest research on training metrics
+  - Physiology Expert (`AgentRole.PHYSIOLOGY_EXPERT`) - Can search for physiological insights
+  - Activity Expert (`AgentRole.ACTIVITY_EXPERT`) - Can search for sport-specific guidance
+- **Planning Nodes**: `gpt-5-search` - Web-enabled planning with access to latest methodologies
+  - Workout Planner (`AgentRole.WORKOUT`)
+  - Season Planner (`AgentRole.SEASON_PLANNER`)
+- **Other Nodes**: `gpt-5` - Consistent high-quality output without web search
+  - Synthesis, Formatters
 
 **COST_EFFECTIVE Mode:**
 - All nodes use `claude-3-haiku` for budget-conscious operation
