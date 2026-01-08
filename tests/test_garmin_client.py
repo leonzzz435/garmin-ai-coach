@@ -230,7 +230,7 @@ def test_connect_handles_non_auth_http_errors(monkeypatch, tmp_path):
     monkeypatch.setattr(garmin_client_module, "Garmin", ErrorGarmin)
 
     client = GarminConnectClient(token_dir=tmp_path)
-    
+
     with pytest.raises(requests.HTTPError):
         client.connect("user@example.com", "secret")
 
@@ -247,7 +247,7 @@ def test_connect_handles_garmin_login_exception(monkeypatch, tmp_path):
     monkeypatch.setattr(garmin_client_module, "Garmin", ExceptionGarmin)
 
     client = GarminConnectClient(token_dir=tmp_path)
-    
+
     with pytest.raises(RuntimeError):
         client.connect("user@example.com", "secret")
 
@@ -258,11 +258,13 @@ def test_connect_handles_fresh_login_exception(monkeypatch, tmp_path):
 
     monkeypatch.setattr(garmin_client_module.garth, "resume", failing_resume)
     monkeypatch.setattr(
-        garmin_client_module.garth, "login", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("Login failed"))
+        garmin_client_module.garth,
+        "login",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("Login failed")),
     )
 
     client = GarminConnectClient(token_dir=tmp_path)
-    
+
     with pytest.raises(RuntimeError):
         client.connect("user@example.com", "secret")
 
@@ -275,7 +277,9 @@ def test_connect_without_mfa_callback(monkeypatch, tmp_path):
 
     garth_login_calls = []
     monkeypatch.setattr(
-        garmin_client_module.garth, "login", lambda *args, **kwargs: garth_login_calls.append((args, kwargs))
+        garmin_client_module.garth,
+        "login",
+        lambda *args, **kwargs: garth_login_calls.append((args, kwargs)),
     )
     monkeypatch.setattr(garmin_client_module.garth, "save", lambda path: None)
 
@@ -313,11 +317,11 @@ def test_disconnect_clears_client():
 def test_context_manager():
     client = GarminConnectClient()
     client._client = "mock_client"
-    
+
     with client as context_client:
         assert context_client is client
         assert context_client._client == "mock_client"
-    
+
     assert client._client is None
 
 

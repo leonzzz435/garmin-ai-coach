@@ -43,7 +43,7 @@ class OutsideApiGraphQlClient:
         base_headers = headers or {"User-Agent": "garmin-ai-coach/1.0"}
         self._client = client or httpx.Client(timeout=timeout_s, headers=base_headers)
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.logger.info("Initialized OutsideApiGraphQlClient for app_type=%s", self.app_type)
+        self.logger.debug("Initialized OutsideApiGraphQlClient for app_type=%s", self.app_type)
 
     def get_event(self, event_id: int, precache: bool = False) -> Event | None:
         selection = self._EVENT_BASE_FIELDS + (f" {self._CATEGORIES_FIELDS}" if precache else "")
@@ -532,10 +532,10 @@ class OutsideApiGraphQlClient:
                 comp["location"] = location
 
             resolved.append(comp)
-            self.logger.info("Added OutsideAPI competition: %s on %s", comp["name"], comp["date"])
+            self.logger.debug("Added OutsideAPI competition: %s on %s", comp["name"], comp["date"])
 
         if resolved:
-            self.logger.info("OutsideAPI: resolved %d competitions", len(resolved))
+            self.logger.debug("OutsideAPI: resolved %d competitions", len(resolved))
         else:
             self.logger.info("OutsideAPI: no competitions resolved")
         return resolved

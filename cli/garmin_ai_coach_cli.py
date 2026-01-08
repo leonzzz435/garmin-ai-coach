@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import argparse
 import asyncio
 import getpass
@@ -8,32 +7,28 @@ import logging
 import os
 import sys
 from dataclasses import asdict
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from cli.rich_workflow import WorkflowUI
 from core.config import reload_config
 from services.ai.ai_settings import ai_settings
-from services.ai.langgraph.workflows.planning_workflow import (
-    run_complete_analysis_and_planning,
-)
+from services.ai.langgraph.nodes.orchestrator_node import clear_hitl_hooks, register_hitl_hooks
+from services.ai.langgraph.workflows.planning_workflow import run_complete_analysis_and_planning
 from services.ai.utils.plan_storage import FilePlanStorage
 from services.garmin import ExtractionConfig, TriathlonCoachDataExtractor
 from services.outside.client import OutsideApiGraphQlClient
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class ConfigParser:
-
     def __init__(self, config_path: Path):
         self.config_path = config_path
         self.config = self._load_config()
@@ -60,7 +55,7 @@ class ConfigParser:
     def get_contexts(self) -> tuple[str, str]:
         return (
             self.config.get("context", {}).get("analysis", "").strip(),
-            self.config.get("context", {}).get("planning", "").strip()
+            self.config.get("context", {}).get("planning", "").strip(),
         )
 
     def get_extraction_config(self) -> dict[str, Any]:
@@ -68,7 +63,7 @@ class ConfigParser:
             "activities_days": self.config.get("extraction", {}).get("activities_days", 7),
             "metrics_days": self.config.get("extraction", {}).get("metrics_days", 14),
             "ai_mode": self.config.get("extraction", {}).get("ai_mode", "development"),
-            "enable_plotting": self.config.get("extraction", {}).get("enable_plotting", False),
+            "enable_plotting": self.config.get("extraction", {}).get("enable_plotting", True),
             "hitl_enabled": self.config.get("extraction", {}).get("hitl_enabled", True),
             "skip_synthesis": self.config.get("extraction", {}).get("skip_synthesis", False),
         }
@@ -90,114 +85,341 @@ class ConfigParser:
         return Path(self.config.get("output", {}).get("directory", "./data"))
 
     def get_password(self) -> str:
-        return (
-            self.config.get("credentials", {}).get("password", "") or
-            getpass.getpass("Enter Garmin Connect password: ")
+        return self.config.get("credentials", {}).get("password", "") or getpass.getpass(
+            "Enter Garmin Connect password: "
         )
 
 
-def fetch_outside_competitions_from_config(config: dict[str, Any]) -> list[dict[str, Any]]:
-    client = OutsideApiGraphQlClient()
+def fetch_outside_competitions_from_config(
+    config: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    all_competitions: list[dict[str, Any]] = []
+    summary: list[dict[str, Any]] = []
 
-    if isinstance(outside_cfg := config.get("outside"), dict) and any(
-        isinstance(value, list) for value in outside_cfg.values()
-    ):
-        return client.get_competitions(outside_cfg)
+    def collect_for(app_type: str, entries: list[dict[str, Any]]) -> None:
+        if not entries:
+            return
+        client = OutsideApiGraphQlClient(app_type=app_type)
+        comps = client.get_competitions(entries)
+        all_competitions.extend(comps)
+        summary.append(
+            {
+                "source": app_type,
+                "items": [{"name": c.get("name", ""), "date": c.get("date", "")} for c in comps],
+            }
+        )
 
-    aggregate: list[dict[str, Any]] = []
+    outside_cfg = config.get("outside")
+    if isinstance(outside_cfg, dict) and any(isinstance(v, list) and v for v in outside_cfg.values()):
+        for key, entries in outside_cfg.items():
+            if not isinstance(entries, list) or not entries:
+                continue
+            key_upper = str(key).strip().upper()
+            if key_upper in {"BIKEREG", "RUNREG", "TRIREG", "SKIREG"}:
+                collect_for(key_upper, entries)
 
-    if isinstance(legacy_bikereg := config.get("bikereg", []), list) and legacy_bikereg:
-        aggregate.extend(client.get_competitions(legacy_bikereg))
+    legacy_sections = {
+        "BIKEREG": config.get("bikereg", []),
+        "RUNREG": config.get("runreg", []),
+        "TRIREG": config.get("trireg", []),
+        "SKIREG": config.get("skireg", []),
+    }
+    for app_type, entries in legacy_sections.items():
+        if isinstance(entries, list) and entries:
+            collect_for(app_type, entries)
 
-    if legacy_all := {
-        key: entries
-        for key in ("runreg", "trireg", "skireg")
-        if isinstance(entries := config.get(key, []), list) and entries
-    }:
-        aggregate.extend(client.get_competitions(legacy_all))
-
-    return aggregate
+    return all_competitions, summary
 
 
-async def run_analysis_from_config(config_path: Path) -> None:
+async def cache_only_from_config(config_path: Path, output_dir_override: Path | None = None) -> None:
+    from services.garmin.cache_client import CachedGarminClient
+    from services.garmin.client import GarminConnectClient
+    from services.garmin.daily_cache import GarminDailyCache
+
+    ui = WorkflowUI()
+
+    cfg = ConfigParser(config_path)
+    athlete_name, email = cfg.get_athlete_info()
+    extraction = cfg.get_extraction_config()
+    activities_days = int(extraction["activities_days"])
+    metrics_days = int(extraction["metrics_days"])
+    output_dir = output_dir_override or cfg.get_output_directory()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    ui.banner(
+        f"Cache-only mode for [green]{athlete_name}[/green]\nOutput: [cyan]{output_dir}[/cyan]",
+        border_style="blue",
+    )
+
+    password = cfg.get_password()
+
+    garmin = GarminConnectClient()
+    garmin.connect(email, password)
+    cache_root = Path(os.getenv("GARMIN_CACHE_DIR", "data/cache/garmin"))
+    cache_root.mkdir(parents=True, exist_ok=True)
+    daily_cache = GarminDailyCache(cache_root)
+    client = CachedGarminClient(garmin.client, daily_cache)
+
+    end = date.today()
+    m_start = end - timedelta(days=metrics_days)
+    a_start = end - timedelta(days=activities_days)
+
+    days: list[date] = []
+    cur = m_start
+    while cur <= end:
+        days.append(cur)
+        cur += timedelta(days=1)
+
+    endpoints = [
+        client.get_stats,
+        client.get_sleep_data,
+        client.get_stress_data,
+        client.get_hrv_data,
+        client.get_hydration_data,
+        client.get_training_status,
+        client.get_rhr_day,
+        client.get_user_summary,
+    ]
+
+    with ui.extraction_progress(len(days)) as advance:
+        for d in days:
+            day_iso = d.isoformat()
+            for fn in endpoints:
+                try:
+                    fn(day_iso)
+                except Exception as e:
+                    logger.debug(
+                        "Daily endpoint %s failed for %s: %s",
+                        getattr(fn, "__name__", "fn"),
+                        day_iso,
+                        e,
+                    )
+            advance()
+
+    activities_cached = False
+    try:
+        client.get_activities_by_date(a_start.isoformat(), end.isoformat())
+    except Exception as e:
+        logger.warning("Activities range fetch failed: %s", e)
+        ui.banner(
+            "⚠️  Failed to cache recent activities. Future analysis may re-fetch from Garmin.",
+            border_style="yellow",
+        )
+    else:
+        activities_cached = True
+
+    body_comp_cached = False
+    try:
+        client.get_body_composition(m_start.isoformat(), end.isoformat())
+    except Exception as e:
+        logger.warning("Body composition range fetch failed: %s", e)
+        ui.banner(
+            "⚠️  Body composition data was not cached due to an error.",
+            border_style="yellow",
+        )
+    else:
+        body_comp_cached = True
+
+    summary = {
+        "athlete": athlete_name,
+        "cached_at": datetime.now().isoformat(),
+        "activities_days": activities_days,
+        "metrics_days": metrics_days,
+        "cache_dir": cache_root.as_posix(),
+        "stats": {
+            "metrics_days_cached": len(days),
+            "range_calls": {"activities": activities_cached, "body_comp": body_comp_cached},
+        },
+    }
+    (output_dir / "cache_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    ui.banner(
+        f":white_check_mark: Cache-only complete. Summary -> [cyan]{(output_dir / 'cache_summary.json')}[/cyan]",
+        border_style="green",
+    )
+
+
+async def run_analysis_from_config(config_path: Path, output_dir_override: Path | None = None) -> None:
+    noisy_loggers = [
+        "services.garmin",
+        "garminconnect",
+        "garth",
+        "urllib3",
+        "httpx",
+    ]
+    for name in noisy_loggers:
+        lg = logging.getLogger(name)
+        lg.setLevel(logging.WARNING)
+        lg.propagate = False
+        for h in list(lg.handlers):
+            if isinstance(h, logging.StreamHandler):
+                lg.removeHandler(h)
+
+    ui = WorkflowUI()
+
     config_parser = ConfigParser(config_path)
     athlete_name, email = config_parser.get_athlete_info()
     analysis_context, planning_context = config_parser.get_contexts()
     extraction_settings = config_parser.get_extraction_config()
 
     competitions = config_parser.get_competitions()
-    outside_competitions = fetch_outside_competitions_from_config(config_parser.config)
+    outside_competitions, outside_summary = fetch_outside_competitions_from_config(config_parser.config)
     if outside_competitions:
         competitions.extend(outside_competitions)
 
-    output_dir = config_parser.get_output_directory()
-
-    logger.info(f"Starting analysis for {athlete_name}")
-    logger.info(f"Output directory: {output_dir}")
-
-    password = config_parser.get_password()
-
+    output_dir = output_dir_override or config_parser.get_output_directory()
+    output_dir.mkdir(parents=True, exist_ok=True)
     os.environ["AI_MODE"] = extraction_settings.get("ai_mode", "development")
-    
+
     # Reload config and settings to pick up the new AI_MODE
     reload_config()
     ai_settings.reload()
-    
+
     logger.info(f"AI Mode: {os.environ['AI_MODE']}")
 
+    ui.show_header(
+        athlete=athlete_name,
+        output_dir=output_dir,
+        ai_mode=os.environ["AI_MODE"],
+        plotting=extraction_settings.get("enable_plotting", False),
+        hitl=extraction_settings.get("hitl_enabled", True),
+    )
+    ui.show_outside_competitions(outside_summary)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
+    password = config_parser.get_password()
+
+    prefetched = False
+    try:
+        from services.garmin.cache_client import CachedGarminClient
+        from services.garmin.client import GarminConnectClient
+        from services.garmin.daily_cache import GarminDailyCache
+
+        garmin = GarminConnectClient()
+        garmin.connect(email, password)
+
+        cache_root = Path(os.getenv("GARMIN_CACHE_DIR", "data/cache/garmin"))
+        cache_root.mkdir(parents=True, exist_ok=True)
+        daily_cache = GarminDailyCache(cache_root)
+        client = CachedGarminClient(garmin.client, daily_cache)
+
+        metrics_days = int(extraction_settings["metrics_days"])
+        end = date.today()
+        m_start = end - timedelta(days=metrics_days)
+
+        days: list[date] = []
+        cur = m_start
+        while cur <= end:
+            days.append(cur)
+            cur += timedelta(days=1)
+
+        endpoints = [
+            client.get_stats,
+            client.get_sleep_data,
+            client.get_stress_data,
+            client.get_hrv_data,
+            client.get_hydration_data,
+            client.get_training_status,
+            client.get_rhr_day,
+            client.get_user_summary,
+        ]
+
+        with ui.extraction_progress(len(days)) as advance:
+            for d in days:
+                day_iso = d.isoformat()
+                for fn in endpoints:
+                    try:
+                        fn(day_iso)
+                    except Exception:
+                        pass
+                advance()
+            prefetched = True
+    except Exception:
+        prefetched = False
 
     try:
-        logger.info("Extracting Garmin Connect data...")
-        extractor = TriathlonCoachDataExtractor(email, password)
+        with ui.status("Finalizing from cache…" if prefetched else "Finalizing data extraction…"):
+            extractor = TriathlonCoachDataExtractor(email, password)
+            extraction_config = ExtractionConfig(
+                activities_range=extraction_settings["activities_days"],
+                metrics_range=extraction_settings["metrics_days"],
+                include_detailed_activities=True,
+                include_metrics=True,
+            )
+            garmin_data = extractor.extract_data(extraction_config)
 
-        extraction_config = ExtractionConfig(
-            activities_range=extraction_settings["activities_days"],
-            metrics_range=extraction_settings["metrics_days"],
-            include_detailed_activities=True,
-            include_metrics=True,
-        )
+        try:
+            gd = asdict(garmin_data)
+        except Exception:
+            gd = {}
 
-        garmin_data = extractor.extract_data(extraction_config)
-        logger.info("Data extraction completed")
+        ui.show_extraction_summary(gd)
 
         now = datetime.now()
         plotting_enabled = extraction_settings.get("enable_plotting", False)
         hitl_enabled = extraction_settings.get("hitl_enabled", True)
         skip_synthesis = extraction_settings.get("skip_synthesis", False)
-        
+
         logger.info(f"Plotting enabled: {plotting_enabled}")
         logger.info(f"HITL enabled: {hitl_enabled}")
         logger.info(f"Skip synthesis: {skip_synthesis}")
-        
+
         current_date = {"date": now.strftime("%Y-%m-%d"), "day_name": now.strftime("%A")}
         week_dates = [
-            {"date": (now + timedelta(days=offset)).strftime("%Y-%m-%d"),
-             "day_name": (now + timedelta(days=offset)).strftime("%A")}
+            {
+                "date": (now + timedelta(days=offset)).strftime("%Y-%m-%d"),
+                "day_name": (now + timedelta(days=offset)).strftime("%A"),
+            }
             for offset in range(14)
         ]
-        
+        ui.banner("Running AI analysis and planning…", border_style="magenta")
+
         logger.info("Running AI analysis and planning...")
-        
-        result = await run_complete_analysis_and_planning(
-            user_id="cli_user",
-            athlete_name=athlete_name,
-            garmin_data=asdict(garmin_data),
-            analysis_context=analysis_context,
-            planning_context=planning_context,
-            competitions=competitions,
-            current_date=current_date,
-            week_dates=week_dates,
-            plotting_enabled=plotting_enabled,
-            hitl_enabled=hitl_enabled,
-            skip_synthesis=skip_synthesis,
-        )
 
-        logger.info("Saving results...")
+        total_steps_estimate = 14
+        target_loggers = [
+            "__main__",
+            "services.ai.utils.plan_storage",
+            "services.ai.langgraph.config.langsmith_config",
+            "services.ai.langgraph.workflows.planning_workflow",
+            "services.ai.langgraph.nodes.activity_summarizer_node",
+            "services.ai.langgraph.nodes.data_summarizer_node",
+            "services.ai.langgraph.nodes.metrics_summarizer_node",
+            "services.ai.langgraph.nodes.physiology_summarizer_node",
+            "services.ai.langgraph.nodes.metrics_expert_node",
+            "services.ai.langgraph.nodes.physiology_expert_node",
+            "services.ai.langgraph.nodes.activity_expert_node",
+            "services.ai.model_config",
+        ]
 
-        files_generated: list[str] = []
-        
+        with ui.workflow_dashboard(total_steps_estimate=total_steps_estimate) as dash:
+            register_hitl_hooks(dash.begin_hitl, dash.end_hitl)
+            try:
+                dash.attach_loggers(target_loggers)
+                result = await run_complete_analysis_and_planning(
+                    user_id="cli_user",
+                    athlete_name=athlete_name,
+                    garmin_data=gd,
+                    analysis_context=analysis_context,
+                    planning_context=planning_context,
+                    competitions=competitions,
+                    current_date=current_date,
+                    week_dates=week_dates,
+                    plotting_enabled=plotting_enabled,
+                    hitl_enabled=hitl_enabled,
+                    skip_synthesis=skip_synthesis,
+                )
+                dash.set_hitl_summary(
+                    int(result.get("hitl_questions_total", 0) or 0),
+                    result.get("hitl_sessions", []),
+                )
+            finally:
+                clear_hitl_hooks()
+
+        files_generated: list[Path] = []
+
+        def record_file(path: Path) -> None:
+            files_generated.append(path)
+            logger.info("Saved: %s", path)
+
         for filename, key in [
             ("analysis.html", "analysis_html"),
             ("planning.html", "planning_html"),
@@ -205,73 +427,82 @@ async def run_analysis_from_config(config_path: Path) -> None:
             if content := result.get(key):
                 if isinstance(content, dict):
                     content = content.get("content", "")
-                (output_dir / filename).write_text(content, encoding="utf-8")
-                files_generated.append(filename)
-                logger.info(f"Saved: {output_dir}/{filename}")
-        
+                path = output_dir / filename
+                path.write_text(content, encoding="utf-8")
+                record_file(path)
+
         for filename, key in [
             ("metrics_expert.json", "metrics_outputs"),
             ("activity_expert.json", "activity_outputs"),
             ("physiology_expert.json", "physiology_outputs"),
         ]:
             if output := result.get(key):
-                (output_dir / filename).write_text(
-                    json.dumps(output.model_dump(mode="json"), indent=2, ensure_ascii=False),
-                    encoding="utf-8"
+                if hasattr(output, "model_dump"):
+                    payload = output.model_dump(mode="json")
+                else:
+                    payload = output
+                path = output_dir / filename
+                path.write_text(
+                    json.dumps(payload, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
                 )
-                files_generated.append(filename)
-                logger.info(f"Saved: {output_dir}/{filename}")
-        
+                record_file(path)
+
+        plan_storage: FilePlanStorage | None = None
         for filename, key in [
             ("season_plan.md", "season_plan"),
             ("weekly_plan.md", "weekly_plan"),
         ]:
             if plan_dict := result.get(key):
-                output = plan_dict.get("output", plan_dict)
+                if isinstance(plan_dict, dict):
+                    output = plan_dict.get("output", plan_dict)
+                else:
+                    output = plan_dict
                 if isinstance(output, str):
-                    (output_dir / filename).write_text(output, encoding="utf-8")
-                    files_generated.append(filename)
-                    logger.info(f"Saved: {output_dir}/{filename}")
-                    
-                    # Also save to persistent storage
-                    storage = FilePlanStorage()
+                    path = output_dir / filename
+                    path.write_text(output, encoding="utf-8")
+                    record_file(path)
+
+                    if plan_storage is None:
+                        plan_storage = FilePlanStorage()
                     plan_type = "season_plan" if key == "season_plan" else "weekly_plan"
-                    # Use the user_id from the result or default to "cli_user"
                     user_id = result.get("user_id", "cli_user")
-                    storage.save_plan(user_id, plan_type, output)
+                    plan_storage.save_plan(user_id, plan_type, output)
+
+        ui.print_files_table(files_generated)
 
         cost_total = float(
-            result.get("cost_summary", {}).get("total_cost_usd", 0.0) or
-            result.get("execution_metadata", {}).get("total_cost_usd", 0.0) or
-            sum(cost.get("total_cost", 0) for cost in result.get("costs", []))
+            result.get("cost_summary", {}).get("total_cost_usd", 0.0)
+            or result.get("execution_metadata", {}).get("total_cost_usd", 0.0)
+            or sum(cost.get("total_cost", 0) for cost in result.get("costs", []))
         )
         total_tokens = int(
-            result.get("cost_summary", {}).get("total_tokens", 0) or
-            result.get("execution_metadata", {}).get("total_tokens", 0)
+            result.get("cost_summary", {}).get("total_tokens", 0)
+            or result.get("execution_metadata", {}).get("total_tokens", 0)
         )
 
+        files_generated_names = [p.name for p in files_generated]
+        summary_payload = {
+            "athlete": athlete_name,
+            "analysis_date": datetime.now().isoformat(),
+            "competitions": competitions,
+            "total_cost_usd": cost_total,
+            "total_tokens": total_tokens,
+            "execution_id": result.get("execution_id", ""),
+            "trace_id": (result.get("execution_metadata", {}) or {}).get("trace_id", ""),
+            "root_run_id": (result.get("execution_metadata", {}) or {}).get("root_run_id", ""),
+            "files_generated": files_generated_names,
+        }
         (output_dir / "summary.json").write_text(
-            json.dumps({
-                "athlete": athlete_name,
-                "analysis_date": datetime.now().isoformat(),
-                "competitions": competitions,
-                "total_cost_usd": cost_total,
-                "total_tokens": total_tokens,
-                "execution_id": result.get("execution_id", ""),
-                "trace_id": result.get("execution_metadata", {}).get("trace_id", ""),
-                "root_run_id": result.get("execution_metadata", {}).get("root_run_id", ""),
-                "files_generated": files_generated,
-            }, indent=2, ensure_ascii=False),
-            encoding="utf-8"
+            json.dumps(summary_payload, indent=2, ensure_ascii=False), encoding="utf-8"
         )
 
-        logger.info("✅ Analysis completed successfully!")
-        if outside_competitions:
-            logger.info(f"✅  Added {len(outside_competitions)} Outside competitions from config")
-        logger.info(f"📁 Results saved to: {output_dir}")
-        logger.info(f"💰 Total cost: ${cost_total:.2f} ({total_tokens} tokens)")
+        ui.print_cost_panel(cost_total, total_tokens, result.get("execution_metadata", {}) or {})
+        ui.print_results_saved(output_dir)
+
     except Exception as e:
-        logger.error(f"❌ Analysis failed: {e}")
+        ui.error_panel(f"Analysis failed: {e}")
+        logger.error(f"Analysis failed: {e}")
         raise
 
 
@@ -280,7 +511,7 @@ def create_config_template(output_path: Path) -> None:
 
     if template_path.exists():
         output_path.write_text(template_path.read_text(encoding="utf-8"), encoding="utf-8")
-        logger.info(f"✅ Config template created: {output_path}")
+        logger.info(f"📄 Config template created: {output_path}")
         logger.info("Edit this file with your settings and run analysis with --config")
     else:
         logger.error("❌ Template file not found")
@@ -297,6 +528,11 @@ def main():
     group.add_argument("--init-config", type=Path, help="Create a configuration template file")
 
     parser.add_argument("--output-dir", type=Path, help="Override output directory from config")
+    parser.add_argument(
+        "--cache-only",
+        action="store_true",
+        help="Fetch and cache Garmin data only (no AI analysis or report generation)",
+    )
 
     args = parser.parse_args()
 
@@ -306,11 +542,15 @@ def main():
 
     if args.config:
         try:
-            asyncio.run(run_analysis_from_config(args.config))
+            if args.cache_only:
+                asyncio.run(cache_only_from_config(args.config, args.output_dir))
+            else:
+                asyncio.run(run_analysis_from_config(args.config, args.output_dir))
         except KeyboardInterrupt:
-            logger.info("❌ Analysis cancelled by user")
+            print("Operation cancelled by user")
+            logger.info("Operation cancelled by user")
         except Exception as e:
-            logger.error(f"❌ Analysis failed: {e}")
+            logger.error(f"Operation failed: {e}")
             sys.exit(1)
 
 
