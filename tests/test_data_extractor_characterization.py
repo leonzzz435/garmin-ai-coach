@@ -50,7 +50,7 @@ class TestDataExtractorCharacterization:
         
     def test_convert_lactate_threshold_speed_conversion(self):
         result = DataExtractor.convert_lactate_threshold_speed(10.0)
-        assert result == 100.0  # 10 AU * 10 = 100 m/s
+        assert result == 100.0
         
     def test_convert_lactate_threshold_speed_none_input(self):
         result = DataExtractor.convert_lactate_threshold_speed(None)
@@ -145,9 +145,9 @@ class TestDataExtractorIntegrationBehavior:
     
     def test_multisport_activity_processing_structure(self, mock_garmin_client):
         mock_garmin_client.client.get_activity.side_effect = [
-            {"activityId": 12346, "activityName": "Swim Leg", "summaryDTO": {"distance": 1500.0, "duration": 1800}},
-            {"activityId": 12347, "activityName": "Bike Leg", "summaryDTO": {"distance": 40000.0, "duration": 3600, "avgPower": 200}},
-            {"activityId": 12348, "activityName": "Run Leg", "summaryDTO": {"distance": 10000.0, "duration": 2400}}
+            {"activityId": 12346, "activityName": "Swim Leg", "startTimeLocal": "2025-01-01T06:00:00", "summaryDTO": {"distance": 1500.0, "duration": 1800}},
+            {"activityId": 12347, "activityName": "Bike Leg", "startTimeLocal": "2025-01-01T06:30:00", "summaryDTO": {"distance": 40000.0, "duration": 3600, "avgPower": 200}},
+            {"activityId": 12348, "activityName": "Run Leg", "startTimeLocal": "2025-01-01T07:30:00", "summaryDTO": {"distance": 10000.0, "duration": 2400}}
         ]
         mock_garmin_client.client.get_activity_details.return_value = {}
         mock_garmin_client.client.get_activity_weather.return_value = None
@@ -156,6 +156,7 @@ class TestDataExtractorIntegrationBehavior:
             "activityId": 12345,
             "activityName": "Morning Triathlon",
             "isMultiSportParent": True,
+            "startTimeLocal": "2025-01-01T06:00:00",
             "summaryDTO": {"distance": 15000.0, "duration": 5400},
             "metadataDTO": {"childIds": [12346, 12347, 12348], "childActivityTypes": ["swimming", "cycling", "running"]}
         })
@@ -167,9 +168,18 @@ class TestDataExtractorIntegrationBehavior:
         assert result.laps[1]["activityType"] == "cycling"
         assert result.laps[2]["activityType"] == "running"
         
-    def test_cycling_power_data_extraction_priority(self):
-        result = TriathlonCoachDataExtractor.__new__(TriathlonCoachDataExtractor)._process_single_sport_activity({
+    def test_cycling_power_data_extraction_priority(self, mock_garmin_client):
+        # We need an instance with initialized client for _process_single_sport_activity
+        extractor = TriathlonCoachDataExtractor("test@example.com", "password")
+        
+        # Mock API calls made by _process_single_sport_activity
+        mock_garmin_client.client.get_activity_details.return_value = {}
+        mock_garmin_client.client.get_activity_weather.return_value = None
+        
+        result = extractor._process_single_sport_activity({
             "activityId": 123,
+            "startTimeLocal": "2025-01-01T10:00:00",
+            "activityType": {"typeKey": "cycling"},
             "summaryDTO": {"avgPower": 250, "normPower": 260},
             "averagePower": 240,
             "normalizedPower": 250

@@ -1,10 +1,11 @@
 # data_extractor.py
 import logging
-from collections.abc import Iterable
+from collections import OrderedDict
+from collections.abc import Callable, Iterable, Iterator, Mapping, MutableMapping
 from datetime import date, datetime, timedelta, timezone
 from math import log
 from statistics import mean, pstdev
-from typing import Any
+from typing import Any, TypeVar, overload
 
 from .client import GarminConnectClient
 from .models import (
@@ -24,12 +25,12 @@ from .models import (
 
 logger = logging.getLogger(__name__)
 
+T = TypeVar("T")
+
 
 def _to_float(v: Any) -> float | None:
     try:
-        if v is None:
-            return None
-        if isinstance(v, bool):
+        if v is None or isinstance(v, bool):
             return None
         return float(v)
     except Exception:
@@ -38,9 +39,7 @@ def _to_float(v: Any) -> float | None:
 
 def _to_int(v: Any) -> int | None:
     try:
-        if v is None:
-            return None
-        if isinstance(v, bool):
+        if v is None or isinstance(v, bool):
             return None
         return int(v)
     except Exception:
@@ -52,21 +51,31 @@ def _round(v: Any, ndigits: int = 2) -> float | None:
     return round(f, ndigits) if f is not None else None
 
 
-def _dg(d: dict | None, key: str, default: Any = None) -> Any:
-    """Dict get that handles None dicts."""
-    if isinstance(d, dict):
-        return d.get(key, default)
-    return default
+def _dg(d: Mapping[str, Any] | None, key: str, default: Any = None) -> Any:
+    return d.get(key, default) if isinstance(d, Mapping) else default
 
 
-def _deep_get(d: dict | None, path: Iterable[str], default: Any = None) -> Any:
-    """Safe nested get: _deep_get(x, ['a','b','c'])."""
+def _deep_get(d: Mapping[str, Any] | None, path: Iterable[str], default: Any = None) -> Any:
     cur = d
     for k in path:
-        if not isinstance(cur, dict):
+        if not isinstance(cur, Mapping):
             return default
         cur = cur.get(k)
     return cur if cur is not None else default
+
+
+def _daterange(start: date, end: date) -> Iterator[date]:
+    cur = start
+    while cur <= end:
+        yield cur
+        cur += timedelta(days=1)
+
+
+def _merge_missing(dst: MutableMapping[str, Any], src: Mapping[str, Any] | None) -> None:
+    if not src:
+        return
+    for k, v in src.items():
+        dst.setdefault(k, v)
 
 
 class DataExtractor:
@@ -81,7 +90,7 @@ class DataExtractor:
         return round(n / d, decimal_places)
 
     @staticmethod
-    def extract_start_time(activity_data: dict[str, Any]) -> str | None:
+    def extract_start_time(activity_data: Mapping[str, Any]) -> str | None:
         try:
             summary = _dg(activity_data, "summaryDTO", {}) or {}
             start_time = summary.get("startTimeLocal") or summary.get("startTimeGMT")
@@ -98,11 +107,14 @@ class DataExtractor:
                     return datetime.fromtimestamp(ts / 1000, tz=timezone.utc).isoformat()
             return start_time
         except Exception:
-            logger.exception("extract_start_time failed with payload keys=%s", list(activity_data or {}).keys())
+            logger.exception(
+                "extract_start_time failed with payload keys=%s",
+                list((activity_data or {}).keys()),
+            )
             return None
 
     @staticmethod
-    def extract_activity_type(activity_data: dict[str, Any]) -> str:
+    def extract_activity_type(activity_data: Mapping[str, Any]) -> str:
         try:
             at = _dg(activity_data, "activityType", {}) or {}
             activity_type = at.get("typeKey") or at.get("type")
@@ -156,8 +168,64 @@ class TriathlonCoachDataExtractor(DataExtractor):
     def __init__(self, email: str, password: str):
         self.garmin = GarminConnectClient()
         self.garmin.connect(email, password)
+        self._training_status_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
+        self._training_status_cache_max = 1024
 
-    def extract_data(self, config: ExtractionConfig = ExtractionConfig()) -> GarminData:
+    @overload
+    def _call_api(self, fn: Callable[..., T], *args, default: T, what: str) -> T: ...
+
+    @overload
+    def _call_api(self, fn: Callable[..., T], *args, default: None, what: str) -> T | None: ...
+
+    def _call_api(self, fn: Callable[..., T], *args, default: T | None, what: str) -> T | None:
+        try:
+            result = fn(*args)
+            return result if result is not None else default
+        except Exception:
+            logger.exception("API failed: %s", what)
+            return default
+
+    def _training_status_cached(self, day_iso: str) -> dict[str, Any]:
+        cache = self._training_status_cache
+        if day_iso in cache:
+            cache.move_to_end(day_iso)
+            return cache[day_iso]
+
+        result = self._call_api(
+            self.garmin.client.get_training_status,
+            day_iso,
+            default={},
+            what=f"get_training_status({day_iso})",
+        )
+        if result is None:
+            # Should technically be empty dict given default={},
+            # but safety first if API returns None and default is used.
+            result = {}
+
+        cache[day_iso] = result
+        cache.move_to_end(day_iso)
+        if len(cache) > self._training_status_cache_max:
+            cache.popitem(last=False)
+        return result
+
+    @staticmethod
+    def _enrich_cycling_power(payload: Mapping[str, Any], summary: ActivitySummary):
+        summary.avg_power = summary.avg_power or _to_float(
+            payload.get("avgPower") or payload.get("averagePower")
+        )
+        summary.max_power = summary.max_power or _to_float(payload.get("maxPower"))
+        summary.normalized_power = summary.normalized_power or _to_float(
+            payload.get("normPower") or payload.get("normalizedPower")
+        )
+        summary.training_stress_score = summary.training_stress_score or _to_float(
+            payload.get("trainingStressScore")
+        )
+        summary.intensity_factor = summary.intensity_factor or _to_float(
+            payload.get("intensityFactor")
+        )
+
+    def extract_data(self, config: ExtractionConfig | None = None) -> GarminData:
+        config = config or ExtractionConfig()
         date_ranges = self.get_date_ranges(config)
 
         data = {
@@ -189,9 +257,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             lt_interval = getattr(config, "long_term_interval", 14) or 14
             data.update(
                 {
-                    "long_term_vo2_max_trend": self.get_long_term_vo2_max_trend(
-                        lt_start, lt_end, lt_interval
-                    ),
+                    "long_term_vo2_max_trend": self.get_long_term_vo2_max_trend(lt_start, lt_end, lt_interval),
                     "long_term_training_load_trend": self.get_long_term_training_load_trend(
                         lt_start, lt_end, lt_interval
                     ),
@@ -202,12 +268,14 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
     # --------- User / Daily ---------
 
+    # --------- User / Daily ---------
+
     def get_user_profile(self) -> UserProfile:
-        try:
-            full_profile = self.garmin.client.get_user_profile() or {}
-        except Exception:
-            logger.exception("get_user_profile API failed")
-            full_profile = {}
+        full_profile = self._call_api(
+            self.garmin.client.get_user_profile,
+            default={},
+            what="get_user_profile"
+        )
 
         user_data = _dg(full_profile, "userData", {}) or {}
         sleep_data = _dg(full_profile, "userSleep", {}) or {}
@@ -232,11 +300,12 @@ class TriathlonCoachDataExtractor(DataExtractor):
         )
 
     def get_daily_stats(self, date_obj: date) -> DailyStats:
-        try:
-            raw_data = self.garmin.client.get_stats(date_obj.isoformat()) or {}
-        except Exception:
-            logger.exception("get_stats API failed for %s", date_obj)
-            raw_data = {}
+        raw_data = self._call_api(
+            self.garmin.client.get_stats,
+            date_obj.isoformat(),
+            default={},
+            what=f"get_stats({date_obj})"
+        )
 
         sleep_hours = self.get_latest_sleep_duration(date_obj)
         sleep_seconds = _to_int((sleep_hours or 0) * 3600) if sleep_hours is not None else None
@@ -250,9 +319,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             bmr_calories=_to_int(raw_data.get("bmrKilocalories")),
             wellness_start_time=raw_data.get("wellnessStartTimeLocal"),
             wellness_end_time=raw_data.get("wellnessEndTimeLocal"),
-            duration_in_hours=self.safe_divide_and_round(
-                _to_float(raw_data.get("durationInMilliseconds")), 3_600_000
-            ),
+            duration_in_hours=self.safe_divide_and_round(_to_float(raw_data.get("durationInMilliseconds")), 3_600_000),
             min_heart_rate=_to_int(raw_data.get("minHeartRate")),
             max_heart_rate=_to_int(raw_data.get("maxHeartRate")),
             resting_heart_rate=_to_int(raw_data.get("restingHeartRate")),
@@ -269,115 +336,113 @@ class TriathlonCoachDataExtractor(DataExtractor):
             respiration_highest=_to_float(
                 raw_data.get("highestRespirationValue") or raw_data.get("maxRespirationRate")
             ),
-            respiration_lowest=_to_float(
-                raw_data.get("lowestRespirationValue") or raw_data.get("minRespirationRate")
-            ),
+            respiration_lowest=_to_float(raw_data.get("lowestRespirationValue") or raw_data.get("minRespirationRate")),
         )
 
     # --------- Activities ---------
 
     def get_activity_laps(self, activity_id: int) -> list[dict[str, Any]]:
-        try:
-            splits = self.garmin.client.get_activity_splits(activity_id) or {}
-            lap_data = splits.get("lapDTOs") or splits.get("laps") or []
-            processed_laps: list[dict[str, Any]] = []
-            for lap in lap_data if isinstance(lap_data, list) else []:
-                if not isinstance(lap, dict):
-                    continue
-                dist_km = self.safe_divide_and_round(_to_float(lap.get("distance")), 1000, 2)
-                dur_min = self.safe_divide_and_round(_to_float(lap.get("duration")), 60, 2)
-                avg_spd_kmh = _round(_to_float(lap.get("averageSpeed")) * 3.6, 2) if _to_float(lap.get("averageSpeed")) is not None else None
-                max_spd_kmh = _round(_to_float(lap.get("maxSpeed")) * 3.6, 2) if _to_float(lap.get("maxSpeed")) is not None else None
+        splits = self._call_api(
+            self.garmin.client.get_activity_splits,
+            activity_id,
+            default={},
+            what=f"get_activity_splits({activity_id})"
+        )
+        lap_data = splits.get("lapDTOs") or splits.get("laps") or []
+        processed_laps: list[dict[str, Any]] = []
+        for lap in lap_data if isinstance(lap_data, list) else []:
+            if not isinstance(lap, Mapping):
+                continue
+            dist_km = self.safe_divide_and_round(_to_float(lap.get("distance")), 1000, 2)
+            dur_min = self.safe_divide_and_round(_to_float(lap.get("duration")), 60, 2)
+            
+            avg_speed_ms = _to_float(lap.get("averageSpeed"))
+            avg_spd_kmh = _round(avg_speed_ms * 3.6, 2) if avg_speed_ms is not None else None
+            
+            max_speed_ms = _to_float(lap.get("maxSpeed"))
+            max_spd_kmh = _round(max_speed_ms * 3.6, 2) if max_speed_ms is not None else None
 
-                processed = {
-                    "startTime": lap.get("startTimeGMT") or lap.get("startTimeLocal"),
-                    "distance": dist_km,
-                    "duration": dur_min,
-                    "elevationGain": _to_float(lap.get("elevationGain")),
-                    "elevationLoss": _to_float(lap.get("elevationLoss")),
-                    "averageSpeed": avg_spd_kmh,
-                    "maxSpeed": max_spd_kmh,
-                    "averageHR": _to_int(lap.get("averageHR")),
-                    "maxHR": _to_int(lap.get("maxHR")),
-                    "calories": _to_int(lap.get("calories")),
-                    "intensity": lap.get("intensityType") or lap.get("intensity"),
-                }
+            processed = {
+                "startTime": lap.get("startTimeGMT") or lap.get("startTimeLocal"),
+                "distance": dist_km,
+                "duration": dur_min,
+                "elevationGain": _to_float(lap.get("elevationGain")),
+                "elevationLoss": _to_float(lap.get("elevationLoss")),
+                "averageSpeed": avg_spd_kmh,
+                "maxSpeed": max_spd_kmh,
+                "averageHR": _to_int(lap.get("averageHR")),
+                "maxHR": _to_int(lap.get("maxHR")),
+                "calories": _to_int(lap.get("calories")),
+                "intensity": lap.get("intensityType") or lap.get("intensity"),
+            }
 
-                # Optional power fields (cycling)
-                for k_src, k_dst in [
-                    ("averagePower", "averagePower"),
-                    ("maxPower", "maxPower"),
-                    ("minPower", "minPower"),
-                    ("normalizedPower", "normalizedPower"),
-                    ("totalWork", "totalWork"),
-                ]:
-                    if k_src in lap:
-                        processed[k_dst] = _to_float(lap.get(k_src))
+            # Optional power fields (cycling)
+            for k_src, k_dst in [
+                ("averagePower", "averagePower"),
+                ("maxPower", "maxPower"),
+                ("minPower", "minPower"),
+                ("normalizedPower", "normalizedPower"),
+                ("totalWork", "totalWork"),
+            ]:
+                if k_src in lap:
+                    processed[k_dst] = _to_float(lap.get(k_src))
 
-                processed_laps.append(processed)
-            return processed_laps
-        except Exception:
-            logger.exception("Error fetching lap data for activity %s", activity_id)
-            return []
+            processed_laps.append(processed)
+        return processed_laps
 
     def get_recent_activities(self, start_date: date, end_date: date) -> list[Activity]:
-        try:
-            logger.info("Fetching activities between %s and %s", start_date, end_date)
-            activities = self.garmin.client.get_activities_by_date(
-                start_date.isoformat(), end_date.isoformat()
-            ) or []
-            if not isinstance(activities, list) or not activities:
-                logger.warning("No activities found between %s and %s", start_date, end_date)
-                return []
-
-            focused_activities: list[Activity | dict | None] = []
-            for activity in activities:
-                try:
-                    if not isinstance(activity, dict):
-                        logger.warning("Activity entry not a dict, skipping: %s", type(activity))
-                        continue
-
-                    activity_id = activity.get("activityId") or activity.get("activityUUID")
-                    if not activity_id:
-                        logger.warning("Activity missing activityId, skipping. Keys: %s", list(activity.keys()))
-                        continue
-
-                    detailed_activity = self.garmin.client.get_activity(activity_id) or {}
-                    if not isinstance(detailed_activity, dict) or not detailed_activity:
-                        logger.warning("No details found for activity %s, skipping", activity_id)
-                        continue
-
-                    if detailed_activity.get("isMultiSportParent", False):
-                        focused = self._process_multisport_activity(detailed_activity)
-                    else:
-                        focused = self._process_single_sport_activity(detailed_activity)
-
-                    focused_activities.append(focused)
-                except Exception:
-                    logger.exception("Error processing activity %s", activity.get("activityId"))
-                    continue
-
-            valid_activities: list[Activity] = []
-            for a in focused_activities:
-                if a is None:
-                    continue
-                if isinstance(a, dict):
-                    try:
-                        valid_activities.append(Activity(**a))
-                    except Exception:
-                        logger.exception("Failed to coerce activity dict to Activity dataclass")
-                elif isinstance(a, Activity):
-                    valid_activities.append(a)
-
-            logger.info(
-                "Successfully processed %d out of %d activities", len(valid_activities), len(activities)
-            )
-            return valid_activities
-        except Exception:
-            logger.exception("Error fetching activities window")
+        logger.debug("Fetching activities between %s and %s", start_date, end_date)
+        activities = self._call_api(
+            self.garmin.client.get_activities_by_date,
+            start_date.isoformat(), end_date.isoformat(),
+            default=[],
+            what=f"get_activities_by_date({start_date}, {end_date})"
+        )
+        if not isinstance(activities, list) or not activities:
+            logger.warning("No activities found between %s and %s", start_date, end_date)
             return []
 
-    def _process_multisport_activity(self, detailed_activity: dict[str, Any]) -> Activity | None:
+        focused_activities: list[Activity | dict | None] = []
+        for activity in activities:
+            if not isinstance(activity, Mapping):
+                continue
+
+            activity_id = activity.get("activityId") or activity.get("activityUUID")
+            if not activity_id:
+                continue
+
+            detailed_activity = self._call_api(
+                self.garmin.client.get_activity,
+                activity_id,
+                default={},
+                what=f"get_activity({activity_id})"
+            )
+            if not isinstance(detailed_activity, Mapping) or not detailed_activity:
+                continue
+
+            if detailed_activity.get("isMultiSportParent", False):
+                focused = self._process_multisport_activity(detailed_activity)
+            else:
+                focused = self._process_single_sport_activity(detailed_activity)
+
+            focused_activities.append(focused)
+
+        valid_activities: list[Activity] = []
+        for a in focused_activities:
+            if a is None:
+                continue
+            if isinstance(a, Mapping):
+                try:
+                    valid_activities.append(Activity(**a))
+                except Exception:
+                    logger.exception("Failed to coerce activity dict to Activity dataclass")
+            elif isinstance(a, Activity):
+                valid_activities.append(a)
+
+        logger.info("Successfully processed %d out of %d activities", len(valid_activities), len(activities))
+        return valid_activities
+
+    def _process_multisport_activity(self, detailed_activity: MutableMapping[str, Any]) -> Activity | None:
         try:
             activity_id = detailed_activity.get("activityId")
             if not activity_id:
@@ -385,20 +450,21 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 return None
 
             # Weather
-            weather_data = None
-            try:
-                weather_data = self.garmin.client.get_activity_weather(activity_id)
-            except Exception:
-                logger.warning("Weather fetch failed for multisport activity %s", activity_id)
+            weather_data = self._call_api(
+                self.garmin.client.get_activity_weather,
+                activity_id,
+                default=None,
+                what=f"get_activity_weather({activity_id})"
+            )
 
             # Additional details (merge shallowly)
-            try:
-                activity_details = self.garmin.client.get_activity_details(activity_id) or {}
-                if isinstance(activity_details, dict):
-                    for k, v in activity_details.items():
-                        detailed_activity.setdefault(k, v)
-            except Exception:
-                logger.warning("Additional details fetch failed for multisport %s", activity_id)
+            activity_details = self._call_api(
+                self.garmin.client.get_activity_details,
+                activity_id,
+                default={},
+                what=f"get_activity_details({activity_id})"
+            )
+            _merge_missing(detailed_activity, activity_details)
 
             metadata = _dg(detailed_activity, "metadataDTO", {}) or {}
             child_ids = list(_dg(metadata, "childIds", []) or _dg(detailed_activity, "childIds", []) or [])
@@ -410,9 +476,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
                     if isinstance(child, dict) and child.get("activityId"):
                         child_ids.append(child["activityId"])
                         if not child_types:
-                            child_types.append(
-                                _dg(child.get("activityType", {}), "typeKey", "unknown")
-                            )
+                            child_types.append(_dg(child.get("activityType", {}), "typeKey", "unknown"))
 
             if not child_ids:
                 logger.warning("No child activities for multisport %s", activity_id)
@@ -420,56 +484,45 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
             child_activities = []
             for i, child_id in enumerate(child_ids):
-                try:
-                    child_activity = self.garmin.client.get_activity(child_id) or {}
-                    if not isinstance(child_activity, dict) or not child_activity:
-                        logger.warning("Failed to fetch child activity %s", child_id)
-                        continue
-
-                    # Merge details for child
-                    try:
-                        child_details = self.garmin.client.get_activity_details(child_id) or {}
-                        if isinstance(child_details, dict):
-                            for k, v in child_details.items():
-                                child_activity.setdefault(k, v)
-                    except Exception:
-                        logger.warning("Details fetch failed for child activity %s", child_id)
-
-                    child_type = child_types[i] if i < len(child_types) else self.extract_activity_type(child_activity)
-                    child_start_time = self.extract_start_time(child_activity)
-                    child_summary = self._extract_activity_summary(_dg(child_activity, "summaryDTO", {}) or {})
-
-                    # Cycling: top-level power fallbacks
-                    if child_type == "cycling":
-                        child_summary.avg_power = child_summary.avg_power or _to_float(
-                            child_activity.get("avgPower") or child_activity.get("averagePower")
-                        )
-                        child_summary.max_power = child_summary.max_power or _to_float(child_activity.get("maxPower"))
-                        child_summary.normalized_power = child_summary.normalized_power or _to_float(
-                            child_activity.get("normPower") or child_activity.get("normalizedPower")
-                        )
-                        child_summary.training_stress_score = child_summary.training_stress_score or _to_float(
-                            child_activity.get("trainingStressScore")
-                        )
-                        child_summary.intensity_factor = child_summary.intensity_factor or _to_float(
-                            child_activity.get("intensityFactor")
-                        )
-
-                    child_lap_data = self.get_activity_laps(child_id)
-
-                    child_activities.append(
-                        {
-                            "activityId": child_id,
-                            "activityName": child_activity.get("activityName") or child_activity.get("name"),
-                            "activityType": child_type,
-                            "startTime": child_start_time,
-                            "summary": child_summary,
-                            "laps": child_lap_data,
-                        }
-                    )
-                except Exception:
-                    logger.exception("Error processing child activity %s", child_id)
+                child_activity = self._call_api(
+                    self.garmin.client.get_activity,
+                    child_id,
+                    default={},
+                    what=f"get_activity({child_id})"
+                )
+                if not isinstance(child_activity, dict) or not child_activity:
+                    logger.warning("Failed to fetch child activity %s", child_id)
                     continue
+
+                # Merge details for child
+                child_details = self._call_api(
+                    self.garmin.client.get_activity_details,
+                    child_id,
+                    default={},
+                    what=f"get_activity_details({child_id})"
+                )
+                _merge_missing(child_activity, child_details)
+
+                child_type = child_types[i] if i < len(child_types) else self.extract_activity_type(child_activity)
+                child_start_time = self.extract_start_time(child_activity)
+                child_summary = self._extract_activity_summary(_dg(child_activity, "summaryDTO", {}) or {})
+
+                # Cycling: top-level power fallbacks
+                if child_type == "cycling":
+                    self._enrich_cycling_power(child_activity, child_summary)
+
+                child_lap_data = self.get_activity_laps(child_id)
+
+                child_activities.append(
+                    {
+                        "activityId": child_id,
+                        "activityName": child_activity.get("activityName") or child_activity.get("name"),
+                        "activityType": child_type,
+                        "startTime": child_start_time,
+                        "summary": child_summary,
+                        "laps": child_lap_data,
+                    }
+                )
 
             if not child_activities:
                 logger.warning("No valid child activities for multisport %s", activity_id)
@@ -508,26 +561,27 @@ class TriathlonCoachDataExtractor(DataExtractor):
             logger.exception("Error processing multisport activity")
             return None
 
-    def _process_single_sport_activity(self, detailed_activity: dict[str, Any]) -> Activity | None:
+    def _process_single_sport_activity(self, detailed_activity: MutableMapping[str, Any]) -> Activity | None:
         try:
             activity_id = detailed_activity.get("activityId")
             if not activity_id:
                 logger.warning("Activity missing activityId")
                 return None
 
-            try:
-                activity_details = self.garmin.client.get_activity_details(activity_id) or {}
-                if isinstance(activity_details, dict):
-                    for k, v in activity_details.items():
-                        detailed_activity.setdefault(k, v)
-            except Exception:
-                logger.warning("Failed to get additional details for %s", activity_id)
+            activity_details = self._call_api(
+                self.garmin.client.get_activity_details,
+                activity_id,
+                default={},
+                what=f"get_activity_details({activity_id})"
+            )
+            _merge_missing(detailed_activity, activity_details)
 
-            weather_data = None
-            try:
-                weather_data = self.garmin.client.get_activity_weather(activity_id)
-            except Exception:
-                logger.warning("Failed to get weather data for %s", activity_id)
+            weather_data = self._call_api(
+                self.garmin.client.get_activity_weather,
+                activity_id,
+                default=None,
+                what=f"get_activity_weather({activity_id})"
+            )
 
             lap_data = self.get_activity_laps(activity_id)
 
@@ -544,19 +598,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             summary = self._extract_activity_summary(_dg(detailed_activity, "summaryDTO", {}) or {})
 
             if activity_type == "cycling":
-                summary.avg_power = summary.avg_power or _to_float(
-                    detailed_activity.get("avgPower") or detailed_activity.get("averagePower")
-                )
-                summary.max_power = summary.max_power or _to_float(detailed_activity.get("maxPower"))
-                summary.normalized_power = summary.normalized_power or _to_float(
-                    detailed_activity.get("normPower") or detailed_activity.get("normalizedPower")
-                )
-                summary.training_stress_score = summary.training_stress_score or _to_float(
-                    detailed_activity.get("trainingStressScore")
-                )
-                summary.intensity_factor = summary.intensity_factor or _to_float(
-                    detailed_activity.get("intensityFactor")
-                )
+                self._enrich_cycling_power(detailed_activity, summary)
 
                 if (summary.avg_power is None or summary.normalized_power is None) and lap_data:
                     first_lap = lap_data[0] if isinstance(lap_data, list) and lap_data else {}
@@ -584,7 +626,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
     # --------- Extractors / Normalizers ---------
 
-    def _extract_activity_summary(self, summary: dict[str, Any] | None) -> ActivitySummary:
+    def _extract_activity_summary(self, summary: Mapping[str, Any] | None) -> ActivitySummary:
         s = summary if isinstance(summary, dict) else {}
 
         # More tolerant field mapping
@@ -659,8 +701,8 @@ class TriathlonCoachDataExtractor(DataExtractor):
             intensity_factor=_to_float(if_factor),
         )
 
-    def _extract_weather_data(self, weather: dict[str, Any] | None) -> WeatherData:
-        if not isinstance(weather, dict):
+    def _extract_weather_data(self, weather: Mapping[str, Any] | None) -> WeatherData:
+        if not isinstance(weather, Mapping):
             return WeatherData(None, None, None, None, None)
         weather_type_dto = _dg(weather, "weatherTypeDTO", {}) or {}
         weather_type = weather_type_dto.get("desc")
@@ -696,37 +738,35 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
     def get_physiological_markers(self, start_date: date, end_date: date) -> PhysiologicalMarkers:
         # RHR (day)
-        try:
-            rhr_data = self.garmin.client.get_rhr_day(end_date.isoformat()) or {}
-        except Exception:
-            logger.exception("get_rhr_day failed for %s", end_date)
-            rhr_data = {}
-
-        rhr_value_list = (
-            _deep_get(rhr_data, ["allMetrics", "metricsMap", "WELLNESS_RESTING_HEART_RATE"], [])
-            or []
+        rhr_data = self._call_api(
+            self.garmin.client.get_rhr_day,
+            end_date.isoformat(),
+            default={},
+            what=f"get_rhr_day({end_date})"
         )
-        resting_heart_rate = _to_int(rhr_value_list[0].get("value")) if rhr_value_list and isinstance(rhr_value_list[0], dict) else None
+
+        rhr_value_list = _deep_get(rhr_data, ["allMetrics", "metricsMap", "WELLNESS_RESTING_HEART_RATE"], []) or []
+        resting_heart_rate = (
+            _to_int(rhr_value_list[0].get("value")) if rhr_value_list and isinstance(rhr_value_list[0], dict) else None
+        )
 
         # VO2max (user summary)
-        try:
-            user_summary = self.garmin.client.get_user_summary(end_date.isoformat()) or {}
-        except Exception:
-            logger.exception("get_user_summary failed for %s", end_date)
-            user_summary = {}
+        user_summary = self._call_api(
+            self.garmin.client.get_user_summary,
+            end_date.isoformat(),
+            default={},
+            what=f"get_user_summary({end_date})"
+        )
         vo2_max = _to_float(user_summary.get("vo2Max"))
 
         # HRV
-        try:
-            hrv_data = self.garmin.client.get_hrv_data(end_date.isoformat())
-            if hrv_data is None:
-                logger.warning("HRV data is None, using empty dict for hrvSummary")
-                hrv_summary = {}
-            else:
-                hrv_summary = _dg(hrv_data, "hrvSummary", {}) or {}
-        except Exception:
-            logger.exception("Error fetching HRV data for %s", end_date)
-            hrv_summary = {}
+        hrv_data = self._call_api(
+            self.garmin.client.get_hrv_data,
+            end_date.isoformat(),
+            default={},
+            what=f"get_hrv_data({end_date})"
+        )
+        hrv_summary = _dg(hrv_data, "hrvSummary", {}) or {}
 
         baseline = _dg(hrv_summary, "baseline", {}) or {}
         hrv = {
@@ -743,23 +783,22 @@ class TriathlonCoachDataExtractor(DataExtractor):
         return PhysiologicalMarkers(resting_heart_rate=resting_heart_rate, vo2_max=vo2_max, hrv=hrv)
 
     def get_body_metrics(self, start_date: date, end_date: date) -> BodyMetrics:
-        try:
-            weight_data = self.garmin.client.get_body_composition(
-                start_date.isoformat(), end_date.isoformat()
-            ) or {}
-        except Exception:
-            logger.exception("get_body_composition failed")
-            weight_data = {}
+        weight_data = self._call_api(
+            self.garmin.client.get_body_composition,
+            start_date.isoformat(), end_date.isoformat(),
+            default={},
+            what="get_body_composition"
+        )
 
         # Hydration: fetch per-day but isolate failures
         processed_hydration_data: list[dict[str, Any]] = []
-        cur = start_date
-        while cur <= end_date:
-            try:
-                entry = self.garmin.client.get_hydration_data(cur.isoformat()) or {}
-            except Exception:
-                logger.warning("get_hydration_data failed for %s", cur)
-                entry = {}
+        for cur in _daterange(start_date, end_date):
+            entry = self._call_api(
+                self.garmin.client.get_hydration_data,
+                cur.isoformat(),
+                default={},
+                what=f"get_hydration_data({cur})"
+            )
             goal_ml = _to_float(entry.get("goalInML"))
             value_ml = _to_float(entry.get("valueInML"))
             sweat_loss_ml = _to_float(entry.get("sweatLossInML"))
@@ -771,7 +810,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
                     "sweat_loss": _round((sweat_loss_ml or 0) / 1000.0, 2) if sweat_loss_ml is not None else None,
                 }
             )
-            cur += timedelta(days=1)
 
         processed_weight_data: list[dict[str, Any]] = []
         for entry in _dg(weight_data, "dateWeightList", []) or []:
@@ -797,15 +835,21 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
     def get_recovery_indicators(self, start_date: date, end_date: date) -> list[RecoveryIndicators]:
         processed_data: list[RecoveryIndicators] = []
-        current_date = start_date
 
-        while current_date <= end_date:
-            try:
-                sleep_data = self.garmin.client.get_sleep_data(current_date.isoformat()) or {}
-                stress_data = self.garmin.client.get_stress_data(current_date.isoformat()) or {}
-            except Exception:
-                logger.exception("Sleep/Stress fetch failed for %s", current_date)
-                sleep_data, stress_data = {}, {}
+        for current_date in _daterange(start_date, end_date):
+            sleep_data = self._call_api(
+                self.garmin.client.get_sleep_data,
+                current_date.isoformat(),
+                default={},
+                what=f"get_sleep_data({current_date})"
+            )
+            
+            stress_data = self._call_api(
+                self.garmin.client.get_stress_data,
+                current_date.isoformat(),
+                default={},
+                what=f"get_stress_data({current_date})"
+            )
 
             daily_sleep = _dg(sleep_data, "dailySleepDTO", {}) or {}
             sleep_scores = _dg(daily_sleep, "sleepScores", {}) or {}
@@ -837,17 +881,12 @@ class TriathlonCoachDataExtractor(DataExtractor):
                     },
                 )
             )
-            current_date += timedelta(days=1)
 
         return processed_data
 
     def get_training_status(self, date_obj: date) -> TrainingStatus:
-        try:
-            logger.info("Fetching training status for date: %s", date_obj.isoformat())
-            raw_data = self.garmin.client.get_training_status(date_obj.isoformat())
-        except Exception:
-            logger.exception("get_training_status API failed for %s", date_obj)
-            raw_data = None
+        logger.debug("Fetching training status for date: %s", date_obj.isoformat())
+        raw_data = self._training_status_cached(date_obj.isoformat())
 
         if not isinstance(raw_data, dict):
             logger.warning("Training status data missing or invalid")
@@ -860,7 +899,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
         vo2max_data = _dg(most_recent_vo2max, "generic", {}) if isinstance(most_recent_vo2max, dict) else None
 
         if vo2max_data:
-            logger.info("Found VO2Max data: %s", vo2max_data)
+            logger.debug("Found VO2Max data: %s", vo2max_data)
         else:
             logger.warning("mostRecentVO2Max generic data absent")
 
@@ -871,12 +910,12 @@ class TriathlonCoachDataExtractor(DataExtractor):
         if status_key is None:
             logger.warning("No status key found in latestTrainingStatusData")
         else:
-            logger.info("Found status key: %s", status_key)
+            logger.debug("Found status key: %s", status_key)
 
         vo2max_value = _to_float(_dg(vo2max_data, "vo2MaxValue")) if vo2max_data else None
         vo2max_date = _dg(vo2max_data, "calendarDate") if vo2max_data else None
         if vo2max_value is not None or vo2max_date is not None:
-            logger.info("VO2Max value: %s, date: %s", vo2max_value, vo2max_date)
+            logger.debug("VO2Max value: %s, date: %s", vo2max_value, vo2max_date)
 
         atl_dto = _dg(status_data, "acuteTrainingLoadDTO", None)
         if not isinstance(atl_dto, dict):
@@ -886,7 +925,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             acute_load = _to_float(atl_dto.get("dailyTrainingLoadAcute"))
             chronic_load = _to_float(atl_dto.get("dailyTrainingLoadChronic"))
             acwr = _to_float(atl_dto.get("dailyAcuteChronicWorkloadRatio"))
-            logger.info("Training load - acute=%s chronic=%s acwr=%s", acute_load, chronic_load, acwr)
+            logger.debug("Training load - acute=%s chronic=%s acwr=%s", acute_load, chronic_load, acwr)
 
         return TrainingStatus(
             vo2_max={"value": vo2max_value, "date": vo2max_date},
@@ -896,100 +935,85 @@ class TriathlonCoachDataExtractor(DataExtractor):
     def get_vo2_max_history(self, start_date: date, end_date: date) -> dict[str, list[dict[str, Any]]]:
         history = {"running": [], "cycling": []}
         processed_dates = {"running": set(), "cycling": set()}
-        current_date = start_date
-        logger.info("Fetching VO2 max history from %s to %s", start_date, end_date)
+        logger.debug("Fetching VO2 max history from %s to %s", start_date, end_date)
 
-        while current_date <= end_date:
-            try:
-                data = self.garmin.client.get_training_status(current_date.isoformat())
-                if not isinstance(data, dict):
-                    current_date += timedelta(days=1)
-                    continue
+        for current_date in _daterange(start_date, end_date):
+            data = self._training_status_cached(current_date.isoformat())
+            if not isinstance(data, dict):
+                continue
 
-                mr = data.get("mostRecentVO2Max") or {}
-                # Running (generic)
-                gen = _dg(mr, "generic", {}) or {}
-                r_val = _to_float(gen.get("vo2MaxValue"))
-                r_date = gen.get("calendarDate")
-                if r_val is not None and r_date and r_date not in processed_dates["running"]:
-                    history["running"].append({"date": r_date, "value": r_val})
-                    processed_dates["running"].add(r_date)
+            mr = data.get("mostRecentVO2Max") or {}
+            # Running (generic)
+            gen = _dg(mr, "generic", {}) or {}
+            r_val = _to_float(gen.get("vo2MaxValue"))
+            r_date = gen.get("calendarDate")
+            if r_val is not None and r_date and r_date not in processed_dates["running"]:
+                history["running"].append({"date": r_date, "value": r_val})
+                processed_dates["running"].add(r_date)
 
-                # Cycling fallback search
-                cyc = None
+            # Cycling fallback search
+            cyc = None
+            for field in ("cycling", "bike", "cycle"):
+                if isinstance(mr, dict) and field in mr:
+                    cyc = mr.get(field)
+                    break
+            if cyc is None and isinstance(mr, dict) and "sportSpecific" in mr:
+                ss = mr.get("sportSpecific") or {}
                 for field in ("cycling", "bike", "cycle"):
-                    if isinstance(mr, dict) and field in mr:
-                        cyc = mr.get(field)
+                    if field in ss:
+                        cyc = ss.get(field)
                         break
-                if cyc is None and isinstance(mr, dict) and "sportSpecific" in mr:
-                    ss = mr.get("sportSpecific") or {}
-                    for field in ("cycling", "bike", "cycle"):
-                        if field in ss:
-                            cyc = ss.get(field)
+            if cyc is None and isinstance(mr, dict) and isinstance(mr.get("sport"), list):
+                for entry in mr.get("sport"):
+                    if isinstance(entry, dict) and "sportType" in entry:
+                        st = str(entry.get("sportType", "")).lower()
+                        if "cycling" in st or "bike" in st:
+                            cyc = entry
                             break
-                if cyc is None and isinstance(mr, dict) and isinstance(mr.get("sport"), list):
-                    for entry in mr.get("sport"):
-                        if isinstance(entry, dict) and "sportType" in entry:
-                            st = str(entry.get("sportType", "")).lower()
-                            if "cycling" in st or "bike" in st:
-                                cyc = entry
-                                break
 
-                if isinstance(cyc, dict):
-                    c_val = _to_float(cyc.get("vo2MaxValue"))
-                    c_date = cyc.get("calendarDate")
-                    if c_val is not None and c_date and c_date not in processed_dates["cycling"]:
-                        history["cycling"].append({"date": c_date, "value": c_val})
-                        processed_dates["cycling"].add(c_date)
-            except Exception:
-                logger.exception("VO2 history fetch failed for %s", current_date)
+            if isinstance(cyc, dict):
+                c_val = _to_float(cyc.get("vo2MaxValue"))
+                c_date = cyc.get("calendarDate")
+                if c_val is not None and c_date and c_date not in processed_dates["cycling"]:
+                    history["cycling"].append({"date": c_date, "value": c_val})
+                    processed_dates["cycling"].add(c_date)
 
-            current_date += timedelta(days=1)
-
-        logger.info("Collected %d running and %d cycling VO2max entries",
-                    len(history["running"]), len(history["cycling"]))
+        logger.info(
+            "Collected %d running and %d cycling VO2max entries", len(history["running"]), len(history["cycling"])
+        )
         return history
 
     def get_training_load_history(self, start_date: date, end_date: date) -> list[dict[str, Any]]:
         history: list[dict[str, Any]] = []
-        current_date = start_date
-        logger.info("Fetching training load history from %s to %s", start_date, end_date)
+        logger.debug("Fetching training load history from %s to %s", start_date, end_date)
 
-        while current_date <= end_date:
-            try:
-                data = self.garmin.client.get_training_status(current_date.isoformat())
-                if not isinstance(data, dict):
-                    current_date += timedelta(days=1)
-                    continue
+        for current_date in _daterange(start_date, end_date):
+            data = self._training_status_cached(current_date.isoformat())
+            if not isinstance(data, dict):
+                continue
 
-                latest = _deep_get(data, ["mostRecentTrainingStatus", "latestTrainingStatusData"], {}) or {}
-                if not isinstance(latest, dict) or not latest:
-                    current_date += timedelta(days=1)
-                    continue
+            latest = _deep_get(data, ["mostRecentTrainingStatus", "latestTrainingStatusData"], {}) or {}
+            if not isinstance(latest, dict) or not latest:
+                continue
 
-                status_key = next(iter(latest), None)
-                status_data = latest.get(status_key, {}) if status_key else {}
-                atl_dto = _dg(status_data, "acuteTrainingLoadDTO", None)
-                if not isinstance(atl_dto, dict):
-                    current_date += timedelta(days=1)
-                    continue
+            status_key = next(iter(latest), None)
+            status_data = latest.get(status_key, {}) if status_key else {}
+            atl_dto = _dg(status_data, "acuteTrainingLoadDTO", None)
+            if not isinstance(atl_dto, dict):
+                continue
 
-                acute_load = _to_float(atl_dto.get("dailyTrainingLoadAcute"))
-                chronic_load = _to_float(atl_dto.get("dailyTrainingLoadChronic"))
-                acwr = _to_float(atl_dto.get("dailyAcuteChronicWorkloadRatio"))
+            acute_load = _to_float(atl_dto.get("dailyTrainingLoadAcute"))
+            chronic_load = _to_float(atl_dto.get("dailyTrainingLoadChronic"))
+            acwr = _to_float(atl_dto.get("dailyAcuteChronicWorkloadRatio"))
 
-                history.append(
-                    {
-                        "date": current_date.isoformat(),
-                        "acute_load": acute_load,
-                        "chronic_load": chronic_load,
-                        "acwr": acwr,
-                    }
-                )
-            except Exception:
-                logger.exception("Training load fetch failed for %s", current_date)
-
-            current_date += timedelta(days=1)
+            history.append(
+                {
+                    "date": current_date.isoformat(),
+                    "acute_load": acute_load,
+                    "chronic_load": chronic_load,
+                    "acwr": acwr,
+                }
+            )
 
         logger.info("Collected %d training load history entries", len(history))
         return history
@@ -1000,52 +1024,49 @@ class TriathlonCoachDataExtractor(DataExtractor):
         trend = {"running": [], "cycling": []}
         processed_dates = {"running": set(), "cycling": set()}
         sample_dates = self._generate_sample_dates(start_date, end_date, interval_days)
-        logger.info(
-            "Fetching long-term VO2 max trend: %d sample dates from %s to %s",
-            len(sample_dates), start_date, end_date
+        logger.debug(
+            "Fetching long-term VO2 max trend: %d sample dates from %s to %s", len(sample_dates), start_date, end_date
         )
 
         for sample_date in sample_dates:
-            try:
-                data = self.garmin.client.get_training_status(sample_date.isoformat())
-                if not isinstance(data, dict):
-                    continue
+            data = self._training_status_cached(sample_date.isoformat())
+            if not isinstance(data, dict):
+                continue
 
-                mr = data.get("mostRecentVO2Max") or {}
+            mr = data.get("mostRecentVO2Max") or {}
 
-                gen = _dg(mr, "generic", {}) or {}
-                r_val = _to_float(gen.get("vo2MaxValue"))
-                r_date = gen.get("calendarDate")
-                if r_val is not None and r_date and r_date not in processed_dates["running"]:
-                    trend["running"].append({"date": r_date, "value": r_val})
-                    processed_dates["running"].add(r_date)
+            gen = _dg(mr, "generic", {}) or {}
+            r_val = _to_float(gen.get("vo2MaxValue"))
+            r_date = gen.get("calendarDate")
+            if r_val is not None and r_date and r_date not in processed_dates["running"]:
+                trend["running"].append({"date": r_date, "value": r_val})
+                processed_dates["running"].add(r_date)
 
-                cyc = None
+            cyc = None
+            for field in ("cycling", "bike", "cycle"):
+                if isinstance(mr, dict) and field in mr:
+                    cyc = mr.get(field)
+                    break
+            if cyc is None and isinstance(mr, dict) and "sportSpecific" in mr:
+                ss = mr.get("sportSpecific") or {}
                 for field in ("cycling", "bike", "cycle"):
-                    if isinstance(mr, dict) and field in mr:
-                        cyc = mr.get(field)
+                    if field in ss:
+                        cyc = ss.get(field)
                         break
-                if cyc is None and isinstance(mr, dict) and "sportSpecific" in mr:
-                    ss = mr.get("sportSpecific") or {}
-                    for field in ("cycling", "bike", "cycle"):
-                        if field in ss:
-                            cyc = ss.get(field)
-                            break
 
-                if isinstance(cyc, dict):
-                    c_val = _to_float(cyc.get("vo2MaxValue"))
-                    c_date = cyc.get("calendarDate")
-                    if c_val is not None and c_date and c_date not in processed_dates["cycling"]:
-                        trend["cycling"].append({"date": c_date, "value": c_val})
-                        processed_dates["cycling"].add(c_date)
-            except Exception:
-                logger.exception("Long-term VO2 max fetch failed for %s", sample_date)
+            if isinstance(cyc, dict):
+                c_val = _to_float(cyc.get("vo2MaxValue"))
+                c_date = cyc.get("calendarDate")
+                if c_val is not None and c_date and c_date not in processed_dates["cycling"]:
+                    trend["cycling"].append({"date": c_date, "value": c_val})
+                    processed_dates["cycling"].add(c_date)
 
         trend["running"].sort(key=lambda x: x["date"])
         trend["cycling"].sort(key=lambda x: x["date"])
         logger.info(
             "Collected %d running and %d cycling long-term VO2 max entries",
-            len(trend["running"]), len(trend["cycling"])
+            len(trend["running"]),
+            len(trend["cycling"]),
         )
         return trend
 
@@ -1054,37 +1075,35 @@ class TriathlonCoachDataExtractor(DataExtractor):
     ) -> list[dict[str, Any]]:
         trend: list[dict[str, Any]] = []
         sample_dates = self._generate_sample_dates(start_date, end_date, interval_days)
-        logger.info(
+        logger.debug(
             "Fetching long-term training load trend: %d sample dates from %s to %s",
-            len(sample_dates), start_date, end_date
+            len(sample_dates),
+            start_date,
+            end_date,
         )
 
         for sample_date in sample_dates:
-            try:
-                data = self.garmin.client.get_training_status(sample_date.isoformat())
-                if not isinstance(data, dict):
-                    continue
+            data = self._training_status_cached(sample_date.isoformat())
+            if not isinstance(data, dict):
+                continue
 
-                latest = _deep_get(data, ["mostRecentTrainingStatus", "latestTrainingStatusData"], {}) or {}
-                if not isinstance(latest, dict) or not latest:
-                    continue
+            latest = _deep_get(data, ["mostRecentTrainingStatus", "latestTrainingStatusData"], {}) or {}
+            if not isinstance(latest, dict) or not latest:
+                continue
 
-                status_key = next(iter(latest), None)
-                status_data = latest.get(status_key, {}) if status_key else {}
-                atl_dto = _dg(status_data, "acuteTrainingLoadDTO", None)
-                if not isinstance(atl_dto, dict):
-                    continue
+            status_key = next(iter(latest), None)
+            status_data = latest.get(status_key, {}) if status_key else {}
+            atl_dto = _dg(status_data, "acuteTrainingLoadDTO", None)
+            if not isinstance(atl_dto, dict):
+                continue
 
-                chronic_load = _to_float(atl_dto.get("dailyTrainingLoadChronic"))
-                if chronic_load is not None:
-                    trend.append({"date": sample_date.isoformat(), "chronic_load": chronic_load})
-            except Exception:
-                logger.exception("Long-term training load fetch failed for %s", sample_date)
+            chronic_load = _to_float(atl_dto.get("dailyTrainingLoadChronic"))
+            if chronic_load is not None:
+                trend.append({"date": sample_date.isoformat(), "chronic_load": chronic_load})
 
         trend.sort(key=lambda x: x["date"])
         logger.info("Collected %d long-term training load entries", len(trend))
         return trend
-
 
     @staticmethod
     def _parse_local_date(start_time: str | None) -> date | None:
@@ -1107,30 +1126,20 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 return None
 
     def get_daily_activity_loads(self, start_date: date, end_date: date) -> dict[str, float]:
-        """
-        Build daily load series L_t by summing activityTrainingLoad per day.
-        Uses activities list endpoint (cheap) rather than per-activity details.
-        """
-        loads: dict[str, float] = {}
-        cur = start_date
-        while cur <= end_date:
-            loads[cur.isoformat()] = 0.0
-            cur += timedelta(days=1)
+        loads = {d.isoformat(): 0.0 for d in _daterange(start_date, end_date)}
 
-        try:
-            activities = self.garmin.client.get_activities_by_date(
-                start_date.isoformat(), end_date.isoformat()
-            ) or []
-        except Exception:
-            logger.exception("get_activities_by_date failed for daily loads")
-            return loads
+        activities = self._call_api(
+            self.garmin.client.get_activities_by_date,
+            start_date.isoformat(), end_date.isoformat(),
+            default=[],
+            what=f"get_activities_by_date({start_date}, {end_date})"
+        )
 
         if not isinstance(activities, list):
             return loads
 
-
         for a in activities:
-            if not isinstance(a, dict):
+            if not isinstance(a, Mapping):
                 continue
 
             # Prevent double-counting multisport legs
@@ -1166,9 +1175,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
     @staticmethod
     def _ewma(values: list[float], span_days: int) -> list[float]:
-        """
-        EWMA with alpha = 2/(span+1). Assumes daily cadence.
-        """
         if span_days <= 0:
             return values[:]
         alpha = 2.0 / (span_days + 1.0)
@@ -1187,21 +1193,11 @@ class TriathlonCoachDataExtractor(DataExtractor):
         start_date: date,
         end_date: date,
         acute_span: int = 7,
-        chronic_span: int = 28,   # consider 42 if you want "more stable base" for triathlon
+        chronic_span: int = 28,  # consider 42 if you want "more stable base" for triathlon
         uncouple_days: int = 7,
         eps: float = 1e-6,
     ) -> list[dict[str, Any]]:
-        """
-        Returns a daily series with:
-          - daily_load (sum of activityTrainingLoad)
-          - acute_ewma, chronic_ewma
-          - chronic_uncoupled (chronic shifted back by `uncouple_days`)
-          - acwr_uncoupled, log_ratio
-          - tsb (chronic - acute)
-          - ramp_7d (chronic now minus chronic 7d ago)
-          - monotony + strain (from last 7 days of daily_load)
-        """
-        # Fetch extra history for warm-up
+        # Fetch extra history for EWMA stabilization
         warmup_days = chronic_span * 2  # rule of thumb for EWMA stabilization
         fetch_start = start_date - timedelta(days=warmup_days)
         loads_map = self.get_daily_activity_loads(fetch_start, end_date)
@@ -1239,9 +1235,9 @@ class TriathlonCoachDataExtractor(DataExtractor):
         acute7_series = []
         for i in range(len(full_loads)):
             acute7_series.append(sum_range(i - 6, i) if i >= 6 else None)
-        
+
         # Prefix sum of the acute7 series (treating None as 0 for sum, handling count separately)
-        # But specifically we need "average of last 28 valid acute sums". 
+        # But specifically we need "average of last 28 valid acute sums".
         # Since our arrays are dense (daily), valid is just index checks.
         pref_acute7 = [0.0]
         for v in acute7_series:
@@ -1250,23 +1246,23 @@ class TriathlonCoachDataExtractor(DataExtractor):
         def avg_acute7_last_n(idx_end: int, n: int) -> float | None:
             # Average of acute7_series[idx_end - n + 1 ... idx_end]
             idx_start = idx_end - n + 1
-            if idx_start < 6: # Need at least one full acute sum to start? Actually just need bounds.
+            if idx_start < 6:  # Need at least one full acute sum to start? Actually just need bounds.
                 # If idx_start < 6, those acute7 entries are None (incomplete history for acute).
-                # To be "Garmin comparable", we usually need full windows. 
+                # To be "Garmin comparable", we usually need full windows.
                 return None
-            
+
             total = pref_acute7[idx_end + 1] - pref_acute7[idx_start]
             return total / n
 
         history: list[dict[str, Any]] = []
-        
+
         # O(1) start index calculation
         start_offset_days = (start_date - fetch_start).days
         start_idx = max(0, start_offset_days)
-        
+
         for i in range(start_idx, len(full_dates)):
             d = full_dates[i]
-            
+
             # --- EWMA Metrics ---
             chronic_unc = None
             if i - uncouple_days >= 0:
@@ -1324,10 +1320,10 @@ class TriathlonCoachDataExtractor(DataExtractor):
             idx_unc_end = i - 7
             if idx_unc_end >= 0:
                 chronic_28d_avg_acute_unc = avg_acute7_last_n(idx_unc_end, 28)
-            
+
             acwr_7d28d_unc = None
             if acute_7d_sum is not None and chronic_28d_avg_acute_unc and chronic_28d_avg_acute_unc > eps:
-                 acwr_7d28d_unc = acute_7d_sum / chronic_28d_avg_acute_unc
+                acwr_7d28d_unc = acute_7d_sum / chronic_28d_avg_acute_unc
 
             history.append(
                 {

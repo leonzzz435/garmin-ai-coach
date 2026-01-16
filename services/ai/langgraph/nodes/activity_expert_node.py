@@ -57,8 +57,6 @@ Produce 3 structured fields:
 
 **Important**: Tailor content for each consumer.
 
-**Important**: Tailor content for each consumer.
-
 ### 1. `for_synthesis` (Comprehensive Report)
 - **Context**: This feeds the **"Whole Athlete"** view (Summary & Synthesis).
 - **Goal**: Provide a qualitative assessment of execution quality.
@@ -82,7 +80,7 @@ async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list |
     plot_storage = PlotStorage(state["execution_id"])
     plotting_enabled = state.get("plotting_enabled", False)
     hitl_enabled = state.get("hitl_enabled", True)
-    
+
     logger.info(
         f"Activity expert node: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
         f"HITL {'enabled' if hitl_enabled else 'disabled'}"
@@ -95,10 +93,10 @@ async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list |
     )
 
     system_prompt = (
-        ACTIVITY_EXPERT_SYSTEM_PROMPT_BASE +
-        get_workflow_context("activity") +
-        (get_plotting_instructions("activity") if plotting_enabled else "") +
-        (get_hitl_instructions("activity") if hitl_enabled else "")
+        ACTIVITY_EXPERT_SYSTEM_PROMPT_BASE
+        + get_workflow_context("activity")
+        + (get_plotting_instructions("activity") if plotting_enabled else "")
+        + (get_hitl_instructions("activity") if hitl_enabled else "")
     )
 
     base_llm = ModelSelector.get_llm(AgentRole.ACTIVITY_EXPERT)
@@ -116,17 +114,20 @@ async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list |
                 qa_messages.append({"role": role, "content": msg.content})
             else:  # Already a dict
                 qa_messages.append(msg)
-        
+
         base_messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": ACTIVITY_EXPERT_USER_PROMPT.format(
-                activity_summary=state.get("activity_summary", ""),
-                competitions=json.dumps(state["competitions"], indent=2),
-                current_date=json.dumps(state["current_date"], indent=2),
-                analysis_context=state["analysis_context"],
-            )},
+            {
+                "role": "user",
+                "content": ACTIVITY_EXPERT_USER_PROMPT.format(
+                    activity_summary=state.get("activity_summary", ""),
+                    competitions=json.dumps(state["competitions"], indent=2),
+                    current_date=json.dumps(state["current_date"], indent=2),
+                    analysis_context=state["analysis_context"],
+                ),
+            },
         ]
-        
+
         return await handle_tool_calling_in_node(
             llm_with_tools=llm_with_structure,
             messages=base_messages + qa_messages,
