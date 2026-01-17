@@ -3,8 +3,6 @@ import logging
 from collections import OrderedDict
 from collections.abc import Callable, Iterable, Iterator, Mapping, MutableMapping
 from datetime import date, datetime, timedelta, timezone
-from math import log
-from statistics import mean, pstdev
 from typing import Any, TypeVar, overload
 
 from .client import GarminConnectClient
@@ -22,6 +20,7 @@ from .models import (
     UserProfile,
     WeatherData,
 )
+from .utils.training_metrics import TrainingMetricsCalculator
 
 logger = logging.getLogger(__name__)
 
@@ -1173,20 +1172,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
         return loads
 
-    @staticmethod
-    def _ewma(values: list[float], span_days: int) -> list[float]:
-        if span_days <= 0:
-            return values[:]
-        alpha = 2.0 / (span_days + 1.0)
-        out: list[float] = []
-        prev: float | None = None
-        for x in values:
-            if prev is None:
-                prev = x
-            else:
-                prev = alpha * x + (1.0 - alpha) * prev
-            out.append(prev)
-        return out
+
 
     def get_training_load_v2_history(
         self,
@@ -1202,152 +1188,14 @@ class TriathlonCoachDataExtractor(DataExtractor):
         fetch_start = start_date - timedelta(days=warmup_days)
         loads_map = self.get_daily_activity_loads(fetch_start, end_date)
 
-        # Ensure ordered daily vector
-        # We need the full vector from fetch_start to do the rolling calc properly
-        full_dates: list[date] = []
-        full_loads: list[float] = []
-        cur = fetch_start
-        while cur <= end_date:
-            full_dates.append(cur)
-            full_loads.append(float(loads_map.get(cur.isoformat(), 0.0) or 0.0))
-            cur += timedelta(days=1)
-
-        acute = self._ewma(full_loads, acute_span)
-        chronic = self._ewma(full_loads, chronic_span)
-
-        # Precompute rolling sums using prefix sums for O(1) lookups
-        # pref[i] = sum(loads[0]...loads[i-1])
-        pref = [0.0]
-        for x in full_loads:
-            pref.append(pref[-1] + x)
-
-        def sum_range(start_idx: int, end_idx: int) -> float:
-            # Sum of full_loads[start_idx : end_idx + 1]
-            start_idx = max(start_idx, 0)
-            if end_idx >= len(full_loads):
-                end_idx = len(full_loads) - 1
-            if start_idx > end_idx:
-                return 0.0
-            return pref[end_idx + 1] - pref[start_idx]
-
-        # Precompute acute 7d history for chronic baseline
-        # acute7_series[i] = sum(loads[i-6...i])
-        acute7_series = []
-        for i in range(len(full_loads)):
-            acute7_series.append(sum_range(i - 6, i) if i >= 6 else None)
-
-        # Prefix sum of the acute7 series (treating None as 0 for sum, handling count separately)
-        # But specifically we need "average of last 28 valid acute sums".
-        # Since our arrays are dense (daily), valid is just index checks.
-        pref_acute7 = [0.0]
-        for v in acute7_series:
-            pref_acute7.append(pref_acute7[-1] + (v or 0.0))
-
-        def avg_acute7_last_n(idx_end: int, n: int) -> float | None:
-            # Average of acute7_series[idx_end - n + 1 ... idx_end]
-            idx_start = idx_end - n + 1
-            if idx_start < 6:  # Need at least one full acute sum to start? Actually just need bounds.
-                # If idx_start < 6, those acute7 entries are None (incomplete history for acute).
-                # To be "Garmin comparable", we usually need full windows.
-                return None
-
-            total = pref_acute7[idx_end + 1] - pref_acute7[idx_start]
-            return total / n
-
-        history: list[dict[str, Any]] = []
-
-        # O(1) start index calculation
-        start_offset_days = (start_date - fetch_start).days
-        start_idx = max(0, start_offset_days)
-
-        for i in range(start_idx, len(full_dates)):
-            d = full_dates[i]
-
-            # --- EWMA Metrics ---
-            chronic_unc = None
-            if i - uncouple_days >= 0:
-                chronic_unc = chronic[i - uncouple_days]
-
-            acwr_unc = None
-            log_ratio = None
-            if chronic_unc is not None and chronic_unc > eps:
-                acwr_unc = acute[i] / chronic_unc
-                # symmetric spike measure
-                log_ratio = log(acwr_unc) if acwr_unc > eps else None
-
-            tsb = chronic[i] - acute[i]
-
-            ramp_7d = None
-            if i - 7 >= 0:
-                ramp_7d = chronic[i] - chronic[i - 7]
-
-            monotony = None
-            strain = None
-            # Need window i-6 to i
-            start_window = i - 6
-            if start_window >= 0:
-                # Slicing is okay here since window is small (7)
-                window = full_loads[start_window : i + 1]
-                weekly_load = sum(window)
-                # Monotony floor to prevent noise on rest weeks
-                if weekly_load > 50.0:
-                    mu = mean(window)
-                    sd = pstdev(window)
-                    if sd > eps:
-                        monotony = mu / sd
-                    else:
-                        monotony = 4.0 if weekly_load > eps else 0.0
-                    strain = weekly_load * monotony
-                else:
-                    monotony = 0.0
-                    strain = 0.0
-
-            # --- Rolling Sum Metrics ---
-            # Acute 7d Sum
-            acute_7d_sum = acute7_series[i]
-
-            # Chronic 28d Avg (Coupled)
-            chronic_28d_avg_acute = avg_acute7_last_n(i, 28)
-
-            # ACWR Coupled
-            acwr_7d28d = None
-            if acute_7d_sum is not None and chronic_28d_avg_acute and chronic_28d_avg_acute > eps:
-                acwr_7d28d = acute_7d_sum / chronic_28d_avg_acute
-
-            # Chronic 28d Avg (Uncoupled: Rolling sum excluded last 7 days)
-            # Window ends at i - 7
-            chronic_28d_avg_acute_unc = None
-            idx_unc_end = i - 7
-            if idx_unc_end >= 0:
-                chronic_28d_avg_acute_unc = avg_acute7_last_n(idx_unc_end, 28)
-
-            acwr_7d28d_unc = None
-            if acute_7d_sum is not None and chronic_28d_avg_acute_unc and chronic_28d_avg_acute_unc > eps:
-                acwr_7d28d_unc = acute_7d_sum / chronic_28d_avg_acute_unc
-
-            history.append(
-                {
-                    "date": d.isoformat(),
-                    "daily_load": _round(full_loads[i], 1),
-                    # EWMA V2
-                    "acute_ewma": _round(acute[i], 1),
-                    "chronic_ewma": _round(chronic[i], 1),
-                    "chronic_uncoupled": _round(chronic_unc, 1),
-                    "acwr_uncoupled": _round(acwr_unc, 2),
-                    "log_ratio": _round(log_ratio, 2),
-                    "tsb": _round(tsb, 1),
-                    "ramp_7d": _round(ramp_7d, 1),
-                    "monotony_7d": _round(monotony, 2),
-                    "strain_7d": _round(strain, 1),
-                    # Rolling Sum (Garmin-like)
-                    "acute_7d_sum": _round(acute_7d_sum, 1),
-                    "chronic_28d_avg": _round(chronic_28d_avg_acute, 1),
-                    "acwr_7d28d": _round(acwr_7d28d, 2),
-                    "acwr_7d28d_uncoupled": _round(acwr_7d28d_unc, 2),
-                }
-            )
-
-        return history
+        calculator = TrainingMetricsCalculator(daily_loads=loads_map)
+        return calculator.calculate_metrics(
+            start_date=start_date,
+            end_date=end_date,
+            acute_span=acute_span,
+            chronic_span=chronic_span,
+            uncouple_days=uncouple_days,
+        )
 
     @staticmethod
     def _generate_sample_dates(start_date: date, end_date: date, interval_days: int) -> list[date]:
