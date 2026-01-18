@@ -6,7 +6,7 @@ from .data_summarizer_node import create_data_summarizer_node
 
 def extract_metrics_data(state: TrainingAnalysisState) -> dict:
     return {
-        "training_load_history": state["garmin_data"].get("training_load_v2_history", []),
+        "training_load_history": state["garmin_data"].get("training_load_history", []),
         "vo2_max_history": state["garmin_data"].get("vo2_max_history", {}),
         "training_status": state["garmin_data"].get("training_status", {}),
         "long_term_vo2_max_trend": state["garmin_data"].get("long_term_vo2_max_trend", {}),

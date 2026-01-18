@@ -98,6 +98,11 @@ class ModelSelector:
             base_url="https://api.openai.com/v1",
             openrouter_name="openai/gpt-5.2",
         ),
+        "gpt-5.2-pro-search": ModelConfiguration(
+            name="gpt-5.2-pro",
+            base_url="https://api.openai.com/v1",
+            openrouter_name="openai/gpt-5.2-pro",
+        ),
         # Anthropic Models
         "claude-4": ModelConfiguration(
             name="claude-sonnet-4-5-20250929",
@@ -236,6 +241,16 @@ class ModelSelector:
                     "include": ["web_search_call.action.sources"],
                 },
                 "log": "Using GPT-5.2 with web search + Responses API for {role} (verbosity: high, reasoning_effort: xhigh)",
+            },
+            "gpt-5.2-pro-search": {
+                "use_responses_api": True,
+                "reasoning": {"effort": "xhigh"},
+                "model_kwargs": {
+                    "text": {"verbosity": "high"},
+                    "tools": [{"type": "web_search"}],
+                    "include": ["web_search_call.action.sources"],
+                },
+                "log": "Using GPT-5.2 Pro with web search + Responses API for {role} (verbosity: high, reasoning_effort: xhigh)",
             },
             "deepseek-v3.2": {
                 "extra_body": {"reasoning": {"enabled": True}},

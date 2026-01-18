@@ -68,11 +68,9 @@ class TrainingMetricsCalculator:
             full_loads.append(float(self.daily_loads.get(cur.isoformat(), 0.0) or 0.0))
             cur += timedelta(days=1)
 
-        # 2. Calculate EWMA Series
         acute = self._ewma(full_loads, acute_span)
         chronic = self._ewma(full_loads, chronic_span)
 
-        # 3. Precompute Rolling Sums (Prefix Sums)
         pref = [0.0]
         for x in full_loads:
             pref.append(pref[-1] + x)
@@ -85,27 +83,22 @@ class TrainingMetricsCalculator:
                 return 0.0
             return pref[end_idx + 1] - pref[start_idx]
 
-        # 4. Precompute Acute 7d History (for Rolling ACWR)
         acute7_series: list[float | None] = []
         for i in range(len(full_loads)):
-            # Window: [i-6, i] (7 days)
             val = sum_range(i - 6, i) if i >= 6 else None
             acute7_series.append(val)
 
-        # Prefix sum of acute7 for fast averaging
         pref_acute7 = [0.0]
         for v in acute7_series:
             pref_acute7.append(pref_acute7[-1] + (v or 0.0))
 
         def avg_acute7_last_n(idx_end: int, n: int) -> float | None:
-            # Average of acute7_series[idx_end - n + 1 ... idx_end]
             idx_start = idx_end - n + 1
             if idx_start < 6:
                 return None
             total = pref_acute7[idx_end + 1] - pref_acute7[idx_start]
             return total / n
 
-        # 5. Generate History
         history: list[dict[str, Any]] = []
         start_offset_days = (start_date - fetch_start).days
         start_idx = max(0, start_offset_days)
@@ -137,7 +130,6 @@ class TrainingMetricsCalculator:
             if acute_7d_sum is not None and chronic_28d_avg and chronic_28d_avg > eps:
                 acwr_7d28d = acute_7d_sum / chronic_28d_avg
 
-            # Uncoupled Rolling
             chronic_28d_avg_unc = None
             if i - 7 >= 0:
                 chronic_28d_avg_unc = avg_acute7_last_n(i - 7, 28)

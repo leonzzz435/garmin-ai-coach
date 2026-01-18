@@ -23,7 +23,7 @@ class AISettings:
         default_factory=lambda: {
             AIMode.STANDARD: {
                 AgentRole.SUMMARIZER: "gpt-5",
-                AgentRole.FORMATTER: "claude-4-thinking",
+                AgentRole.FORMATTER: "gpt-5",
                 AgentRole.METRICS_EXPERT: "gpt-5-search",
                 AgentRole.PHYSIOLOGY_EXPERT: "gpt-5-search",
                 AgentRole.ACTIVITY_EXPERT: "gpt-5-search",

@@ -249,7 +249,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
                     "training_status": self.get_training_status(mend),
                     "vo2_max_history": self.get_vo2_max_history(mstart, mend),
                     "training_load_history": self.get_training_load_history(mstart, mend),
-                    "training_load_v2_history": self.get_training_load_v2_history(mstart, mend),
                 }
             )
 
@@ -498,7 +497,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
                     logger.warning("Failed to fetch child activity %s", child_id)
                     continue
 
-                # Merge details for child
                 child_details = self._call_api(
                     self.garmin.client.get_activity_details,
                     child_id,
@@ -511,7 +509,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 child_start_time = self.extract_start_time(child_activity)
                 child_summary = self._extract_activity_summary(_dg(child_activity, "summaryDTO", {}) or {})
 
-                # Cycling: top-level power fallbacks
                 if child_type == "cycling":
                     self._enrich_cycling_power(child_activity, child_summary)
 
@@ -741,7 +738,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
     # --------- Metrics / Histories ---------
 
     def get_physiological_markers(self, start_date: date, end_date: date) -> PhysiologicalMarkers:
-        # RHR (day)
         rhr_data = self._call_api(
             self.garmin.client.get_rhr_day,
             end_date.isoformat(),
@@ -754,7 +750,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
             _to_int(rhr_value_list[0].get("value")) if rhr_value_list and isinstance(rhr_value_list[0], dict) else None
         )
 
-        # VO2max (user summary)
         user_summary = self._call_api(
             self.garmin.client.get_user_summary,
             end_date.isoformat(),
@@ -763,7 +758,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
         )
         vo2_max = _to_float(user_summary.get("vo2Max"))
 
-        # HRV
         hrv_data = self._call_api(
             self.garmin.client.get_hrv_data,
             end_date.isoformat(),
@@ -794,7 +788,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
             what="get_body_composition"
         )
 
-        # Hydration: fetch per-day but isolate failures
         processed_hydration_data: list[dict[str, Any]] = []
         for cur in _daterange(start_date, end_date):
             entry = self._call_api(
@@ -947,7 +940,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 continue
 
             mr = data.get("mostRecentVO2Max") or {}
-            # Running (generic)
             gen = _dg(mr, "generic", {}) or {}
             r_val = _to_float(gen.get("vo2MaxValue"))
             r_date = gen.get("calendarDate")
@@ -955,7 +947,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 history["running"].append({"date": r_date, "value": r_val})
                 processed_dates["running"].add(r_date)
 
-            # Cycling fallback search
             cyc = None
             for field in ("cycling", "bike", "cycle"):
                 if isinstance(mr, dict) and field in mr:
@@ -987,40 +978,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
         )
         return history
 
-    def get_training_load_history(self, start_date: date, end_date: date) -> list[dict[str, Any]]:
-        history: list[dict[str, Any]] = []
-        logger.debug("Fetching training load history from %s to %s", start_date, end_date)
-
-        for current_date in _daterange(start_date, end_date):
-            data = self._training_status_cached(current_date.isoformat())
-            if not isinstance(data, dict):
-                continue
-
-            latest = _deep_get(data, ["mostRecentTrainingStatus", "latestTrainingStatusData"], {}) or {}
-            if not isinstance(latest, dict) or not latest:
-                continue
-
-            status_key = next(iter(latest), None)
-            status_data = latest.get(status_key, {}) if status_key else {}
-            atl_dto = _dg(status_data, "acuteTrainingLoadDTO", None)
-            if not isinstance(atl_dto, dict):
-                continue
-
-            acute_load = _to_float(atl_dto.get("dailyTrainingLoadAcute"))
-            chronic_load = _to_float(atl_dto.get("dailyTrainingLoadChronic"))
-            acwr = _to_float(atl_dto.get("dailyAcuteChronicWorkloadRatio"))
-
-            history.append(
-                {
-                    "date": current_date.isoformat(),
-                    "acute_load": acute_load,
-                    "chronic_load": chronic_load,
-                    "acwr": acwr,
-                }
-            )
-
-        logger.info("Collected %d training load history entries", len(history))
-        return history
 
     def get_long_term_vo2_max_trend(
         self, start_date: date, end_date: date, interval_days: int = 14
@@ -1142,15 +1099,12 @@ class TriathlonCoachDataExtractor(DataExtractor):
             if not isinstance(a, Mapping):
                 continue
 
-            # Prevent double-counting multisport legs
             if a.get("parentActivityId"):
                 continue
 
-            # Determine activity date
             st = self.extract_start_time(a)
             d = self._parse_local_date(st)
             if d is None:
-                # last-ditch: sometimes calendarDate exists in list payloads
                 d_str = a.get("calendarDate")
                 try:
                     d = date.fromisoformat(d_str) if isinstance(d_str, str) else None
@@ -1163,7 +1117,6 @@ class TriathlonCoachDataExtractor(DataExtractor):
             if key not in loads:
                 continue
 
-            # Extract load. In list payloads it's often direct, but also may live in summaryDTO.
             load = (
                 _to_float(a.get("activityTrainingLoad"))
                 or _to_float(_deep_get(a, ["summaryDTO", "activityTrainingLoad"]))
@@ -1175,17 +1128,16 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
 
 
-    def get_training_load_v2_history(
+    def get_training_load_history(
         self,
         start_date: date,
         end_date: date,
         acute_span: int = 7,
-        chronic_span: int = 28,  # consider 42 if you want "more stable base" for triathlon
+        chronic_span: int = 28,
         uncouple_days: int = 7,
         eps: float = 1e-6,
     ) -> list[dict[str, Any]]:
-        # Fetch extra history for EWMA stabilization
-        warmup_days = chronic_span * 2  # rule of thumb for EWMA stabilization
+        warmup_days = chronic_span * 2
         fetch_start = start_date - timedelta(days=warmup_days)
         loads_map = self.get_daily_activity_loads(fetch_start, end_date)
 
