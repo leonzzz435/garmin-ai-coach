@@ -9,6 +9,7 @@ from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backo
 
 from ..schemas import PhysiologyExpertOutputs
 from ..state.training_analysis_state import TrainingAnalysisState
+from ..utils.message_helper import normalize_langchain_messages
 from .node_base import (
     configure_node_tools,
     create_cost_entry,
@@ -80,9 +81,6 @@ PHYSIOLOGY_FINAL_CHECKLIST = """
 - No training structure redesign.
 """
 
-
-
-
 async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
     logger.info("Starting physiology expert analysis node")
 
@@ -116,23 +114,19 @@ async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list
     agent_start_time = datetime.now()
 
     async def call_physiology_analysis():
-        qa_messages_raw = state.get("physiology_expert_messages", [])
-        qa_messages = []
-        for msg in qa_messages_raw:
-            if hasattr(msg, "type"):  # LangChain message object
-                role = "assistant" if msg.type == "ai" else "user"
-                qa_messages.append({"role": role, "content": msg.content})
-            else:  # Already a dict
-                qa_messages.append(msg)
+        qa_messages = normalize_langchain_messages(state.get("physiology_expert_messages", []))
         
         base_messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": PHYSIOLOGY_USER_PROMPT.format(
-                data=state.get("physiology_summary", "No physiology summary available"),
-                competitions=json.dumps(state["competitions"], indent=2),
-                current_date=json.dumps(state["current_date"], indent=2),
-                analysis_context=state["analysis_context"],
-            )},
+            {
+                "role": "user",
+                "content": PHYSIOLOGY_USER_PROMPT.format(
+                    data=state.get("physiology_summary", "No physiology summary available"),
+                    competitions=json.dumps(state["competitions"], indent=2),
+                    current_date=json.dumps(state["current_date"], indent=2),
+                    analysis_context=state["analysis_context"],
+                ),
+            },
         ]
         
         return await handle_tool_calling_in_node(

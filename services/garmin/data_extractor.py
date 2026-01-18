@@ -5,6 +5,8 @@ from collections.abc import Callable, Iterable, Iterator, Mapping, MutableMappin
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, TypeVar, overload
 
+import requests
+
 from .client import GarminConnectClient
 from .models import (
     Activity,
@@ -180,7 +182,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
         try:
             result = fn(*args)
             return result if result is not None else default
-        except Exception:
+        except (requests.HTTPError, requests.RequestException, RuntimeError, TypeError, ValueError):
             logger.exception("API failed: %s", what)
             return default
 
@@ -267,13 +269,11 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
     # --------- User / Daily ---------
 
-    # --------- User / Daily ---------
-
     def get_user_profile(self) -> UserProfile:
         full_profile = self._call_api(
             self.garmin.client.get_user_profile,
             default={},
-            what="get_user_profile"
+            what="get_user_profile",
         )
 
         user_data = _dg(full_profile, "userData", {}) or {}
@@ -303,7 +303,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             self.garmin.client.get_stats,
             date_obj.isoformat(),
             default={},
-            what=f"get_stats({date_obj})"
+            what=f"get_stats({date_obj})",
         )
 
         sleep_hours = self.get_latest_sleep_duration(date_obj)
@@ -318,7 +318,10 @@ class TriathlonCoachDataExtractor(DataExtractor):
             bmr_calories=_to_int(raw_data.get("bmrKilocalories")),
             wellness_start_time=raw_data.get("wellnessStartTimeLocal"),
             wellness_end_time=raw_data.get("wellnessEndTimeLocal"),
-            duration_in_hours=self.safe_divide_and_round(_to_float(raw_data.get("durationInMilliseconds")), 3_600_000),
+            duration_in_hours=self.safe_divide_and_round(
+                _to_float(raw_data.get("durationInMilliseconds")),
+                3_600_000,
+            ),
             min_heart_rate=_to_int(raw_data.get("minHeartRate")),
             max_heart_rate=_to_int(raw_data.get("maxHeartRate")),
             resting_heart_rate=_to_int(raw_data.get("restingHeartRate")),
@@ -357,7 +360,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             
             avg_speed_ms = _to_float(lap.get("averageSpeed"))
             avg_spd_kmh = _round(avg_speed_ms * 3.6, 2) if avg_speed_ms is not None else None
-            
+
             max_speed_ms = _to_float(lap.get("maxSpeed"))
             max_spd_kmh = _round(max_speed_ms * 3.6, 2) if max_speed_ms is not None else None
 
@@ -390,12 +393,12 @@ class TriathlonCoachDataExtractor(DataExtractor):
         return processed_laps
 
     def get_recent_activities(self, start_date: date, end_date: date) -> list[Activity]:
-        logger.debug("Fetching activities between %s and %s", start_date, end_date)
+        logger.info("Fetching activities between %s and %s", start_date, end_date)
         activities = self._call_api(
             self.garmin.client.get_activities_by_date,
             start_date.isoformat(), end_date.isoformat(),
             default=[],
-            what=f"get_activities_by_date({start_date}, {end_date})"
+            what=f"get_activities_by_date({start_date}, {end_date})",
         )
         if not isinstance(activities, list) or not activities:
             logger.warning("No activities found between %s and %s", start_date, end_date)
@@ -408,15 +411,17 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
             activity_id = activity.get("activityId") or activity.get("activityUUID")
             if not activity_id:
+                logger.warning("Activity missing activityId, skipping. Keys: %s", list(activity.keys()))
                 continue
 
             detailed_activity = self._call_api(
                 self.garmin.client.get_activity,
                 activity_id,
                 default={},
-                what=f"get_activity({activity_id})"
+                what=f"get_activity({activity_id})",
             )
             if not isinstance(detailed_activity, Mapping) or not detailed_activity:
+                logger.warning("No details found for activity %s, skipping", activity_id)
                 continue
 
             if detailed_activity.get("isMultiSportParent", False):
@@ -433,7 +438,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             if isinstance(a, Mapping):
                 try:
                     valid_activities.append(Activity(**a))
-                except Exception:
+                except (TypeError, ValueError):
                     logger.exception("Failed to coerce activity dict to Activity dataclass")
             elif isinstance(a, Activity):
                 valid_activities.append(a)
@@ -626,7 +631,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
     # --------- Extractors / Normalizers ---------
 
     def _extract_activity_summary(self, summary: Mapping[str, Any] | None) -> ActivitySummary:
-        s = summary if isinstance(summary, dict) else {}
+        s = summary if isinstance(summary, Mapping) else {}
 
         # More tolerant field mapping
         distance = s.get("distance") or s.get("sumDistance") or s.get("totalDistanceMeters")
@@ -1106,22 +1111,18 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
     @staticmethod
     def _parse_local_date(start_time: str | None) -> date | None:
-        """Parse Garmin-ish timestamps into a date (robust to Z / offsets)."""
         if not start_time or not isinstance(start_time, str):
             return None
         s = start_time.strip()
-        # Handle Zulu timezone
         if s.endswith("Z"):
             s = s[:-1] + "+00:00"
         try:
-            # Works for "YYYY-MM-DDTHH:MM:SS(.fff)(+HH:MM)"
             dt = datetime.fromisoformat(s)
             return dt.date()
-        except Exception:
-            # Fallback: take first 10 chars if it looks like YYYY-MM-DD
+        except ValueError:
             try:
                 return date.fromisoformat(s[:10])
-            except Exception:
+            except ValueError:
                 return None
 
     def get_daily_activity_loads(self, start_date: date, end_date: date) -> dict[str, float]:
@@ -1153,7 +1154,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 d_str = a.get("calendarDate")
                 try:
                     d = date.fromisoformat(d_str) if isinstance(d_str, str) else None
-                except Exception:
+                except ValueError:
                     d = None
             if d is None:
                 continue

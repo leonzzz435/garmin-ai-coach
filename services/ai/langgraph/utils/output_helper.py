@@ -1,6 +1,8 @@
-from typing import Any, TypeVar
+from __future__ import annotations
 
-T = TypeVar("T")
+from collections.abc import Mapping
+from typing import Any
+
 
 def _render_receiver_payload(payload: Any) -> str:
     if payload is None:
@@ -8,7 +10,7 @@ def _render_receiver_payload(payload: Any) -> str:
 
     if hasattr(payload, "model_dump"):
         data = payload.model_dump()
-    elif isinstance(payload, dict):
+    elif isinstance(payload, Mapping):
         data = payload
     else:
         return str(payload)

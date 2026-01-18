@@ -9,6 +9,7 @@ from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backo
 
 from ..schemas import ActivityExpertOutputs
 from ..state.training_analysis_state import TrainingAnalysisState
+from ..utils.message_helper import normalize_langchain_messages
 from .node_base import (
     configure_node_tools,
     create_cost_entry,
@@ -115,14 +116,7 @@ async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list |
     agent_start_time = datetime.now()
 
     async def call_activity_expert():
-        qa_messages_raw = state.get("activity_expert_messages", [])
-        qa_messages = []
-        for msg in qa_messages_raw:
-            if hasattr(msg, "type"):  # LangChain message object
-                role = "assistant" if msg.type == "ai" else "user"
-                qa_messages.append({"role": role, "content": msg.content})
-            else:  # Already a dict
-                qa_messages.append(msg)
+        qa_messages = normalize_langchain_messages(state.get("activity_expert_messages", []))
 
         base_messages = [
             {"role": "system", "content": system_prompt},

@@ -8,6 +8,7 @@ from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backo
 
 from ..schemas import AgentOutput
 from ..state.training_analysis_state import TrainingAnalysisState
+from ..utils.message_helper import normalize_langchain_messages
 from ..utils.output_helper import extract_agent_content, extract_expert_output
 from .node_base import (
     configure_node_tools,
@@ -98,27 +99,21 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         + WEEKLY_PLANNER_FINAL_CHECKLIST
     )
     
-    qa_messages_raw = state.get("weekly_planner_messages", [])
-    qa_messages = []
-    for msg in qa_messages_raw:
-        if hasattr(msg, "type"):
-            role = "assistant" if msg.type == "ai" else "user"
-            qa_messages.append({"role": role, "content": msg.content})
-        else:
-            qa_messages.append(msg)
-    
-    user_message = {"role": "user", "content": WEEKLY_PLANNER_USER_PROMPT.format(
-        season_plan=extract_agent_content(state.get("season_plan")),
-        athlete_name=state["athlete_name"],
-        current_date=json.dumps(state["current_date"], indent=2),
-        week_dates=json.dumps(state["week_dates"], indent=2),
-        competitions=json.dumps(state["competitions"], indent=2),
-        planning_context=state["planning_context"],
-        metrics_analysis=extract_expert_output(state.get("metrics_outputs"), "for_weekly_planner"),
-        activity_analysis=extract_expert_output(state.get("activity_outputs"), "for_weekly_planner"),
-        physiology_analysis=extract_expert_output(state.get("physiology_outputs"), "for_weekly_planner"),
-    )}
-    
+    qa_messages = normalize_langchain_messages(state.get("weekly_planner_messages", []))
+    user_message = {
+        "role": "user",
+        "content": WEEKLY_PLANNER_USER_PROMPT.format(
+            season_plan=extract_agent_content(state.get("season_plan")),
+            athlete_name=state["athlete_name"],
+            current_date=json.dumps(state["current_date"], indent=2),
+            week_dates=json.dumps(state["week_dates"], indent=2),
+            competitions=json.dumps(state["competitions"], indent=2),
+            planning_context=state["planning_context"],
+            metrics_analysis=extract_expert_output(state.get("metrics_outputs"), "for_weekly_planner"),
+            activity_analysis=extract_expert_output(state.get("activity_outputs"), "for_weekly_planner"),
+            physiology_analysis=extract_expert_output(state.get("physiology_outputs"), "for_weekly_planner"),
+        ),
+    }
     base_messages = [{"role": "system", "content": system_prompt}, user_message]
     
     base_llm = ModelSelector.get_llm(AgentRole.WORKOUT)

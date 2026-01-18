@@ -9,12 +9,11 @@ AgentType = Literal[
     "activity",
     "synthesis",
     "season_planner",
-    "weekly_planner"
+    "weekly_planner",
 ]
 
 
 def get_workflow_context(agent_type: AgentType) -> str:
-    
     # Summarizer agents
     if agent_type in ["metrics_summarizer", "physiology_summarizer", "activity_summarizer"]:
         domain = agent_type.replace("_summarizer", "")
@@ -26,7 +25,7 @@ You are the **{agent_type.replace('_', ' ').title()}**.
 - **Goal**: Condense raw data into a factual, structured summary for the {domain} expert. Do NOT interpret."""
 
     # Expert agents
-    elif agent_type in ["metrics", "physiology", "activity"]:
+    if agent_type in ["metrics", "physiology", "activity"]:
         return f"""
 ## System Role
 You are the **{agent_type.title()} Expert**.
@@ -39,7 +38,7 @@ You are the **{agent_type.title()} Expert**.
 - **Context**: You are 1 of 3 parallel experts. Focus ONLY on your domain."""
 
     # Synthesis agent
-    elif agent_type == "synthesis":
+    if agent_type == "synthesis":
         return """
 ## System Role
 You are the **Synthesis Agent**.
@@ -48,7 +47,7 @@ You are the **Synthesis Agent**.
 - **Goal**: Integrate domain insights into a coherent story. Focus on historical patterns, not future planning."""
 
     # Planner agents
-    elif agent_type in ["season_planner", "weekly_planner"]:
+    if agent_type in ["season_planner", "weekly_planner"]:
         timeframe = "12-24 week strategy" if agent_type == "season_planner" else "next 28-day workouts"
         return f"""
 ## System Role

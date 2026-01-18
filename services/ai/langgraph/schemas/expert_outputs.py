@@ -11,8 +11,6 @@ class ReceiverPayload(BaseModel):
 
 
 class ReceiverOutputs(BaseModel):
-    """Tailored outputs for Synthesis Agent, Season Planner, and Weekly Planner."""
-    
     for_synthesis: ReceiverPayload = Field(
         ...,
         description="Output for Synthesis Agent creating comprehensive athlete report"
@@ -28,8 +26,6 @@ class ReceiverOutputs(BaseModel):
 
 
 class ExpertOutputBase(BaseModel):
-    """Expert produces EITHER questions for HITL OR outputs for downstream consumers."""
-
     output: list[Question] | ReceiverOutputs = Field(
         ...,
         description="EITHER questions for HITL OR full output for downstream consumers"

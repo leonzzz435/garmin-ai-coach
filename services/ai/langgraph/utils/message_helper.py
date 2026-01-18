@@ -1,30 +1,33 @@
-from typing import Any
+from __future__ import annotations
+
+from collections.abc import Mapping
 
 from langchain_core.messages import BaseMessage
 
 
-def normalize_langchain_messages(messages: list[Any]) -> list[dict[str, str]]:
-    """
-    Normalize a list of messages (which may contain LangChain Message objects or dicts)
-    into a list of standard dictionaries with 'role' and 'content'.
-    """
-    normalized_messages = []
-    for msg in messages:
-        if isinstance(msg, BaseMessage):
-            # Map LangChain types to roles
-            role = "assistant" if msg.type == "ai" else "user"
-            # Handle system messages if they appear in history (rare but possible)
-            if msg.type == "system":
-                role = "system"
-            elif msg.type == "human":
-                role = "user"
-                
-            normalized_messages.append({"role": role, "content": str(msg.content)})
-        elif isinstance(msg, dict):
-            normalized_messages.append(msg)
-        elif hasattr(msg, "type") and hasattr(msg, "content"):
-             # Duck typing for other message-like objects
-            role = "assistant" if msg.type == "ai" else "user"
-            normalized_messages.append({"role": role, "content": str(msg.content)})
-            
+def normalize_langchain_messages(messages: list[object]) -> list[dict[str, str]]:
+    normalized_messages: list[dict[str, str]] = []
+    for message in messages:
+        if isinstance(message, BaseMessage):
+            role = {
+                "ai": "assistant",
+                "human": "user",
+                "system": "system",
+            }.get(message.type, "user")
+            normalized_messages.append({"role": role, "content": str(message.content)})
+            continue
+
+        if isinstance(message, Mapping):
+            normalized_messages.append(
+                {
+                    "role": str(message.get("role", "user")),
+                    "content": str(message.get("content", "")),
+                }
+            )
+            continue
+
+        if hasattr(message, "type") and hasattr(message, "content"):
+            role = "assistant" if message.type == "ai" else "user"
+            normalized_messages.append({"role": role, "content": str(message.content)})
+
     return normalized_messages
