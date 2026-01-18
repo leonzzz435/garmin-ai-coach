@@ -8,14 +8,14 @@ logger = logging.getLogger(__name__)
 
 
 class TrainingMetricsCalculator:
-    """Calculates training load metrics including EWMA, ACWR, and rolling sums."""
+
 
     def __init__(self, daily_loads: dict[str, float]):
         self.daily_loads = daily_loads
 
     @staticmethod
     def _ewma(values: list[float], span_days: int) -> list[float]:
-        """Exponential Weighted Moving Average."""
+
         if span_days <= 0:
             return values[:]
         alpha = 2.0 / (span_days + 1.0)
@@ -31,7 +31,7 @@ class TrainingMetricsCalculator:
 
     @staticmethod
     def _calculate_monotony_strain(window: list[float], eps: float = 1e-6) -> tuple[float, float]:
-        """Calculates monotony and strain for a given window."""
+
         weekly_load = sum(window)
         if weekly_load <= 50.0:  # Threshold to prevent noise
             return 0.0, 0.0
@@ -54,10 +54,7 @@ class TrainingMetricsCalculator:
         chronic_span: int = 28,
         uncouple_days: int = 7,
     ) -> list[dict[str, Any]]:
-        """
-        Calculates comprehensive training load metrics for the given date range.
-        Includes EWMA (Acute, Chronic, ACWR) and Rolling Sum metrics.
-        """
+
         eps = 1e-6
         warmup_days = chronic_span * 2
         fetch_start = start_date - timedelta(days=warmup_days)
