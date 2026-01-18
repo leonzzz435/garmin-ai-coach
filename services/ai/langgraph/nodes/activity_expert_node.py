@@ -25,15 +25,21 @@ from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
-ACTIVITY_EXPERT_SYSTEM_PROMPT_BASE = """You are a session analyst specializing in technical execution.
-## Goal
+ACTIVITY_EXPERT_SYSTEM_PROMPT_BASE = """## Goal
 Interpret structured activity data to optimize workout progression patterns.
 ## Principles
 - Precision: Detect subtle execution details.
 - Pattern Recognition: Identify what works and what doesn't.
 - Clarity: Cut through confusion with direct analysis."""
 
-ACTIVITY_EXPERT_USER_PROMPT = """Interpret activity summaries to identify patterns and guidance.
+ACTIVITY_EXPERT_USER_PROMPT = """## Task
+Interpret activity summaries to identify patterns and guidance.
+
+## Constraints
+- Focus on **session-level execution** (pace, power, HR, structure).
+- Do NOT explain global load (Metrics Expert's job).
+- Do NOT propose future schedules (Planner's job).
+- Focus on **"what this specific workout does to the system"**.
 
 ## Inputs
 ### Activity Summary
@@ -43,17 +49,12 @@ ACTIVITY_EXPERT_USER_PROMPT = """Interpret activity summaries to identify patter
 - Date: ```json {current_date} ```
 - **User Context**: ``` {analysis_context} ```
 
-## Task
-Extract insights on workout execution, progression, and quality.
-
-## Constraints
-- Focus on **session-level execution** (pace, power, HR, structure).
-- Do NOT explain global load (Metrics Expert's job).
-- Do NOT propose future schedules (Planner's job).
-- Focus on **"what this specific workout does to the system"**.
-
 ## Output Requirements
-Produce 3 structured fields:
+Produce 3 structured fields. For EACH field, use this internal layout:
+- **Signals**: what changed (concise)
+- **Evidence**: numbers + date ranges
+- **Implications**: constraints/opportunities for this receiver
+- **Uncertainty**: gaps/low coverage if any
 
 **Important**: Tailor content for each consumer.
 
@@ -72,6 +73,13 @@ Produce 3 structured fields:
 - **Goal**: Provide actionable rules for the next block.
 - **Freedom**: define constraints, opportunities, and session load hints as needed.
 - **CRITICAL**: Do NOT propose a schedule. Provide rules and building blocks."""
+
+ACTIVITY_FINAL_CHECKLIST = """
+## Final Checklist
+- Use Signals/Evidence/Implications/Uncertainty per receiver.
+- Stay within activity execution domain only.
+- No schedule proposals.
+"""
 
 
 async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list | str | dict]:
@@ -93,10 +101,11 @@ async def activity_expert_node(state: TrainingAnalysisState) -> dict[str, list |
     )
 
     system_prompt = (
-        ACTIVITY_EXPERT_SYSTEM_PROMPT_BASE
-        + get_workflow_context("activity")
+        get_workflow_context("activity")
+        + ACTIVITY_EXPERT_SYSTEM_PROMPT_BASE
         + (get_plotting_instructions("activity") if plotting_enabled else "")
         + (get_hitl_instructions("activity") if hitl_enabled else "")
+        + ACTIVITY_FINAL_CHECKLIST
     )
 
     base_llm = ModelSelector.get_llm(AgentRole.ACTIVITY_EXPERT)

@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+#### Model Support
+- **GPT-5.2 Pro**: Added Responses API configuration with `xhigh` reasoning effort (available for future assignment).
+
+#### Expert Output Structure
+- **Structured receiver payloads**: Experts now return per-receiver fields as typed `signals`, `evidence`, `implications`, `uncertainty` payloads (instead of free-form strings).
+- **Prompt-ready rendering**: Structured payloads are rendered into consistent markdown sections for downstream planners/synthesis.
+
+### Improved
+
+#### Prompt Information Flow
+- Summarizer prompts now allow transparent compression (coverage headers, core tables, change points, data quality notes) to reduce noise while preserving decision-relevant metrics.
+- Expert prompts enforce a common internal layout (Signals/Evidence/Implications/Uncertainty) and reordered prompt components for better salience and fewer contradictions.
+- HITL instructions now reference the correct `output` schema for questions.
+
 #### Web Search Capabilities
 - **New `gpt-5-search` model**: GPT-5.2 with OpenAI's hosted web search tool for real-time information retrieval
 - Web search runs during the model's reasoning chain-of-thought (agentic search)

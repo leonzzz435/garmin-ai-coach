@@ -83,6 +83,11 @@ class ModelSelector:
             base_url="https://api.openai.com/v1",
             openrouter_name="openai/gpt-5.2",
         ),
+        "gpt-5.2-pro": ModelConfiguration(
+            name="gpt-5.2-pro",
+            base_url="https://api.openai.com/v1",
+            openrouter_name="openai/gpt-5.2-pro",
+        ),
         "gpt-5-mini": ModelConfiguration(
             name="gpt-5-mini",
             base_url="https://api.openai.com/v1",
@@ -209,6 +214,12 @@ class ModelSelector:
                 "reasoning": {"effort": "xhigh"},
                 "model_kwargs": {"text": {"verbosity": "high"}},
                 "log": "Using GPT-5 with Responses API for {role} (verbosity: high, reasoning_effort: xhigh)",
+            },
+            "gpt-5.2-pro": {
+                "use_responses_api": True,
+                "reasoning": {"effort": "xhigh"},
+                "model_kwargs": {"text": {"verbosity": "high"}},
+                "log": "Using GPT-5.2 Pro with Responses API for {role} (verbosity: high, reasoning_effort: xhigh)",
             },
             "gpt-5-mini": {
                 "use_responses_api": True,

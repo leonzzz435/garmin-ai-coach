@@ -172,7 +172,6 @@ Provider selection depends on AI mode mapping:
 - Model IDs and providers are declared in [`python.ModelSelector.CONFIGURATIONS`](../services/ai/model_config.py:22), and the provider API key is auto-selected in [`python.ModelSelector.get_llm()`](../services/ai/model_config.py:61).
 
 Practical guidance:
-- If you ONLY set `OPENAI_API_KEY`, set `extraction.ai_mode: "standard"` (maps to OpenAI by default), or edit `stage_models` in [`services/ai/ai_settings.py`](../services/ai/ai_settings.py:24) to assign an OpenAI model (e.g., `gpt-4o`, `gpt-5-mini`) to your preferred mode.
+- If you ONLY set `OPENAI_API_KEY`, set `extraction.ai_mode: "standard"` (maps to OpenAI by default), or edit `stage_models` in [`services/ai/ai_settings.py`](../services/ai/ai_settings.py:24) to assign an OpenAI model (e.g., `gpt-4o`, `gpt-5-mini`, `gpt-5.2-pro`) to your preferred mode.
 - If you ONLY set `ANTHROPIC_API_KEY`, use `extraction.ai_mode: "development"` or `"cost_effective"` (default Anthropic mapping), or update the mapping accordingly.
 - For OpenRouter/DeepSeek, map your chosen mode to a model key defined in [`python.ModelSelector.CONFIGURATIONS`](../services/ai/model_config.py:22).
-

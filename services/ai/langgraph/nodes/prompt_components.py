@@ -72,6 +72,7 @@ def get_plotting_instructions(agent_name: str) -> str:
 def get_hitl_instructions(agent_name: str) -> str:
     return """
 ## Human Interaction
-- **Questions**: If you need clarification, populate the `questions` field.
+- **Questions**: If you need clarification, set `output` to a list of Question items.
+- **Otherwise**: Set `output` to your node's normal output schema.
 - **Criteria**: Only ask if data is ambiguous or user preference is required. Do not ask for obvious info.
 - **Process**: If you ask questions, your execution pauses until the user answers."""

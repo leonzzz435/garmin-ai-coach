@@ -14,39 +14,46 @@ from .tool_calling_helper import extract_text_content
 
 logger = logging.getLogger(__name__)
 
-GENERIC_SUMMARIZER_SYSTEM_PROMPT = """You are a data preservation specialist.
-## Goal
-Detect and preserve ALL important metrics in raw data.
+GENERIC_SUMMARIZER_SYSTEM_PROMPT = """## Goal
+Preserve decision-relevant metrics from raw data with transparent compression.
 ## Principles
-- Preserve: Keep all meaningful numbers (measurements, counts, rates).
+- Preserve: Keep meaningful numbers (measurements, counts, rates) that affect downstream decisions.
 - Detect: Distinguish signal (measurements) from noise (IDs, nulls).
-- Organize: Use tables and lists.
-- No Hidden Aggregation: Always show individual values behind averages."""
+- Organize: Use tables and lists with clear time windows.
+- Transparent Compression: You MAY compress long sequences if you show how and where.
+- No Hidden Aggregation: If you summarize a sequence, expose the values or an explicit table of windows."""
 
-GENERIC_SUMMARIZER_USER_PROMPT = """Extract and organize ALL important metrics from this data:
+GENERIC_SUMMARIZER_USER_PROMPT = """## Task
+Extract and organize decision-relevant metrics from this data with transparent compression.
 
+## Constraints
+- Do NOT interpret or speculate.
+- Exclude repeated nulls and structural IDs.
+- You MAY compress long sequences, but show how (windows, ranges, or tables).
+
+## Required Structure
+1. **Coverage Header**: date range, sampling granularity, missing periods.
+2. **Core Tables**: time index → main measurements.
+3. **Change Points & Extremes**: highs/lows with timestamps.
+4. **Data Quality Notes**: gaps, suspicious zeros, outliers.
+
+## Input Data
 ```json
 {data}
 ```
 
-## Task
-1. Preserve every meaningful measurement.
-2. Use tables for related data points.
-3. Maintain full temporal sequences.
-4. Highlight notable values (highs/lows) with context.
-
-## Format
+## Output Format
 - Markdown tables for numeric data.
 - Clear section headers.
 - Consistent units.
 
-## Rules
-- Include all numeric measurements.
-- Exclude repeated nulls and structural IDs.
-- NEVER skip numbers for conciseness.
-- NEVER interpret or speculate.
+Deliver a compact, decision-focused summary with explicit compression."""
 
-Deliver a complete, number-rich but token efficient summary."""
+SUMMARIZER_FINAL_CHECKLIST = """
+## Final Checklist
+- Factual only (no interpretation).
+- Transparent compression (no hidden aggregation).
+- Decision-relevant numbers prioritized."""
 
 
 def create_data_summarizer_node(
@@ -61,7 +68,7 @@ def create_data_summarizer_node(
     
     workflow_context = get_workflow_context(agent_type)
     base_system_prompt = system_prompt or GENERIC_SUMMARIZER_SYSTEM_PROMPT
-    effective_system_prompt = base_system_prompt + workflow_context
+    effective_system_prompt = workflow_context + base_system_prompt + SUMMARIZER_FINAL_CHECKLIST
     effective_user_prompt = user_prompt or GENERIC_SUMMARIZER_USER_PROMPT
     
     async def summarizer_node(state: TrainingAnalysisState) -> dict[str, list | str]:

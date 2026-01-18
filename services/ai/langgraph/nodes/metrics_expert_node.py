@@ -25,8 +25,7 @@ from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
-METRICS_SYSTEM_PROMPT_BASE = """You are a computational sports scientist.
-## Goal
+METRICS_SYSTEM_PROMPT_BASE = """## Goal
 Analyze training metrics and competition readiness with data-driven precision.
 ## Principles
 - Analyze: Focus on load patterns, fitness trends, and readiness.
@@ -58,7 +57,14 @@ These use 7-day rolling sums (closer to Garmin’s magnitude, though Garmin may 
 - **ACWR 7d/28d (uncoupled)**: Acute 7d Sum / Chronic 28d Avg computed up to (t−7), excluding the most recent week (preferred for Garmin-like ACWR without coupling).
 """
 
-METRICS_USER_PROMPT = """Analyze the metrics summary to identify patterns and trends.
+METRICS_USER_PROMPT = """## Task
+Analyze the metrics summary to identify patterns and trends.
+
+## Constraints
+- Focus on **global training metrics** (load, VO2max, status).
+- Do NOT describe specific workouts (Activity Expert's job).
+- Do NOT infer internal physiology (Physiology Expert's job).
+- Focus on **how the training stimulus behaves over time**.
 
 ## Inputs
 ### Metrics Summary
@@ -68,17 +74,12 @@ METRICS_USER_PROMPT = """Analyze the metrics summary to identify patterns and tr
 - Date: ```json {current_date} ```
 - **User Context**: ``` {analysis_context} ```
 
-## Task
-Extract insights on training patterns, fitness progression, and readiness.
-
-## Constraints
-- Focus on **global training metrics** (load, VO2max, status).
-- Do NOT describe specific workouts (Activity Expert's job).
-- Do NOT infer internal physiology (Physiology Expert's job).
-- Focus on **how the training stimulus behaves over time**.
-
 ## Output Requirements
-Produce 3 structured fields:
+Produce 3 structured fields. For EACH field, use this internal layout:
+- **Signals**: what changed (concise)
+- **Evidence**: numbers + date ranges
+- **Implications**: constraints/opportunities for this receiver
+- **Uncertainty**: gaps/low coverage if any
 
 **Important**: Tailor content for each consumer.
 
@@ -97,6 +98,13 @@ Produce 3 structured fields:
 - **Goal**: Provide immediate load guidance and limits.
 - **Freedom**: Define safety limits, push/pull signals, or specific load targets.
 - **CRITICAL**: Do NOT prescribe specific workouts. Provide limits and load guidance."""
+
+METRICS_FINAL_CHECKLIST = """
+## Final Checklist
+- Use Signals/Evidence/Implications/Uncertainty per receiver.
+- Stay within metrics domain only.
+- No prescriptions for specific workouts.
+"""
 
 
 
@@ -120,10 +128,11 @@ async def metrics_expert_node(state: TrainingAnalysisState) -> dict[str, list | 
     )
 
     system_prompt = (
-        METRICS_SYSTEM_PROMPT_BASE +
-        get_workflow_context("metrics") +
-        (get_plotting_instructions("metrics") if plotting_enabled else "") +
-        (get_hitl_instructions("metrics") if hitl_enabled else "")
+        get_workflow_context("metrics")
+        + METRICS_SYSTEM_PROMPT_BASE
+        + (get_plotting_instructions("metrics") if plotting_enabled else "")
+        + (get_hitl_instructions("metrics") if hitl_enabled else "")
+        + METRICS_FINAL_CHECKLIST
     )
 
     base_llm = ModelSelector.get_llm(AgentRole.METRICS_EXPERT)

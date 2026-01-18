@@ -20,15 +20,21 @@ from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
-WEEKLY_PLANNER_SYSTEM_PROMPT = """You are an elite endurance coach specializing in periodization.
-## Goal
+WEEKLY_PLANNER_SYSTEM_PROMPT = """## Goal
 Create detailed, practical training plans that balance stress and recovery.
 ## Principles
 - Adaptation: Progressive overload with adequate recovery.
 - Specificity: Training must match the demands of the event.
 - Individualization: Adapt to the athlete's current state and history."""
 
-WEEKLY_PLANNER_USER_PROMPT = """Create a detailed 28-day (4-week) training plan.
+WEEKLY_PLANNER_USER_PROMPT = """## Task
+Create a detailed 28-day (4-week) training plan.
+
+## Constraints
+- **Honor the Phase**: Prioritize the Season Plan's phase intent.
+- **Respect Readiness**: Adjust intensity based on Physiology/Metrics signals (e.g., pull back if recovery is low).
+- **Integrate Signals**: Use Activity Expert advice for session structure.
+- **Brevity**: Use standard notation (e.g., "4x(5' Z4, 2' r)") to keep the plan compact.
 
 ## Inputs
 ### Season Plan
@@ -47,15 +53,6 @@ WEEKLY_PLANNER_USER_PROMPT = """Create a detailed 28-day (4-week) training plan.
 - Activity: ``` {activity_analysis} ```
 - Physiology: ``` {physiology_analysis} ```
 
-## Task
-Translate the Season Plan strategy and Expert signals into concrete daily sessions for the next 28 days.
-
-## Constraints
-- **Honor the Phase**: Prioritize the Season Plan's phase intent.
-- **Respect Readiness**: Adjust intensity based on Physiology/Metrics signals (e.g., pull back if recovery is low).
-- **Integrate Signals**: Use Activity Expert advice for session structure.
-- **Brevity**: Use standard notation (e.g., "4x(5' Z4, 2' r)") to keep the plan compact.
-
 ## Output Requirements
 1. **Zones Table**: Define intensity zones first.
 2. **Structure**: Group by Week (1-4).
@@ -70,6 +67,13 @@ Translate the Season Plan strategy and Expert signals into concrete daily sessio
 - Use recent activity data to continue the current training flow and don't start a new phase.
 - Use the Season Plan as a guide, but don't force it.
 - place sessions smartly to avoid back to back high intensity sessions or strength sessions etc.
+"""
+
+WEEKLY_PLANNER_FINAL_CHECKLIST = """
+## Final Checklist
+- Follow 28-day horizon and week grouping.
+- Do not contradict expert constraints.
+- Keep output compact and structured.
 """
 
 
@@ -88,9 +92,10 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
     )
 
     system_prompt = (
-        WEEKLY_PLANNER_SYSTEM_PROMPT +
-        get_workflow_context("weekly_planner") +
-        (get_hitl_instructions("weekly_planner") if hitl_enabled else "")
+        get_workflow_context("weekly_planner")
+        + WEEKLY_PLANNER_SYSTEM_PROMPT
+        + (get_hitl_instructions("weekly_planner") if hitl_enabled else "")
+        + WEEKLY_PLANNER_FINAL_CHECKLIST
     )
     
     qa_messages_raw = state.get("weekly_planner_messages", [])

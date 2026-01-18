@@ -25,15 +25,21 @@ from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
 
-PHYSIOLOGY_SYSTEM_PROMPT_BASE = """You are a physiologist specializing in recovery and adaptation.
-## Goal
+PHYSIOLOGY_SYSTEM_PROMPT_BASE = """## Goal
 Optimize recovery and adaptation through precise physiological analysis.
 ## Principles
 - Holistic: View the body as an interconnected system.
 - Temporal: Interpret signals across immediate and long-term timeframes.
 - Actionable: Identify recovery windows and stress costs."""
 
-PHYSIOLOGY_USER_PROMPT = """Analyze the physiology summary to assess recovery and adaptation.
+PHYSIOLOGY_USER_PROMPT = """## Task
+Analyze the physiology summary to assess recovery and adaptation.
+
+## Constraints
+- Focus on **internal state** (HRV, sleep, RHR, stress).
+- Do NOT re-derive load metrics (Metrics Expert's job).
+- Do NOT redesign training structure (Planner's job).
+- Focus on **how the body is handling stress**.
 
 ## Inputs
 ### Physiology Summary
@@ -43,17 +49,12 @@ PHYSIOLOGY_USER_PROMPT = """Analyze the physiology summary to assess recovery an
 - Date: ```json {current_date} ```
 - **User Context**: ``` {analysis_context} ```
 
-## Task
-Extract insights on recovery status, adaptation state, and readiness.
-
-## Constraints
-- Focus on **internal state** (HRV, sleep, RHR, stress).
-- Do NOT re-derive load metrics (Metrics Expert's job).
-- Do NOT redesign training structure (Planner's job).
-- Focus on **how the body is handling stress**.
-
 ## Output Requirements
-Produce 3 structured fields:
+Produce 3 structured fields. For EACH field, use this internal layout:
+- **Signals**: what changed (concise)
+- **Evidence**: numbers + date ranges
+- **Implications**: constraints/opportunities for this receiver
+- **Uncertainty**: gaps/low coverage if any
 
 **Important**: Tailor content for each consumer.
 
@@ -71,6 +72,13 @@ Produce 3 structured fields:
 - **Context**: This acts as the **"Traffic Light"** (readiness limiter) for the next block.
 - **Goal**: Provide readiness guidance.
 - **Freedom**: Speak in **readiness corridors** (e.g., "High readiness, go for overload" or "Sympathetic dominance, limit intensity")."""
+
+PHYSIOLOGY_FINAL_CHECKLIST = """
+## Final Checklist
+- Use Signals/Evidence/Implications/Uncertainty per receiver.
+- Stay within physiology domain only.
+- No training structure redesign.
+"""
 
 
 
@@ -94,10 +102,11 @@ async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list
     )
 
     system_prompt = (
-        PHYSIOLOGY_SYSTEM_PROMPT_BASE +
-        get_workflow_context("physiology") +
-        (get_plotting_instructions("physiology") if plotting_enabled else "") +
-        (get_hitl_instructions("physiology") if hitl_enabled else "")
+        get_workflow_context("physiology")
+        + PHYSIOLOGY_SYSTEM_PROMPT_BASE
+        + (get_plotting_instructions("physiology") if plotting_enabled else "")
+        + (get_hitl_instructions("physiology") if hitl_enabled else "")
+        + PHYSIOLOGY_FINAL_CHECKLIST
     )
 
     base_llm = ModelSelector.get_llm(AgentRole.PHYSIOLOGY_EXPERT)

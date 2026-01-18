@@ -259,7 +259,7 @@ Choose your analysis depth and cost balance:
 
 * **🤖 OpenAI**
 
-  * `gpt-5`, `gpt-5-mini`, `gpt-5-search` (with web search)
+  * `gpt-5`, `gpt-5.2-pro`, `gpt-5-mini`, `gpt-5-search` (with web search)
   * `gpt-4.5`, `gpt-4.1`, `gpt-4o`, `gpt-4o-mini`
   * `o1`, `o1-mini`, `o3`, `o3-mini`, `o4-mini`
 
