@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.2.0] - 2026-01
+## [2.2.0] - 2026-01-25
 
 ### Added
 
@@ -28,7 +28,7 @@ All notable changes to this project will be documented in this file.
 - Enabled for expert nodes (Metrics, Physiology, Activity) and planners (Workout, Season) in STANDARD mode
 
 #### Long-Term Fitness Trends
-- **Long-term VO2 max tracking**: Bi-weekly sampling over 360 days to capture year-long fitness evolution
+- **Long-term VO2 max tracking**: Weekly sampling over 360 days to capture year-long fitness evolution
 - **Long-term chronic training load**: Historical training load trend at configurable intervals
 - New `ExtractionConfig` options: `include_long_term_trends`, `long_term_range`, `long_term_interval`
 - AI metrics summarizer now receives long-term trend data for deeper analysis

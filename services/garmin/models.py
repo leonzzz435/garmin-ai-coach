@@ -9,7 +9,7 @@ class TimeRange(Enum):
     RECENT = 7 if os.getenv("AI_MODE") == "development" else 21
     EXTENDED = 14 if os.getenv("AI_MODE") == "development" else 56
     LONG_TERM_RANGE = 360
-    LONG_TERM_INTERVAL = 14
+    LONG_TERM_INTERVAL = 7
 
 
 @dataclass

@@ -19,7 +19,7 @@ config = ExtractionConfig(
     include_metrics=True,
     include_long_term_trends=True,
     long_term_range=360,
-    long_term_interval=14,
+    long_term_interval=7,
 )
 
 
