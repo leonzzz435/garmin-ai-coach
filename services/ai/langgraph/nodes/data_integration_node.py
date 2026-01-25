@@ -1,12 +1,13 @@
 import logging
 from datetime import datetime
+from typing import Any
 
 from services.ai.langgraph.state.training_analysis_state import TrainingAnalysisState
 
 logger = logging.getLogger(__name__)
 
 
-async def data_integration_node(state: TrainingAnalysisState) -> dict[str, list]:
+async def data_integration_node(state: TrainingAnalysisState) -> dict[str, Any]:
     logger.info("Starting data integration node")
 
     try:

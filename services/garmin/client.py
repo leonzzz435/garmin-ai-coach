@@ -97,7 +97,9 @@ class GarminConnectClient:
             raise
 
     @property
-    def client(self) -> Garmin | None:
+    def client(self) -> Garmin:
+        if self._client is None:
+            raise RuntimeError("GarminConnectClient not connected")
         return self._client
 
     def disconnect(self) -> None:

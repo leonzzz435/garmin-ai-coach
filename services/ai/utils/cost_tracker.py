@@ -61,7 +61,7 @@ class CostTracker:
     def calculate_cost_from_usage_metadata(
         self, usage_metadata: dict[str, Any]
     ) -> list[ModelUsage]:
-        model_usages = []
+        model_usages: list[ModelUsage] = []
 
         if not usage_metadata:
             logger.warning("No usage metadata provided")

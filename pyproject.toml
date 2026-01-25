@@ -173,8 +173,15 @@ disallow_incomplete_defs = false
 # Default to strict third‑party import checking, but we can add per-module overrides as needed.
 ignore_missing_imports = false
 
+# Use explicit package bases to avoid duplicate module detection with editable installs
+explicit_package_bases = true
+
 # Avoid scanning tool/venv directories when running `mypy .`
 exclude = "^(\\.pixi|\\.venv|venv|build|dist|data|logs)/"
+
+[[tool.mypy.overrides]]
+module = ["garminconnect", "garth"]
+ignore_missing_imports = true
 
 [tool.ruff.format]
 quote-style = "double"

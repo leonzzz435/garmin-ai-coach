@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from typing import Any
 
 from services.ai.langgraph.state.training_analysis_state import TrainingAnalysisState
 from services.ai.tools.plotting.plot_storage import PlotMetadata, PlotStorage
@@ -8,7 +9,7 @@ from services.ai.tools.plotting.reference_resolver import PlotReferenceResolver
 logger = logging.getLogger(__name__)
 
 
-async def plot_resolution_node(state: TrainingAnalysisState) -> dict[str, str | dict | list]:
+async def plot_resolution_node(state: TrainingAnalysisState) -> dict[str, Any]:
     logger.info("Starting plot resolution node")
 
     if not state.get("plotting_enabled", False):

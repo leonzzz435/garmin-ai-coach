@@ -3,7 +3,7 @@ import logging
 from collections import OrderedDict
 from collections.abc import Callable, Iterable, Iterator, Mapping, MutableMapping
 from datetime import UTC, date, datetime, timedelta
-from typing import Any, TypeVar, overload
+from typing import Any, TypeVar
 
 import requests
 
@@ -80,13 +80,15 @@ def _merge_missing(dst: MutableMapping[str, Any], src: Mapping[str, Any] | None)
 
 
 class DataExtractor:
+    garmin: GarminConnectClient
+
     @staticmethod
     def safe_divide_and_round(
         numerator: float | None, denominator: float, decimal_places: int = 2
     ) -> float | None:
         n = _to_float(numerator)
         d = _to_float(denominator)
-        if n is None or d in (None, 0.0):
+        if n is None or d is None or d == 0.0:
             return None
         return round(n / d, decimal_places)
 
@@ -172,13 +174,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
         self._training_status_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._training_status_cache_max = 1024
 
-    @overload
-    def _call_api(self, fn: Callable[..., T], *args, default: T, what: str) -> T: ...
-
-    @overload
-    def _call_api(self, fn: Callable[..., T], *args, default: None, what: str) -> T | None: ...
-
-    def _call_api(self, fn: Callable[..., T], *args, default: T | None, what: str) -> T | None:
+    def _call_api(self, fn: Callable[..., T], *args, default: Any, what: str) -> Any:
         try:
             result = fn(*args)
             return result if result is not None else default
@@ -209,14 +205,14 @@ class TriathlonCoachDataExtractor(DataExtractor):
             cache.popitem(last=False)
         return result
 
-    def _get_activity_details(self, activity_id: Any) -> Mapping[str, Any] | None:
+    def _get_activity_details(self, activity_id: Any) -> dict[str, Any] | None:
         detailed_activity = self._call_api(
             self.garmin.client.get_activity,
             activity_id,
             default={},
             what=f"get_activity({activity_id})",
         )
-        if not isinstance(detailed_activity, Mapping) or not detailed_activity:
+        if not isinstance(detailed_activity, dict) or not detailed_activity:
             return None
         return detailed_activity
 
@@ -305,7 +301,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
         config = config or ExtractionConfig()
         date_ranges = self.get_date_ranges(config)
 
-        data = {
+        data: dict[str, Any] = {
             "user_profile": self.get_user_profile(),
             "daily_stats": self.get_daily_stats(date_ranges["metrics"]["end"]),
         }
@@ -349,7 +345,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             self.garmin.client.get_user_profile,
             default={},
             what="get_user_profile",
-        )
+        ) or {}
 
         user_data = _dg(full_profile, "userData", {}) or {}
         sleep_data = _dg(full_profile, "userSleep", {}) or {}
@@ -374,7 +370,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
         )
 
     def get_daily_stats(self, date_obj: date) -> DailyStats:
-        raw_data = self._call_api(
+        raw_data: dict[str, Any] = self._call_api(
             self.garmin.client.get_stats,
             date_obj.isoformat(),
             default={},
@@ -424,7 +420,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             activity_id,
             default={},
             what=f"get_activity_splits({activity_id})"
-        )
+        ) or {}
         lap_data = splits.get("lapDTOs") or splits.get("laps") or []
         processed_laps: list[dict[str, Any]] = []
         for lap in lap_data if isinstance(lap_data, list) else []:
@@ -474,7 +470,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             start_date.isoformat(), end_date.isoformat(),
             default=[],
             what=f"get_activities_by_date({start_date}, {end_date})",
-        )
+        ) or []
         if not isinstance(activities, list) or not activities:
             logger.warning("No activities found between %s and %s", start_date, end_date)
             return []
@@ -489,7 +485,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 logger.warning("Activity missing activityId, skipping. Keys: %s", list(activity.keys()))
                 continue
 
-            detailed_activity = self._get_activity_details(activity_id)
+            detailed_activity: dict[str, Any] | None = self._get_activity_details(activity_id)
             if not detailed_activity:
                 logger.warning("No details found for activity %s, skipping", activity_id)
                 continue
@@ -519,7 +515,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             activity_id,
             default={},
             what=f"get_activity_details({activity_id})",
-        )
+        ) or {}
         _merge_missing(activity, details)
 
     def _multisport_child_ids_and_types(self, activity: Mapping[str, Any]) -> tuple[list[Any], list[Any]]:
@@ -543,7 +539,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
         return child_ids, child_types
 
     def _fetch_child_activity_with_details(self, activity_id: Any) -> dict[str, Any] | None:
-        child_activity = self._call_api(
+        child_activity: dict[str, Any] | None = self._call_api(
             self.garmin.client.get_activity,
             activity_id,
             default={},
@@ -558,7 +554,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             activity_id,
             default={},
             what=f"get_activity_details({activity_id})",
-        )
+        ) or {}
         _merge_missing(child_activity, details)
 
         return child_activity
@@ -666,7 +662,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 activity_id,
                 default={},
                 what=f"get_activity_details({activity_id})"
-            )
+            ) or {}
             _merge_missing(detailed_activity, activity_details)
 
             weather_data = self._call_api(
@@ -762,17 +758,17 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
         return ActivitySummary(
             distance=_to_float(distance),
-            duration=_to_float(duration),
-            moving_duration=_to_float(moving_duration),
+            duration=_to_int(duration),
+            moving_duration=_to_int(moving_duration),
             elevation_gain=_to_float(elevation_gain),
             elevation_loss=_to_float(elevation_loss),
             average_speed=_to_float(avg_speed),
             max_speed=_to_float(max_speed),
-            calories=_to_float(calories),
+            calories=_to_int(calories),
             average_hr=_to_int(avg_hr),
             max_hr=_to_int(max_hr),
             min_hr=_to_int(min_hr),
-            activity_training_load=_to_float(atl),
+            activity_training_load=_to_int(atl),
             moderate_intensity_minutes=_to_int(mod_min),
             vigorous_intensity_minutes=_to_int(vig_min),
             recovery_heart_rate=_to_int(rec_hr),
@@ -807,7 +803,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             weather_type=weather_type,
         )
 
-    def _extract_hr_zone_data(self, hr_zones: list[dict[str, Any]] | None) -> list[HeartRateZone]:
+    def _extract_hr_zone_data(self, hr_zones: list[Any] | None) -> list[HeartRateZone]:
         if not hr_zones or not isinstance(hr_zones, list):
             logger.debug("No heart rate zones data available or invalid format")
             return []
@@ -835,7 +831,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             end_date.isoformat(),
             default={},
             what=f"get_rhr_day({end_date})"
-        )
+        ) or {}
 
         rhr_value_list = _deep_get(rhr_data, ["allMetrics", "metricsMap", "WELLNESS_RESTING_HEART_RATE"], []) or []
         resting_heart_rate = (
@@ -847,7 +843,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             end_date.isoformat(),
             default={},
             what=f"get_user_summary({end_date})"
-        )
+        ) or {}
         vo2_max = _to_float(user_summary.get("vo2Max"))
 
         hrv_data = self._call_api(
@@ -855,7 +851,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             end_date.isoformat(),
             default={},
             what=f"get_hrv_data({end_date})"
-        )
+        ) or {}
         hrv_summary = _dg(hrv_data, "hrvSummary", {}) or {}
 
         baseline = _dg(hrv_summary, "baseline", {}) or {}
@@ -873,7 +869,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
         return PhysiologicalMarkers(resting_heart_rate=resting_heart_rate, vo2_max=vo2_max, hrv=hrv)
 
     def get_body_metrics(self, start_date: date, end_date: date) -> BodyMetrics:
-        weight_data = self._call_api(
+        weight_data: dict[str, Any] | None = self._call_api(
             self.garmin.client.get_body_composition,
             start_date.isoformat(), end_date.isoformat(),
             default={},
@@ -882,12 +878,14 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
         processed_hydration_data: list[dict[str, Any]] = []
         for cur in _daterange(start_date, end_date):
-            entry = self._call_api(
+            entry: dict[str, Any] | None = self._call_api(
                 self.garmin.client.get_hydration_data,
                 cur.isoformat(),
                 default={},
                 what=f"get_hydration_data({cur})"
             )
+            if not entry:
+                continue
             goal_ml = _to_float(entry.get("goalInML"))
             value_ml = _to_float(entry.get("valueInML"))
             sweat_loss_ml = _to_float(entry.get("sweatLossInML"))
@@ -926,14 +924,14 @@ class TriathlonCoachDataExtractor(DataExtractor):
         processed_data: list[RecoveryIndicators] = []
 
         for current_date in _daterange(start_date, end_date):
-            sleep_data = self._call_api(
+            sleep_data: dict[str, Any] = self._call_api(
                 self.garmin.client.get_sleep_data,
                 current_date.isoformat(),
                 default={},
                 what=f"get_sleep_data({current_date})"
             )
 
-            stress_data = self._call_api(
+            stress_data: dict[str, Any] = self._call_api(
                 self.garmin.client.get_stress_data,
                 current_date.isoformat(),
                 default={},
@@ -977,12 +975,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
         logger.debug("Fetching training status for date: %s", date_obj.isoformat())
         raw_data = self._training_status_cached(date_obj.isoformat())
 
-        if not isinstance(raw_data, dict):
-            logger.warning("Training status data missing or invalid")
-            return TrainingStatus(
-                vo2_max={"value": None, "date": None},
-                acute_training_load={"acute_load": None, "chronic_load": None, "acwr": None},
-            )
+
 
         most_recent_vo2max = raw_data.get("mostRecentVO2Max")
         vo2max_data = _dg(most_recent_vo2max, "generic", {}) if isinstance(most_recent_vo2max, dict) else None
@@ -1022,12 +1015,12 @@ class TriathlonCoachDataExtractor(DataExtractor):
         )
 
     def get_vo2_max_history(self, start_date: date, end_date: date) -> dict[str, list[dict[str, Any]]]:
-        history = {"running": [], "cycling": []}
-        processed_dates = {"running": set(), "cycling": set()}
+        history: dict[str, list[dict[str, Any]]] = {"running": [], "cycling": []}
+        processed_dates: dict[str, set[str]] = {"running": set(), "cycling": set()}
         logger.debug("Fetching VO2 max history from %s to %s", start_date, end_date)
 
         for current_date in _daterange(start_date, end_date):
-            data = self._training_status_cached(current_date.isoformat())
+            data: Any = self._training_status_cached(current_date.isoformat())
             if not isinstance(data, dict):
                 continue
 
@@ -1042,7 +1035,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             cycling = self._extract_sport_specific_vo2max(mr)
             if cycling and cycling["date"] not in processed_dates["cycling"]:
                 history["cycling"].append(cycling)
-                processed_dates["cycling"].add(cycling["date"])
+                processed_dates["cycling"].add(str(cycling["date"]))
 
         logger.info(
             "Collected %d running and %d cycling VO2max entries", len(history["running"]), len(history["cycling"])
@@ -1053,15 +1046,15 @@ class TriathlonCoachDataExtractor(DataExtractor):
     def get_long_term_vo2_max_trend(
         self, start_date: date, end_date: date, interval_days: int = 14
     ) -> dict[str, list[dict[str, Any]]]:
-        trend = {"running": [], "cycling": []}
-        processed_dates = {"running": set(), "cycling": set()}
+        trend: dict[str, list[dict[str, Any]]] = {"running": [], "cycling": []}
+        processed_dates: dict[str, set[str]] = {"running": set(), "cycling": set()}
         sample_dates = self._generate_sample_dates(start_date, end_date, interval_days)
         logger.debug(
             "Fetching long-term VO2 max trend: %d sample dates from %s to %s", len(sample_dates), start_date, end_date
         )
 
         for sample_date in sample_dates:
-            data = self._training_status_cached(sample_date.isoformat())
+            data: Any = self._training_status_cached(sample_date.isoformat())
             if not isinstance(data, dict):
                 continue
 
@@ -1077,7 +1070,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
             cycling = self._extract_sport_specific_vo2max(mr)
             if cycling and cycling["date"] not in processed_dates["cycling"]:
                 trend["cycling"].append(cycling)
-                processed_dates["cycling"].add(cycling["date"])
+                processed_dates["cycling"].add(str(cycling["date"]))
 
         trend["running"].sort(key=lambda x: x["date"])
         trend["cycling"].sort(key=lambda x: x["date"])
@@ -1101,7 +1094,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
         )
 
         for sample_date in sample_dates:
-            data = self._training_status_cached(sample_date.isoformat())
+            data: Any = self._training_status_cached(sample_date.isoformat())
             if not isinstance(data, dict):
                 continue
 
@@ -1142,15 +1135,14 @@ class TriathlonCoachDataExtractor(DataExtractor):
     def get_daily_activity_loads(self, start_date: date, end_date: date) -> dict[str, float]:
         loads = {d.isoformat(): 0.0 for d in _daterange(start_date, end_date)}
 
-        activities = self._call_api(
+        activities: list[Any] = self._call_api(
             self.garmin.client.get_activities_by_date,
             start_date.isoformat(), end_date.isoformat(),
             default=[],
             what=f"get_activities_by_date({start_date}, {end_date})"
         )
 
-        if not isinstance(activities, list):
-            return loads
+
 
         for a in activities:
             if not isinstance(a, Mapping):

@@ -1,5 +1,6 @@
 
 from datetime import date
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -44,7 +45,7 @@ class TestDataExtractorCharacterization:
         assert result == "cycling"
 
     def test_extract_activity_type_fallback_unknown(self):
-        activity_data = {}
+        activity_data: dict[str, Any] = {}
         result = DataExtractor.extract_activity_type(activity_data)
         assert result == "unknown"
 
@@ -99,7 +100,9 @@ class TestTriathlonCoachDataExtractorCharacterization:
 
         assert hasattr(result, "user_profile")
         assert hasattr(result, "daily_stats")
+        assert result.user_profile is not None
         assert result.user_profile.gender == "male"
+        assert result.daily_stats is not None
         assert result.daily_stats.total_steps == 10000
 
     def test_activity_summary_extraction_structure(self):
@@ -163,6 +166,7 @@ class TestDataExtractorIntegrationBehavior:
 
         assert isinstance(result, Activity)
         assert result.activity_type == "multisport"
+        assert result.laps is not None
         assert len(result.laps) == 3
         assert result.laps[0]["activityType"] == "swimming"
         assert result.laps[1]["activityType"] == "cycling"
@@ -185,5 +189,7 @@ class TestDataExtractorIntegrationBehavior:
             "normalizedPower": 250
         })
 
+        assert result is not None
+        assert result.summary is not None
         assert result.summary.avg_power == 250
         assert result.summary.normalized_power == 260

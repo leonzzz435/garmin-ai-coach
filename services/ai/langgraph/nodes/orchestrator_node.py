@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Sequence
 from typing import Protocol
 
 from langchain_core.messages import AIMessage, HumanMessage
@@ -100,7 +101,7 @@ class MasterOrchestrator:
 
         logger.info("MasterOrchestrator: Found %s questions, initiating HITL", len(all_questions))
 
-        answers = self.interaction_provider.collect_answers(all_questions, config["display_name"])
+        answers = self.interaction_provider.collect_answers(all_questions, str(config["display_name"]))
 
         agent_qa_updates = self._create_agent_specific_qa_messages(all_questions, answers)
 
@@ -132,8 +133,8 @@ class MasterOrchestrator:
     def _collect_questions(
         self,
         state: TrainingAnalysisState,
-        result_keys: list[str],
-        agent_names: list[str]
+        result_keys: list[str] | Sequence[str],
+        agent_names: list[str] | Sequence[str]
     ) -> list[dict]:
         all_questions = []
 
@@ -174,7 +175,7 @@ class MasterOrchestrator:
         questions: list[dict],
         answers: list[dict]
     ) -> dict:
-        updates = {}
+        updates: dict[str, list[AIMessage | HumanMessage]] = {}
 
         for qa_item, answer_item in zip(questions, answers, strict=True):
             agent_name = qa_item["agent"]

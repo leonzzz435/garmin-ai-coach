@@ -45,6 +45,17 @@ All notable changes to this project will be documented in this file.
   - **TSB (Training Stress Balance)**: Form measurement (chronic - acute)
 - **Robustness**: Timezone-aware date parsing (UTC) and multisport double-counting prevention
 
+#### Codebase Health
+- **Strict Type Checking**: Achieved 100% `mypy` compliance (0 errors) across the entire codebase.
+    - Added comprehensive type annotations to `GarminConnectClient` and `DataExtractor`.
+    - Resolved `MutableMapping` vs `Mapping` conflicts in orchestration layers.
+    - Enforced `None` safety checks for all optional API responses.
+- **Linting & Code Style**: Enforced strict `ruff` linting rules, removing unused code, dead branches, and unsafe global variables.
+- **Test Stability**:
+    - Fixed flaky tests in `test_data_extractor` and `outside_client`.
+    - Added strict type assertions to test suites to catch regression errors early.
+- **CI/CD**: Added mandatory type checking (`pixi run type-check`) to CI pipeline.
+
 ---
 
 ## [2.1.0] - 2025-11-22

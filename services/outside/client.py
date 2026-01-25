@@ -248,8 +248,9 @@ class OutsideApiGraphQlClient:
 
         eid = None
         try:
-            if node.get("eventId") is not None:
-                eid = int(node.get("eventId"))
+            event_id_raw = node.get("eventId")
+            if event_id_raw is not None:
+                eid = int(event_id_raw)
         except Exception:
             pass
 
@@ -344,7 +345,7 @@ class OutsideApiGraphQlClient:
             return None
         eid_raw = node.get("eventId")
         try:
-            eid = int(eid_raw)
+            eid = int(eid_raw)  # type: ignore[arg-type]
         except Exception:
             try:
                 eid = int(str(eid_raw))
@@ -416,8 +417,7 @@ class OutsideApiGraphQlClient:
 
         resolved: list[dict[str, Any]] = []
         for entry in entries:
-            if not isinstance(entry, dict):
-                continue
+
             competition = self._resolve_competition_entry(entry)
             if competition:
                 resolved.append(competition)
@@ -548,9 +548,9 @@ class OutsideApiGraphQlClient:
     def _derive_race_type(event: Event, categories: list[EventCategory]) -> str:
         for category in categories:
             if getattr(category, "name", None):
-                return category.name
+                return str(category.name)
         event_types = event.event_types or []
-        return event_types[0] if event_types else "AthleteReg Event"
+        return str(event_types[0]) if event_types else "AthleteReg Event"
 
     @staticmethod
     def _derive_location(event: Event) -> str | None:

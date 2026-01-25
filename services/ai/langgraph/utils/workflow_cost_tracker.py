@@ -66,7 +66,7 @@ class WorkflowCostTracker:
             if thread_id:
                 config["configurable"] = {"thread_id": thread_id}
 
-            prev_lengths = {"analysis_html": None, "planning_html": None}
+            prev_lengths: dict[str, int | None] = {"analysis_html": None, "planning_html": None}
 
             async for chunk in workflow_app.astream(
                 initial_state, config=config, stream_mode="values"

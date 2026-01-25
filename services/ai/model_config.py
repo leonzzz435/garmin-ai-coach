@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI
@@ -149,7 +150,7 @@ class ModelSelector:
         ),
     }
 
-    MODEL_CONFIGS: dict[str, dict[str, object]] = {
+    MODEL_CONFIGS: dict[str, dict[str, Any]] = {
         "claude-opus-thinking": {
             "max_tokens": 32000,
             "thinking": {"type": "enabled", "budget_tokens": 16000},
@@ -213,7 +214,7 @@ class ModelSelector:
     }
 
     @classmethod
-    def _apply_model_config(cls, model_name: str, role: AgentRole, llm_params: dict[str, object]):
+    def _apply_model_config(cls, model_name: str, role: AgentRole, llm_params: dict[str, Any]):
         if model_name not in cls.MODEL_CONFIGS:
             return
 
@@ -267,7 +268,7 @@ class ModelSelector:
 
         logger.info("Configuring LLM for role %s with model %s", role.value, final_model_name)
 
-        llm_params = {"model": final_model_name, "api_key": api_key}
+        llm_params: dict[str, Any] = {"model": final_model_name, "api_key": api_key}
 
         cls._apply_model_config(model_name, role, llm_params)
 

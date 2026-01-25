@@ -35,7 +35,9 @@ def test_prefers_direct_api_when_key_available(
         "openrouter_api_key": "sk-or-test",
         "ai_mode": AIMode.STANDARD,
     }
-    config = Config(**config_dict)
+    from typing import Any, cast
+
+    config = Config(**cast("dict[str, Any]", config_dict))
     monkeypatch.setattr(model_config, "get_config", lambda: config)
     monkeypatch.setattr(model_config, "ai_settings", _StubSettings(model_name))
 

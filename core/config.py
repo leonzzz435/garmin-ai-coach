@@ -1,21 +1,24 @@
 
+import logging
 import os
 from dataclasses import dataclass
+from enum import Enum
 
 from dotenv import load_dotenv
 
 env_file = os.getenv("ENV_FILE", ".env")
 load_dotenv(env_file)
 
-import logging
-from enum import Enum
-
 logger = logging.getLogger(__name__)
+
+_config_cache: "Config | None" = None
+
 
 class AIMode(Enum):
     STANDARD = "standard"
     COST_EFFECTIVE = "cost_effective"
     DEVELOPMENT = "development"
+
 
 @dataclass
 class Config:
@@ -54,13 +57,15 @@ class Config:
             openrouter_api_key=openrouter_api_key,
         )
 
+
 def get_config() -> Config:
-    if not hasattr(get_config, "_config"):
-        get_config._config = Config.from_env()
-    return get_config._config
+    global _config_cache  # noqa: PLW0603
+    if _config_cache is None:
+        _config_cache = Config.from_env()
+    return _config_cache
 
 
 def reload_config() -> Config:
-    if hasattr(get_config, "_config"):
-        delattr(get_config, "_config")
+    global _config_cache  # noqa: PLW0603
+    _config_cache = None
     return get_config()

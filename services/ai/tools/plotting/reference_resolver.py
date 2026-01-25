@@ -73,7 +73,8 @@ class PlotReferenceResolver:
     def validate_plot_references(self, text: str) -> dict[str, Any]:
         referenced_plots = self.extract_plot_references(text)
         available = set(self.plot_storage.get_all_plots().keys())
-        found, missing = [], []
+        found: list[str] = []
+        missing: list[str] = []
 
         for pid in referenced_plots:
             (found if pid in available else missing).append(pid)

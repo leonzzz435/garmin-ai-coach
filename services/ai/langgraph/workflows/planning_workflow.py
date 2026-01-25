@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from typing import Any, cast
 
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
@@ -180,9 +181,10 @@ async def run_complete_analysis_and_planning(
     execution_id = f"{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_complete"
     cost_tracker = ProgressIntegratedCostTracker(f"garmin_ai_coach_{user_id}", progress_manager)
 
+
     final_state, execution = await cost_tracker.run_workflow_with_progress(
         create_integrated_analysis_and_planning_workflow(),
-        create_initial_state(
+        cast("dict[str, Any]", create_initial_state(
             user_id=user_id,
             athlete_name=athlete_name,
             garmin_data=garmin_data,
@@ -195,7 +197,7 @@ async def run_complete_analysis_and_planning(
             plotting_enabled=plotting_enabled,
             hitl_enabled=hitl_enabled,
             skip_synthesis=skip_synthesis,
-        ),
+        )),
         execution_id,
         user_id,
     )

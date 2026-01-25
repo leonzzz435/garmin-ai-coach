@@ -30,6 +30,9 @@ jobs:
       - name: Lint (ruff)
         run: pixi run lint-ruff
 
+      - name: Type Check (mypy)
+        run: pixi run type-check
+
       - name: Run tests
         env:
           ANTHROPIC_API_KEY: "sk-ant-TEST"

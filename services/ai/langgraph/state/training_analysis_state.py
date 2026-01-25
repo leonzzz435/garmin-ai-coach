@@ -110,4 +110,5 @@ def create_initial_state(
         physiology_expert_messages=[],
         season_planner_messages=[],
         weekly_planner_messages=[],
+        messages=[],
     )

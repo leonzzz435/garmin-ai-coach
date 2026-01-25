@@ -83,7 +83,10 @@ def extract_agent_content(value: Any) -> str:
         raise ValueError("AgentOutput contains questions, not content. HITL interaction required.")
 
     if isinstance(value, dict):
-        return value.get("output", value.get("content", value))
+        result = value.get("output") or value.get("content")
+        if isinstance(result, str):
+            return result
+        return str(value)
 
     if isinstance(value, str):
         return value

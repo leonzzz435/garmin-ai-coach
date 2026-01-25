@@ -802,6 +802,7 @@ class TestOutsideApiGraphQlClient:
             "eventTypes": [],
         }
         event = client._map_event(event_node)
+        assert event is not None
         assert event.event_id == 777
 
     def test__map_event_eventid_uncoercible_sets_minus_one(self):
@@ -827,6 +828,7 @@ class TestOutsideApiGraphQlClient:
             "eventTypes": [],
         }
         event = client._map_event(event_node)
+        assert event is not None
         assert event.event_id == -1
 
     def test_get_competitions_dict_empty_section_continue(self):
