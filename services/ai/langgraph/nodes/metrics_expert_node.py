@@ -3,13 +3,13 @@ import logging
 from datetime import datetime
 
 from services.ai.ai_settings import AgentRole
+from services.ai.langgraph.schemas import MetricsExpertOutputs
+from services.ai.langgraph.state.training_analysis_state import TrainingAnalysisState
+from services.ai.langgraph.utils.message_helper import normalize_langchain_messages
 from services.ai.model_config import ModelSelector
 from services.ai.tools.plotting import PlotStorage
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
-from ..schemas import MetricsExpertOutputs
-from ..state.training_analysis_state import TrainingAnalysisState
-from ..utils.message_helper import normalize_langchain_messages
 from .node_base import (
     configure_node_tools,
     create_cost_entry,
@@ -43,19 +43,19 @@ You are provided with "ACWR v2" metrics derived from daily training load (sum of
 - **Shifted Chronic EWMA (t-7)**: chronic EWMA evaluated 7 days earlier (approximate uncoupling).
 - **ACWR (EWMA shifted)**: Acute EWMA / Shifted Chronic EWMA. Use as a spike indicator, but note thresholds require calibration.
 - **Risk Index**: ln(ACWR) (symmetric measure of “doubling vs halving”).
-- **TSB**: Chronic EWMA − Acute EWMA (negative = accumulating fatigue).
+- **TSB**: Chronic EWMA - Acute EWMA (negative = accumulating fatigue).
 - **Ramp Rate (7d)**: change in Chronic EWMA vs 7 days ago (detects fast load increases).
 - **Monotony (7d)**: mean(daily load over last 7d) / SD(last 7d). High values indicate low variation.
-- **Strain (7d)**: (total weekly load) × Monotony.
+- **Strain (7d)**: (total weekly load) x Monotony.
 
 Note: Thresholds are heuristics and should be calibrated to the athlete and to the chosen ACWR definition.
 
 ### Rolling-sum metrics (Garmin-comparable scale)
-These use 7-day rolling sums (closer to Garmin’s magnitude, though Garmin may weight days differently):
+These use 7-day rolling sums (closer to Garmin's magnitude, though Garmin may weight days differently):
 - **Acute 7d Sum**: sum of daily loads over last 7 days (Garmin-like acute magnitude).
 - **Chronic 28d Avg (of Acute 7d Sum)**: average of the last 28 values of Acute 7d Sum (smoothed baseline).
 - **ACWR 7d/28d (coupled)**: Acute 7d Sum / Chronic 28d Avg.
-- **ACWR 7d/28d (uncoupled)**: Acute 7d Sum / Chronic 28d Avg computed up to (t−7), excluding the most recent week (preferred for Garmin-like ACWR without coupling).
+- **ACWR 7d/28d (uncoupled)**: Acute 7d Sum / Chronic 28d Avg computed up to (t-7), excluding the most recent week (preferred for Garmin-like ACWR without coupling).
 """
 
 METRICS_USER_PROMPT = """## Task
@@ -113,10 +113,11 @@ async def metrics_expert_node(state: TrainingAnalysisState) -> dict[str, list | 
     plot_storage = PlotStorage(state["execution_id"])
     plotting_enabled = state.get("plotting_enabled", False)
     hitl_enabled = state.get("hitl_enabled", True)
-    
+
     logger.info(
-        f"Metrics expert: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
-        f"HITL {'enabled' if hitl_enabled else 'disabled'}"
+        "Metrics expert: Plotting %s, HITL %s",
+        "enabled" if plotting_enabled else "disabled",
+        "enabled" if hitl_enabled else "disabled",
     )
 
     tools = configure_node_tools(
@@ -134,7 +135,7 @@ async def metrics_expert_node(state: TrainingAnalysisState) -> dict[str, list | 
     )
 
     base_llm = ModelSelector.get_llm(AgentRole.METRICS_EXPERT)
-    
+
     llm_with_tools = base_llm.bind_tools(tools) if tools else base_llm
     llm_with_structure = llm_with_tools.with_structured_output(MetricsExpertOutputs)
 
@@ -142,7 +143,7 @@ async def metrics_expert_node(state: TrainingAnalysisState) -> dict[str, list | 
 
     async def call_metrics_with_tools():
         qa_messages = normalize_langchain_messages(state.get("metrics_expert_messages", []))
-        
+
         base_messages = [
             {"role": "system", "content": system_prompt},
             {
@@ -155,7 +156,7 @@ async def metrics_expert_node(state: TrainingAnalysisState) -> dict[str, list | 
                 ),
             },
         ]
-        
+
         return await handle_tool_calling_in_node(
             llm_with_tools=llm_with_structure,
             messages=base_messages + qa_messages,
@@ -170,9 +171,9 @@ async def metrics_expert_node(state: TrainingAnalysisState) -> dict[str, list | 
         logger.info("Metrics expert analysis completed")
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-        
+
         plots, plot_storage_data, available_plots = create_plot_entries("metrics", plot_storage)
-        
+
         log_node_completion("Metrics expert analysis", execution_time, len(available_plots))
 
         return {

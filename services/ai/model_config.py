@@ -149,6 +149,80 @@ class ModelSelector:
         ),
     }
 
+    MODEL_CONFIGS: dict[str, dict[str, object]] = {
+        "claude-opus-thinking": {
+            "max_tokens": 32000,
+            "thinking": {"type": "enabled", "budget_tokens": 16000},
+            "log": "Using extended thinking mode for {role} (max_tokens: 32000, budget_tokens: 16000)",
+        },
+        "claude-4-thinking": {
+            "max_tokens": 64000,
+            "thinking": {"type": "enabled", "budget_tokens": 16000},
+            "log": "Using extended thinking mode for {role} (max_tokens: 64000, budget_tokens: 16000)",
+        },
+        "claude-4": {
+            "max_tokens": 64000,
+            "log": "Using extended output tokens for {role} (max_tokens: 64000)",
+        },
+        "claude-opus": {
+            "max_tokens": 32000,
+            "log": "Using extended output tokens for {role} (max_tokens: 32000)",
+        },
+        "gpt-5": {
+            "use_responses_api": True,
+            "reasoning": {"effort": "xhigh"},
+            "model_kwargs": {"text": {"verbosity": "high"}},
+            "log": "Using GPT-5 with Responses API for {role} (verbosity: high, reasoning_effort: xhigh)",
+        },
+        "gpt-5.2-pro": {
+            "use_responses_api": True,
+            "reasoning": {"effort": "xhigh"},
+            "model_kwargs": {"text": {"verbosity": "high"}},
+            "log": "Using GPT-5.2 Pro with Responses API for {role} (verbosity: high, reasoning_effort: xhigh)",
+        },
+        "gpt-5-mini": {
+            "use_responses_api": True,
+            "reasoning": {"effort": "high"},
+            "model_kwargs": {"text": {"verbosity": "high"}},
+            "log": "Using GPT-5-mini with Responses API for {role} (verbosity: high, reasoning_effort: high)",
+        },
+        "gpt-5-search": {
+            "use_responses_api": True,
+            "reasoning": {"effort": "xhigh"},
+            "model_kwargs": {
+                "text": {"verbosity": "high"},
+                "tools": [{"type": "web_search"}],
+                "include": ["web_search_call.action.sources"],
+            },
+            "log": "Using GPT-5.2 with web search + Responses API for {role} (verbosity: high, reasoning_effort: xhigh)",
+        },
+        "gpt-5.2-pro-search": {
+            "use_responses_api": True,
+            "reasoning": {"effort": "xhigh"},
+            "model_kwargs": {
+                "text": {"verbosity": "high"},
+                "tools": [{"type": "web_search"}],
+                "include": ["web_search_call.action.sources"],
+            },
+            "log": "Using GPT-5.2 Pro with web search + Responses API for {role} (verbosity: high, reasoning_effort: xhigh)",
+        },
+        "deepseek-v3.2": {
+            "extra_body": {"reasoning": {"enabled": True}},
+            "log": "Using DeepSeek V3.2 with reasoning enabled for {role}",
+        },
+    }
+
+    @classmethod
+    def _apply_model_config(cls, model_name: str, role: AgentRole, llm_params: dict[str, object]):
+        if model_name not in cls.MODEL_CONFIGS:
+            return
+
+        config_data = cls.MODEL_CONFIGS[model_name].copy()
+        log_msg = config_data.pop("log", None)
+        llm_params.update(config_data)
+        if log_msg:
+            logger.info(str(log_msg).format(role=role.value))
+
     @classmethod
     def get_llm(cls, role: AgentRole):
         model_name = ai_settings.get_model_for_role(role)
@@ -156,20 +230,20 @@ class ModelSelector:
         if not selected_config:
             raise RuntimeError(f"Unknown model '{model_name}' in configuration")
         config = get_config()
-        
+
         base_url = selected_config.base_url
         final_model_name = selected_config.name
         provider = cls._detect_provider(base_url)
-        
+
         key_map = {
             "anthropic": config.anthropic_api_key,
             "openai": config.openai_api_key,
             "openrouter": config.openrouter_api_key,
         }
-        
+
         api_key = key_map.get(provider)
         use_fallback = False
-        
+
         if not api_key and provider in ("anthropic", "openai"):
             if not config.openrouter_api_key:
                 raise RuntimeError(f"{provider.title()} API key or OpenRouter API key is required")
@@ -191,83 +265,13 @@ class ModelSelector:
         elif not api_key:
             raise RuntimeError("OpenRouter API key is required for OpenRouter-hosted models")
 
-        logger.info(f"Configuring LLM for role {role.value} with model {final_model_name}")
-        
+        logger.info("Configuring LLM for role %s with model %s", role.value, final_model_name)
+
         llm_params = {"model": final_model_name, "api_key": api_key}
-        
-        model_configs = {
-            "claude-opus-thinking": {
-                "max_tokens": 32000,
-                "thinking": {"type": "enabled", "budget_tokens": 16000},
-                "log": "Using extended thinking mode for {role} (max_tokens: 32000, budget_tokens: 16000)",
-            },
-            "claude-4-thinking": {
-                "max_tokens": 64000,
-                "thinking": {"type": "enabled", "budget_tokens": 16000},
-                "log": "Using extended thinking mode for {role} (max_tokens: 64000, budget_tokens: 16000)",
-            },
-            "claude-4": {
-                "max_tokens": 64000,
-                "log": "Using extended output tokens for {role} (max_tokens: 64000)",
-            },
-            "claude-opus": {
-                "max_tokens": 32000,
-                "log": "Using extended output tokens for {role} (max_tokens: 32000)",
-            },
-            "gpt-5": {
-                "use_responses_api": True,
-                "reasoning": {"effort": "xhigh"},
-                "model_kwargs": {"text": {"verbosity": "high"}},
-                "log": "Using GPT-5 with Responses API for {role} (verbosity: high, reasoning_effort: xhigh)",
-            },
-            "gpt-5.2-pro": {
-                "use_responses_api": True,
-                "reasoning": {"effort": "xhigh"},
-                "model_kwargs": {"text": {"verbosity": "high"}},
-                "log": "Using GPT-5.2 Pro with Responses API for {role} (verbosity: high, reasoning_effort: xhigh)",
-            },
-            "gpt-5-mini": {
-                "use_responses_api": True,
-                "reasoning": {"effort": "high"},
-                "model_kwargs": {"text": {"verbosity": "high"}},
-                "log": "Using GPT-5-mini with Responses API for {role} (verbosity: high, reasoning_effort: high)",
-            },
-            "gpt-5-search": {
-                "use_responses_api": True,
-                "reasoning": {"effort": "xhigh"},
-                "model_kwargs": {
-                    "text": {"verbosity": "high"},
-                    "tools": [{"type": "web_search"}],
-                    "include": ["web_search_call.action.sources"],
-                },
-                "log": "Using GPT-5.2 with web search + Responses API for {role} (verbosity: high, reasoning_effort: xhigh)",
-            },
-            "gpt-5.2-pro-search": {
-                "use_responses_api": True,
-                "reasoning": {"effort": "xhigh"},
-                "model_kwargs": {
-                    "text": {"verbosity": "high"},
-                    "tools": [{"type": "web_search"}],
-                    "include": ["web_search_call.action.sources"],
-                },
-                "log": "Using GPT-5.2 Pro with web search + Responses API for {role} (verbosity: high, reasoning_effort: xhigh)",
-            },
-            "deepseek-v3.2": {
-                "extra_body": {"reasoning": {"enabled": True}},
-                "log": "Using DeepSeek V3.2 with reasoning enabled for {role}",
-            },
-        }
-        
-        if model_name in model_configs:
-            config_data = model_configs[model_name].copy()
-            log_msg = config_data.pop("log", None)
-            llm_params.update(config_data)
-            if log_msg:
-                logger.info(log_msg.format(role=role.value))
+
+        cls._apply_model_config(model_name, role, llm_params)
 
         if base_url == OPENROUTER_BASE_URL:
-            # Strip provider-specific parameters when routing through OpenRouter
-            # as they are not supported by OpenRouter's API
             llm_params.pop("use_responses_api", None)
             llm_params.pop("reasoning", None)
             llm_params.pop("model_kwargs", None)

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import random
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from functools import wraps
 from typing import Any
 
@@ -28,7 +28,7 @@ class RetryConfig:
         max_delay: float = 60.0,
         exponential_base: float = 2.0,
         jitter: bool = True,
-        retryable_exceptions: set[type[Exception]] = None,
+        retryable_exceptions: set[type[Exception]] | None = None,
     ):
         self.max_retries = max_retries
         self.base_delay = base_delay
@@ -50,7 +50,9 @@ class RetryConfig:
 
 
 async def retry_with_backoff(
-    func: Callable, config: RetryConfig = None, context: str = "operation"
+    func: Callable[[], Awaitable[Any]],
+    config: RetryConfig | None = None,
+    context: str = "operation",
 ) -> Any:
 
     if config is None:
@@ -60,7 +62,12 @@ async def retry_with_backoff(
 
     for attempt in range(config.max_retries + 1):
         try:
-            logger.debug(f"Attempting {context} (attempt {attempt + 1}/{config.max_retries + 1})")
+            logger.debug(
+                "Attempting %s (attempt %s/%s)",
+                context,
+                attempt + 1,
+                config.max_retries + 1,
+            )
             return await func()
 
         except GraphInterrupt:
@@ -77,28 +84,34 @@ async def retry_with_backoff(
                 )
                 if error_type in ["overloaded_error", "rate_limit_error"]:
                     is_retryable = True
-                    logger.warning(f"{context} failed with {error_type}: {e}")
+                    logger.warning("%s failed with %s: %s", context, error_type, e)
                 else:
-                    logger.error(f"{context} failed with non-retryable API error: {e}")
+                    logger.error("%s failed with non-retryable API error: %s", context, e)
                     break
 
             if not is_retryable:
-                logger.error(f"{context} failed with non-retryable error: {e}")
+                logger.error("%s failed with non-retryable error: %s", context, e)
                 break
 
             if attempt < config.max_retries:
                 delay = config.calculate_delay(attempt)
                 logger.info(
-                    f"{context} failed (attempt {attempt + 1}), retrying in {delay:.1f}s: {e}"
+                    "%s failed (attempt %s), retrying in %.1fs: %s",
+                    context,
+                    attempt + 1,
+                    delay,
+                    e,
                 )
                 await asyncio.sleep(delay)
             else:
-                logger.error(f"{context} failed after {config.max_retries + 1} attempts: {e}")
+                logger.error("%s failed after %s attempts: %s", context, config.max_retries + 1, e)
 
+    if last_exception is None:
+        raise RuntimeError(f"{context} failed without capturing an exception")
     raise last_exception
 
 
-def with_retry(config: RetryConfig = None, context: str = None):
+def with_retry(config: RetryConfig | None = None, context: str | None = None):
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args, **kwargs):

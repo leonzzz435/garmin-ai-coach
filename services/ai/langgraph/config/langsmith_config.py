@@ -21,16 +21,16 @@ class LangSmithConfig:
             os.environ["LANGSMITH_PROJECT"] = project_name
             os.environ["LANGSMITH_TRACING"] = "true"
 
-            logger.info(f"LangSmith observability enabled for project: {project_name}")
+            logger.info("LangSmith observability enabled for project: %s", project_name)
             return True
 
         except Exception as e:
-            logger.error(f"Failed to setup LangSmith: {e}")
+            logger.error("Failed to setup LangSmith: %s", e)
             return False
 
     @staticmethod
     def get_project_name(user_id: str, analysis_type: str = "training_analysis") -> str:
-        return f"garmin_ai_coach_{analysis_type}_{str(user_id)}"
+        return f"garmin_ai_coach_{analysis_type}_{user_id!s}"
 
     @staticmethod
     def disable_langsmith():

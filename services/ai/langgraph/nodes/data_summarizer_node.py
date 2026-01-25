@@ -5,10 +5,10 @@ from datetime import datetime
 from typing import Any
 
 from services.ai.ai_settings import AgentRole
+from services.ai.langgraph.state.training_analysis_state import TrainingAnalysisState
 from services.ai.model_config import ModelSelector
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
-from ..state.training_analysis_state import TrainingAnalysisState
 from .prompt_components import AgentType, get_workflow_context
 from .tool_calling_helper import extract_text_content
 
@@ -71,7 +71,7 @@ def create_data_summarizer_node(
     effective_user_prompt = user_prompt or GENERIC_SUMMARIZER_USER_PROMPT
 
     async def summarizer_node(state: TrainingAnalysisState) -> dict[str, list | str]:
-        logger.info(f"Starting {node_name} node")
+        logger.info("Starting %s node", node_name)
 
         try:
             agent_start_time = datetime.now()
@@ -93,11 +93,11 @@ def create_data_summarizer_node(
                 return extract_text_content(response)
 
             summary = await retry_with_backoff(
-                call_llm, AI_ANALYSIS_CONFIG, f"{node_name}"
+                call_llm, AI_ANALYSIS_CONFIG, node_name
             )
 
             execution_time = (datetime.now() - agent_start_time).total_seconds()
-            logger.info(f"{node_name} completed in {execution_time:.2f}s")
+            logger.info("%s completed in %.2fs", node_name, execution_time)
 
             return {
                 state_output_key: summary,

@@ -29,14 +29,14 @@ packages = ["core", "services", "cli"]
 
 
 [tool.black]
-line-length = 100
-target-version = ["py310"]
+line-length = 120
+target-version = ["py313"]
 skip-string-normalization = true
 exclude = '/\.pixi/'
 
 [tool.ruff]
 line-length = 120  # Increased from 100 to be more practical
-target-version = "py310"
+target-version = "py313"
 exclude = [
   ".git",
   ".venv",
@@ -52,27 +52,129 @@ exclude = [
 
 [tool.ruff.lint]
 select = [
-    "E",  # pycodestyle errors
-    "F",  # pyflakes
-    "I",  # isort (import sorting)
-    "UP", # pyupgrade
-    "B",  # bugbear
-    "PL", # pylint (subset)
+    # pyflakes
+    "F",
+    # pydocstyle
+    "D",
+    # pycodestyle
+    "E",
+    "W",
+    # flake8-2020
+    "YTT",
+    # flake8-bugbear
+    "B",
+    # flake8-quotes
+    "Q",
+    # flake8-debugger
+    "T10",
+    # flake8-gettext
+    "INT",
+    # pylint
+    "PL",
+    # misc lints
+    "PIE",
+    # flake8-pyi
+    "PYI",
+    # tidy imports
+    "TID",
+    # implicit string concatenation
+    "ISC",
+    # type-checking imports
+    "TCH",
+    # comprehensions
+    "C4",
+    # pygrep-hooks
+    "PGH",
+    # Ruff-specific rules
+    "RUF",
+    # flake8-bandit: exec-builtin
+    "S102",
+    # numpy-legacy-random
+    "NPY002",
+    # Perflint
+    "PERF",
+    # flynt
+    "FLY",
+    # flake8-logging-format
+    "G",
+    # mccabe complexity
+    "C901",
+    # isort (import sorting)
+    "I",
+    # pyupgrade
+    "UP",
 ]
 ignore = [
-    "D",      # pydocstyle - docstrings intentionally minimized
-    "ANN",    # typing annotations enforcement
-    "B008",   # function call in argument defaults
-    "UP038",  # isinstance tuple -> union (postpone upgrade)
-    "E501",   # line-too-long - 120 chars is reasonable
-    "E402",   # module-import-not-at-top - needed for sys.path manipulation in scripts
-    "PLR0911", # too-many-return-statements - sometimes clearer than alternatives
-    "PLR0912", # too-many-branches - complex logic sometimes needed
-    "PLR0913", # too-many-arguments - sometimes necessary for complex functions
-    "PLR0915", # too-many-statements - complex functions exist
-    "PLR2004", # magic-value-used-in-comparison - constants overkill for simple cases
-    "PLC0415", # import-outside-toplevel - needed for optional dependencies
+    # Potential conflict between ISC rules and formatter
+    "ISC001",
+    # Missing docstrings (docstrings are intentionally not enforced)
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D106",
+    "D107",
+    "D415",
+    # function call in argument defaults
+    "B008",
+    # line-too-long (handled by formatter and line-length)
+    "E501",
+    # module-import-not-at-top (needed for sys.path manipulation in scripts)
+    "E402",
+    # import-outside-toplevel (needed for optional dependencies)
+    "PLC0415",
+    # too-many-… (sometimes necessary for complex orchestration code)
+    "PLR0911",
+    "PLR0912",
+    "PLR0913",
+    "PLR0915",
+    # magic values
+    "PLR2004",
+    # ClassVar mutable default false-positives
+    "RUF012",
+    # type-checking imports
+    "TCH001",
 ]
+
+[tool.ruff.lint.isort]
+case-sensitive = false
+force-sort-within-sections = false
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pylint]
+max-args = 7
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.mypy]
+python_version = "3.13"
+pretty = true
+show_error_codes = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unreachable = true
+warn_unused_ignores = true
+no_implicit_optional = true
+strict_equality = true
+check_untyped_defs = true
+
+# Keep this strictness incremental; we can tighten over time.
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+# Default to strict third‑party import checking, but we can add per-module overrides as needed.
+ignore_missing_imports = false
+
+# Avoid scanning tool/venv directories when running `mypy .`
+exclude = "^(\\.pixi|\\.venv|venv|build|dist|data|logs)/"
 
 [tool.ruff.format]
 quote-style = "double"

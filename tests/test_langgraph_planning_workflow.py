@@ -115,11 +115,11 @@ class TestWorkflowDataFlow:
             user_id="test", athlete_name="Test", garmin_data={}, execution_id="test"
         )
 
-        updated_state = {**initial_state, **{
+        updated_state = {**initial_state,
             "season_plan": "Test season plan content",
             "weekly_plan": "Test weekly plan content",
-            "planning_html": "<html>Test HTML</html>",
-        }}
+            "planning_html": "<html>Test HTML</html>"
+        }
 
         assert updated_state["season_plan"] == "Test season plan content"
         assert updated_state["weekly_plan"] == "Test weekly plan content"

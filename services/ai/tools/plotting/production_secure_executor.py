@@ -52,7 +52,9 @@ def run_plot_code_get_html(code: str, timeout_s: int = 6):
                     "utf-8", "ignore"
                 )
                 logger.error(
-                    f"Subprocess execution failed with return code {proc.returncode}: {error_output}"
+                    "Subprocess execution failed with return code %d: %s",
+                    proc.returncode,
+                    error_output,
                 )
                 return {"ok": False, "error": error_output}
 
@@ -63,19 +65,19 @@ def run_plot_code_get_html(code: str, timeout_s: int = 6):
             return {"ok": True, "html": html_output}
 
         except subprocess.TimeoutExpired:
-            logger.error(f"Code execution timed out after {timeout_s} seconds")
+            logger.error("Code execution timed out after %d seconds", timeout_s)
             return {"ok": False, "error": f"Code execution timed out after {timeout_s} seconds"}
 
         except Exception as e:
-            logger.error(f"Subprocess execution failed: {e}")
-            return {"ok": False, "error": f"Execution failed: {str(e)}"}
+            logger.error("Subprocess execution failed: %s", e)
+            return {"ok": False, "error": f"Execution failed: {e!s}"}
 
 
 class ProductionSecureExecutor:
 
     def __init__(self, timeout_s: int = 6):
         self.timeout_s = timeout_s
-        logger.info(f"Initialized ProductionSecureExecutor with {timeout_s}s timeout")
+        logger.info("Initialized ProductionSecureExecutor with %ss timeout", timeout_s)
 
     def execute_plotting_code(self, code: str) -> tuple[bool, str, str]:
         logger.info("Executing plotting code in secure subprocess")
@@ -86,5 +88,5 @@ class ProductionSecureExecutor:
             logger.info("Plotting code executed successfully")
             return True, result["html"], ""
         else:
-            logger.warning(f"Plotting code failed: {result['error']}")
+            logger.warning("Plotting code failed: %s", result["error"])
             return False, "", result["error"]

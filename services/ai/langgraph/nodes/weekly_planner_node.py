@@ -3,13 +3,13 @@ import logging
 from datetime import datetime
 
 from services.ai.ai_settings import AgentRole
+from services.ai.langgraph.schemas import AgentOutput
+from services.ai.langgraph.state.training_analysis_state import TrainingAnalysisState
+from services.ai.langgraph.utils.message_helper import normalize_langchain_messages
+from services.ai.langgraph.utils.output_helper import extract_agent_content, extract_expert_output
 from services.ai.model_config import ModelSelector
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
-from ..schemas import AgentOutput
-from ..state.training_analysis_state import TrainingAnalysisState
-from ..utils.message_helper import normalize_langchain_messages
-from ..utils.output_helper import extract_agent_content, extract_expert_output
 from .node_base import (
     configure_node_tools,
     create_cost_entry,
@@ -82,8 +82,8 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
     logger.info("Starting weekly planner node")
 
     hitl_enabled = state.get("hitl_enabled", True)
-    logger.info(f"Weekly planner node: HITL {'enabled' if hitl_enabled else 'disabled'}")
-    
+    logger.info("Weekly planner node: HITL %s", "enabled" if hitl_enabled else "disabled")
+
     agent_start_time = datetime.now()
 
     tools = configure_node_tools(
@@ -98,7 +98,7 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         + (get_hitl_instructions("weekly_planner") if hitl_enabled else "")
         + WEEKLY_PLANNER_FINAL_CHECKLIST
     )
-    
+
     qa_messages = normalize_langchain_messages(state.get("weekly_planner_messages", []))
     user_message = {
         "role": "user",
@@ -115,7 +115,7 @@ async def weekly_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         ),
     }
     base_messages = [{"role": "system", "content": system_prompt}, user_message]
-    
+
     base_llm = ModelSelector.get_llm(AgentRole.WORKOUT)
     llm_with_tools = base_llm.bind_tools(tools) if tools else base_llm
     llm_with_structure = llm_with_tools.with_structured_output(AgentOutput)

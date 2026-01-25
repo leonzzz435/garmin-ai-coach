@@ -2,7 +2,7 @@
 import logging
 from collections import OrderedDict
 from collections.abc import Callable, Iterable, Iterator, Mapping, MutableMapping
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, TypeVar, overload
 
 import requests
@@ -82,7 +82,7 @@ def _merge_missing(dst: MutableMapping[str, Any], src: Mapping[str, Any] | None)
 class DataExtractor:
     @staticmethod
     def safe_divide_and_round(
-        numerator: float | None, denominator: float | int, decimal_places: int = 2
+        numerator: float | None, denominator: float, decimal_places: int = 2
     ) -> float | None:
         n = _to_float(numerator)
         d = _to_float(denominator)
@@ -105,7 +105,7 @@ class DataExtractor:
                 ts = activity_data.get("beginTimestamp")
                 if isinstance(ts, (int, float)):
                     # beginTimestamp is ms epoch in many payloads
-                    return datetime.fromtimestamp(ts / 1000, tz=timezone.utc).isoformat()
+                    return datetime.fromtimestamp(ts / 1000, tz=UTC).isoformat()
             return start_time
         except Exception:
             logger.exception(
@@ -208,6 +208,82 @@ class TriathlonCoachDataExtractor(DataExtractor):
         if len(cache) > self._training_status_cache_max:
             cache.popitem(last=False)
         return result
+
+    def _get_activity_details(self, activity_id: Any) -> Mapping[str, Any] | None:
+        detailed_activity = self._call_api(
+            self.garmin.client.get_activity,
+            activity_id,
+            default={},
+            what=f"get_activity({activity_id})",
+        )
+        if not isinstance(detailed_activity, Mapping) or not detailed_activity:
+            return None
+        return detailed_activity
+
+    def _coerce_activities(self, focused_activities: list[Activity | dict | None]) -> list[Activity]:
+        valid_activities: list[Activity] = []
+        for activity in focused_activities:
+            if activity is None:
+                continue
+            if isinstance(activity, Mapping):
+                try:
+                    valid_activities.append(Activity(**activity))
+                except (TypeError, ValueError):
+                    logger.exception("Failed to coerce activity dict to Activity dataclass")
+            elif isinstance(activity, Activity):
+                valid_activities.append(activity)
+        return valid_activities
+
+    @staticmethod
+    def _first_mapping_value_by_keys(container: Any, keys: tuple[str, ...]) -> Mapping[str, Any] | None:
+        if not isinstance(container, Mapping):
+            return None
+        for key in keys:
+            value = container.get(key)
+            if isinstance(value, Mapping):
+                return value
+        return None
+
+    @staticmethod
+    def _is_cycling_sport_type(value: Any) -> bool:
+        sport_type = str(value or "").lower()
+        return "cycling" in sport_type or "bike" in sport_type
+
+    @classmethod
+    def _cycling_candidate_from_most_recent(cls, most_recent: Mapping[str, Any]) -> Mapping[str, Any] | None:
+        keys = ("cycling", "bike", "cycle")
+        cycling = cls._first_mapping_value_by_keys(most_recent, keys)
+        if cycling:
+            return cycling
+
+        cycling = cls._first_mapping_value_by_keys(most_recent.get("sportSpecific"), keys)
+        if cycling:
+            return cycling
+
+        sport_list = most_recent.get("sport")
+        if not isinstance(sport_list, list):
+            return None
+        for entry in sport_list:
+            if not isinstance(entry, Mapping):
+                continue
+            if cls._is_cycling_sport_type(entry.get("sportType")):
+                return entry
+        return None
+
+    @staticmethod
+    def _extract_sport_specific_vo2max(most_recent: Any) -> dict[str, float | str] | None:
+        if not isinstance(most_recent, Mapping):
+            return None
+
+        cycling = TriathlonCoachDataExtractor._cycling_candidate_from_most_recent(most_recent)
+        if not cycling:
+            return None
+
+        value = _to_float(cycling.get("vo2MaxValue"))
+        date_ = cycling.get("calendarDate")
+        if value is None or not date_:
+            return None
+        return {"date": date_, "value": value}
 
     @staticmethod
     def _enrich_cycling_power(payload: Mapping[str, Any], summary: ActivitySummary):
@@ -356,7 +432,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 continue
             dist_km = self.safe_divide_and_round(_to_float(lap.get("distance")), 1000, 2)
             dur_min = self.safe_divide_and_round(_to_float(lap.get("duration")), 60, 2)
-            
+
             avg_speed_ms = _to_float(lap.get("averageSpeed"))
             avg_spd_kmh = _round(avg_speed_ms * 3.6, 2) if avg_speed_ms is not None else None
 
@@ -413,13 +489,8 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 logger.warning("Activity missing activityId, skipping. Keys: %s", list(activity.keys()))
                 continue
 
-            detailed_activity = self._call_api(
-                self.garmin.client.get_activity,
-                activity_id,
-                default={},
-                what=f"get_activity({activity_id})",
-            )
-            if not isinstance(detailed_activity, Mapping) or not detailed_activity:
+            detailed_activity = self._get_activity_details(activity_id)
+            if not detailed_activity:
                 logger.warning("No details found for activity %s, skipping", activity_id)
                 continue
 
@@ -430,20 +501,118 @@ class TriathlonCoachDataExtractor(DataExtractor):
 
             focused_activities.append(focused)
 
-        valid_activities: list[Activity] = []
-        for a in focused_activities:
-            if a is None:
-                continue
-            if isinstance(a, Mapping):
-                try:
-                    valid_activities.append(Activity(**a))
-                except (TypeError, ValueError):
-                    logger.exception("Failed to coerce activity dict to Activity dataclass")
-            elif isinstance(a, Activity):
-                valid_activities.append(a)
-
+        valid_activities = self._coerce_activities(focused_activities)
         logger.info("Successfully processed %d out of %d activities", len(valid_activities), len(activities))
         return valid_activities
+
+    def _fetch_activity_weather(self, activity_id: Any) -> Any:
+        return self._call_api(
+            self.garmin.client.get_activity_weather,
+            activity_id,
+            default=None,
+            what=f"get_activity_weather({activity_id})",
+        )
+
+    def _merge_activity_details_in_place(self, activity_id: Any, activity: MutableMapping[str, Any]):
+        details = self._call_api(
+            self.garmin.client.get_activity_details,
+            activity_id,
+            default={},
+            what=f"get_activity_details({activity_id})",
+        )
+        _merge_missing(activity, details)
+
+    def _multisport_child_ids_and_types(self, activity: Mapping[str, Any]) -> tuple[list[Any], list[Any]]:
+        metadata = _dg(activity, "metadataDTO", {}) or {}
+        child_ids = list(_dg(metadata, "childIds", []) or _dg(activity, "childIds", []) or [])
+        child_types = list(_dg(metadata, "childActivityTypes", []) or [])
+
+        if child_ids:
+            return child_ids, child_types
+
+        for child in _dg(activity, "childActivities", []) or []:
+            if not isinstance(child, Mapping):
+                continue
+            child_id = child.get("activityId")
+            if not child_id:
+                continue
+            child_ids.append(child_id)
+            if not child_types:
+                child_types.append(_dg(child.get("activityType", {}), "typeKey", "unknown"))
+
+        return child_ids, child_types
+
+    def _fetch_child_activity_with_details(self, activity_id: Any) -> dict[str, Any] | None:
+        child_activity = self._call_api(
+            self.garmin.client.get_activity,
+            activity_id,
+            default={},
+            what=f"get_activity({activity_id})",
+        )
+        if not isinstance(child_activity, dict) or not child_activity:
+            logger.warning("Failed to fetch child activity %s", activity_id)
+            return None
+
+        details = self._call_api(
+            self.garmin.client.get_activity_details,
+            activity_id,
+            default={},
+            what=f"get_activity_details({activity_id})",
+        )
+        _merge_missing(child_activity, details)
+
+        return child_activity
+
+    def _build_multisport_child_entry(
+        self,
+        child_id: Any,
+        child_activity: dict[str, Any],
+        child_type: Any,
+    ) -> dict[str, Any]:
+        child_start_time = self.extract_start_time(child_activity)
+        child_summary = self._extract_activity_summary(_dg(child_activity, "summaryDTO", {}) or {})
+        if child_type == "cycling":
+            self._enrich_cycling_power(child_activity, child_summary)
+
+        return {
+            "activityId": child_id,
+            "activityName": child_activity.get("activityName") or child_activity.get("name"),
+            "activityType": child_type,
+            "startTime": child_start_time,
+            "summary": child_summary,
+            "laps": self.get_activity_laps(child_id),
+        }
+
+    def _multisport_child_entries(self, child_ids: list[Any], child_types: list[Any]) -> list[dict[str, Any]]:
+        child_activities = []
+        for i, child_id in enumerate(child_ids):
+            child_activity = self._fetch_child_activity_with_details(child_id)
+            if not child_activity:
+                continue
+
+            child_type = child_types[i] if i < len(child_types) else self.extract_activity_type(child_activity)
+            child_activities.append(
+                self._build_multisport_child_entry(
+                    child_id=child_id,
+                    child_activity=child_activity,
+                    child_type=child_type,
+                )
+            )
+        return child_activities
+
+    @staticmethod
+    def _apply_multisport_cycling_power(summary: ActivitySummary, child_activities: list[dict[str, Any]]):
+        for seg in child_activities:
+            if seg.get("activityType") != "cycling":
+                continue
+            seg_sum = seg.get("summary")
+            if not isinstance(seg_sum, ActivitySummary):
+                continue
+            summary.avg_power = summary.avg_power or seg_sum.avg_power
+            summary.max_power = summary.max_power or seg_sum.max_power
+            summary.normalized_power = summary.normalized_power or seg_sum.normalized_power
+            summary.training_stress_score = summary.training_stress_score or seg_sum.training_stress_score
+            summary.intensity_factor = summary.intensity_factor or seg_sum.intensity_factor
 
     def _process_multisport_activity(self, detailed_activity: MutableMapping[str, Any]) -> Activity | None:
         try:
@@ -452,100 +621,23 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 logger.warning("Multisport activity missing activityId")
                 return None
 
-            # Weather
-            weather_data = self._call_api(
-                self.garmin.client.get_activity_weather,
-                activity_id,
-                default=None,
-                what=f"get_activity_weather({activity_id})"
-            )
+            weather_data = self._fetch_activity_weather(activity_id)
+            self._merge_activity_details_in_place(activity_id, detailed_activity)
 
-            # Additional details (merge shallowly)
-            activity_details = self._call_api(
-                self.garmin.client.get_activity_details,
-                activity_id,
-                default={},
-                what=f"get_activity_details({activity_id})"
-            )
-            _merge_missing(detailed_activity, activity_details)
-
-            metadata = _dg(detailed_activity, "metadataDTO", {}) or {}
-            child_ids = list(_dg(metadata, "childIds", []) or _dg(detailed_activity, "childIds", []) or [])
-            child_types = _dg(metadata, "childActivityTypes", []) or []
-
-            if not child_ids:
-                # Alternative: childActivities contains dicts
-                for child in _dg(detailed_activity, "childActivities", []) or []:
-                    if isinstance(child, dict) and child.get("activityId"):
-                        child_ids.append(child["activityId"])
-                        if not child_types:
-                            child_types.append(_dg(child.get("activityType", {}), "typeKey", "unknown"))
-
+            child_ids, child_types = self._multisport_child_ids_and_types(detailed_activity)
             if not child_ids:
                 logger.warning("No child activities for multisport %s", activity_id)
                 return None
 
-            child_activities = []
-            for i, child_id in enumerate(child_ids):
-                child_activity = self._call_api(
-                    self.garmin.client.get_activity,
-                    child_id,
-                    default={},
-                    what=f"get_activity({child_id})"
-                )
-                if not isinstance(child_activity, dict) or not child_activity:
-                    logger.warning("Failed to fetch child activity %s", child_id)
-                    continue
-
-                child_details = self._call_api(
-                    self.garmin.client.get_activity_details,
-                    child_id,
-                    default={},
-                    what=f"get_activity_details({child_id})"
-                )
-                _merge_missing(child_activity, child_details)
-
-                child_type = child_types[i] if i < len(child_types) else self.extract_activity_type(child_activity)
-                child_start_time = self.extract_start_time(child_activity)
-                child_summary = self._extract_activity_summary(_dg(child_activity, "summaryDTO", {}) or {})
-
-                if child_type == "cycling":
-                    self._enrich_cycling_power(child_activity, child_summary)
-
-                child_lap_data = self.get_activity_laps(child_id)
-
-                child_activities.append(
-                    {
-                        "activityId": child_id,
-                        "activityName": child_activity.get("activityName") or child_activity.get("name"),
-                        "activityType": child_type,
-                        "startTime": child_start_time,
-                        "summary": child_summary,
-                        "laps": child_lap_data,
-                    }
-                )
-
+            child_activities = self._multisport_child_entries(child_ids, child_types)
             if not child_activities:
                 logger.warning("No valid child activities for multisport %s", activity_id)
                 return None
 
-            activity_name = (
-                detailed_activity.get("activityName") or detailed_activity.get("name") or "Multisport Activity"
-            )
+            activity_name = detailed_activity.get("activityName") or detailed_activity.get("name") or "Multisport Activity"
             start_time = self.extract_start_time(detailed_activity)
             summary = self._extract_activity_summary(_dg(detailed_activity, "summaryDTO", {}) or {})
-
-            # Pull cycling power up to parent if parent lacks it
-            cycling_segments = [c for c in child_activities if c.get("activityType") == "cycling"]
-            for seg in cycling_segments:
-                seg_sum = seg.get("summary")
-                if not isinstance(seg_sum, ActivitySummary):
-                    continue
-                summary.avg_power = summary.avg_power or seg_sum.avg_power
-                summary.max_power = summary.max_power or seg_sum.max_power
-                summary.normalized_power = summary.normalized_power or seg_sum.normalized_power
-                summary.training_stress_score = summary.training_stress_score or seg_sum.training_stress_score
-                summary.intensity_factor = summary.intensity_factor or seg_sum.intensity_factor
+            self._apply_multisport_cycling_power(summary, child_activities)
 
             return Activity(
                 activity_id=activity_id,
@@ -840,7 +932,7 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 default={},
                 what=f"get_sleep_data({current_date})"
             )
-            
+
             stress_data = self._call_api(
                 self.garmin.client.get_stress_data,
                 current_date.isoformat(),
@@ -947,31 +1039,10 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 history["running"].append({"date": r_date, "value": r_val})
                 processed_dates["running"].add(r_date)
 
-            cyc = None
-            for field in ("cycling", "bike", "cycle"):
-                if isinstance(mr, dict) and field in mr:
-                    cyc = mr.get(field)
-                    break
-            if cyc is None and isinstance(mr, dict) and "sportSpecific" in mr:
-                ss = mr.get("sportSpecific") or {}
-                for field in ("cycling", "bike", "cycle"):
-                    if field in ss:
-                        cyc = ss.get(field)
-                        break
-            if cyc is None and isinstance(mr, dict) and isinstance(mr.get("sport"), list):
-                for entry in mr.get("sport"):
-                    if isinstance(entry, dict) and "sportType" in entry:
-                        st = str(entry.get("sportType", "")).lower()
-                        if "cycling" in st or "bike" in st:
-                            cyc = entry
-                            break
-
-            if isinstance(cyc, dict):
-                c_val = _to_float(cyc.get("vo2MaxValue"))
-                c_date = cyc.get("calendarDate")
-                if c_val is not None and c_date and c_date not in processed_dates["cycling"]:
-                    history["cycling"].append({"date": c_date, "value": c_val})
-                    processed_dates["cycling"].add(c_date)
+            cycling = self._extract_sport_specific_vo2max(mr)
+            if cycling and cycling["date"] not in processed_dates["cycling"]:
+                history["cycling"].append(cycling)
+                processed_dates["cycling"].add(cycling["date"])
 
         logger.info(
             "Collected %d running and %d cycling VO2max entries", len(history["running"]), len(history["cycling"])
@@ -1003,24 +1074,10 @@ class TriathlonCoachDataExtractor(DataExtractor):
                 trend["running"].append({"date": r_date, "value": r_val})
                 processed_dates["running"].add(r_date)
 
-            cyc = None
-            for field in ("cycling", "bike", "cycle"):
-                if isinstance(mr, dict) and field in mr:
-                    cyc = mr.get(field)
-                    break
-            if cyc is None and isinstance(mr, dict) and "sportSpecific" in mr:
-                ss = mr.get("sportSpecific") or {}
-                for field in ("cycling", "bike", "cycle"):
-                    if field in ss:
-                        cyc = ss.get(field)
-                        break
-
-            if isinstance(cyc, dict):
-                c_val = _to_float(cyc.get("vo2MaxValue"))
-                c_date = cyc.get("calendarDate")
-                if c_val is not None and c_date and c_date not in processed_dates["cycling"]:
-                    trend["cycling"].append({"date": c_date, "value": c_val})
-                    processed_dates["cycling"].add(c_date)
+            cycling = self._extract_sport_specific_vo2max(mr)
+            if cycling and cycling["date"] not in processed_dates["cycling"]:
+                trend["cycling"].append(cycling)
+                processed_dates["cycling"].add(cycling["date"])
 
         trend["running"].sort(key=lambda x: x["date"])
         trend["cycling"].sort(key=lambda x: x["date"])

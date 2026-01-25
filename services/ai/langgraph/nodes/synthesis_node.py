@@ -3,12 +3,12 @@ import logging
 from datetime import datetime
 
 from services.ai.ai_settings import AgentRole
+from services.ai.langgraph.state.training_analysis_state import TrainingAnalysisState
+from services.ai.langgraph.utils.output_helper import extract_expert_output
 from services.ai.model_config import ModelSelector
 from services.ai.tools.plotting import PlotStorage
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
-from ..state.training_analysis_state import TrainingAnalysisState
-from ..utils.output_helper import extract_expert_output
 from .tool_calling_helper import handle_tool_calling_in_node
 
 logger = logging.getLogger(__name__)
@@ -74,9 +74,11 @@ async def synthesis_node(state: TrainingAnalysisState) -> dict[str, list | str]:
     try:
         plot_storage = PlotStorage(state["execution_id"])
         plotting_enabled = state.get("plotting_enabled", False)
-        
+
         logger.info(
-            f"Synthesis node: Plotting {'enabled - including plot integration instructions' if plotting_enabled else 'disabled - no plot integration instructions'}"
+            "Synthesis node: Plotting %s - %s plot integration instructions",
+            "enabled" if plotting_enabled else "disabled",
+            "including" if plotting_enabled else "no",
         )
 
         agent_start_time = datetime.now()
@@ -109,19 +111,21 @@ async def synthesis_node(state: TrainingAnalysisState) -> dict[str, list | str]:
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-        logger.info(f"Synthesis analysis completed in {execution_time:.2f}s")
+        logger.info("Synthesis analysis completed in %.2fs", execution_time)
 
         return {
             "synthesis_result": synthesis_result,
             "synthesis_complete": True,
-            "costs": [{
-                "agent": "synthesis",
-                "execution_time": execution_time,
-                "timestamp": datetime.now().isoformat(),
-            }],
+            "costs": [
+                {
+                    "agent": "synthesis",
+                    "execution_time": execution_time,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            ],
             "available_plots": plot_storage.list_available_plots(),
         }
 
-    except Exception as e:
-        logger.error(f"Synthesis node failed: {e}")
-        return {"errors": [f"Synthesis analysis failed: {str(e)}"]}
+    except Exception as exc:
+        logger.exception("Synthesis node failed")
+        return {"errors": [f"Synthesis analysis failed: {exc!s}"]}

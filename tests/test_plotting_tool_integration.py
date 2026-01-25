@@ -50,7 +50,7 @@ fig.update_layout(title='Test Plot')
         mock_llm_with_tools = Mock()
         mock_llm_with_tools.kwargs = {"tools": [plotting_tool]}
         mock_llm.bind_tools.return_value = mock_llm_with_tools
-        
+
         monkeypatch.setattr(ModelSelector, "get_llm", lambda role: mock_llm)
 
         llm = ModelSelector.get_llm(AgentRole.METRICS_EXPERT)

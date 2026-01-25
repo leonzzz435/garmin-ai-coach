@@ -27,10 +27,8 @@ class GarminEncoder(json.JSONEncoder):
     def default(self, obj: Any) -> Any:
         if isinstance(obj, date):
             return obj.isoformat()
-        # Handle any object with __dict__ attribute (our model classes)
-        if hasattr(obj, '__dict__'):
+        if hasattr(obj, "__dict__"):
             return obj.__dict__
-        # Handle lists of objects
         if isinstance(obj, list):
             return [self.default(item) for item in obj]
         return super().default(obj)
@@ -47,17 +45,16 @@ def main():
     logger.info("Extracting data from Garmin Connect...")
     data = extractor.extract_data(config)
 
-    # Save to a timestamped file
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     export_dir = Path("data/exports")
     export_dir.mkdir(parents=True, exist_ok=True)
     filename = export_dir / f"garmin_data_{timestamp}.json"
 
-    logger.info(f"Saving data to {filename}...")
-    with open(filename, 'w') as f:
+    logger.info("Saving data to %s...", filename)
+    with open(filename, "w") as f:
         json.dump(vars(data), f, indent=2, cls=GarminEncoder)
 
-    logger.info(f"Data has been saved to {filename}")
+    logger.info("Data has been saved to %s", filename)
 
 
 if __name__ == "__main__":

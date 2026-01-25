@@ -1,7 +1,7 @@
 import json
 import logging
 from collections.abc import Callable, Iterable
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 import httpx
@@ -77,11 +77,7 @@ class OutsideApiGraphQlClient:
             """
         data = self._gql(query, {"appType": self.app_type, "id": int(event_id)}) or {}
         cats = ((data.get("athleticEvent") or {}).get("categories")) or []
-        out: list[EventCategory] = []
-        for c in cats:
-            if isinstance(c, dict):
-                out.append(self._map_category(c))
-        return out
+        return [self._map_category(cat) for cat in cats if isinstance(cat, dict)]
 
     def get_events(
         self, event_ids: list[int], batch_size: int = 25, precache: bool = False
@@ -413,132 +409,153 @@ class OutsideApiGraphQlClient:
         self, entries: list[dict[str, Any]] | dict[str, list[dict[str, Any]]]
     ) -> list[dict[str, Any]]:
         if isinstance(entries, dict):
-            out: list[dict[str, Any]] = []
-            app_map = {
-                "bikereg": "BIKEREG",
-                "runreg": "RUNREG",
-                "trireg": "TRIREG",
-                "skireg": "SKIREG",
-            }
-            for key, lst in entries.items():
-                if not lst:
-                    continue
-                app_type = app_map.get(str(key).strip().lower())
-                if not app_type:
-                    self.logger.warning("Unknown Outside app section '%s' ignored", key)
-                    continue
-                try:
-                    sub = OutsideApiGraphQlClient(
-                        app_type=app_type,
-                        endpoint=self.endpoint,
-                        client=self._client,
-                    )
-                    out.extend(sub.get_competitions(lst))
-                except Exception as e:
-                    self.logger.error("Failed resolving competitions for '%s': %s", key, e)
-            return out
+            return self._get_competitions_from_sections(entries)
 
         if not isinstance(entries, list) or not entries:
             return []
 
-        from datetime import date as _date
-        from datetime import datetime
-
-        def _iso_date(d: Any) -> str | None:
-            try:
-                if isinstance(d, datetime):
-                    return d.date().isoformat()
-                if isinstance(d, _date):
-                    return d.isoformat()
-                if isinstance(d, str) and d:
-                    return d.split("T")[0]
-            except Exception:
-                return None
-            return None
-
         resolved: list[dict[str, Any]] = []
-
         for entry in entries:
-            eid = entry.get("id")
-            url = entry.get("url")
-
-            if not eid and not url:
-                self.logger.warning("outside entry requires 'id' or 'url': %s", entry)
+            if not isinstance(entry, dict):
                 continue
-
-            event = None
-            try:
-                if eid:
-                    event = self.get_event(int(eid), precache=True)
-                elif url:
-                    event = self.get_event_by_url(url, precache=True)
-            except Exception as e:
-                self.logger.error(
-                    "Failed to retrieve event (%s): %s", f"id={eid}" if eid else f"url={url}", e
-                )
-                event = None
-
-            if not event:
-                self.logger.warning(
-                    "OutsideAPI event not found (%s)", f"id={eid}" if eid else f"url={url}"
-                )
-                continue
-
-            event_date = event.date
-            if event_date is None:
-                earliest = None
-                try:
-                    cats = event.categories
-                except Exception:
-                    cats = []
-                for c in cats or []:
-                    for rd in c.race_dates or []:
-                        if earliest is None or (rd and rd < earliest):
-                            earliest = rd
-                event_date = earliest or event.event_end_date
-
-            iso_date = _iso_date(event_date)
-            if not iso_date:
-                self.logger.warning(
-                    "OutsideAPI event missing usable date; skipping (%s)",
-                    f"id={eid}" if eid else f"url={url}",
-                )
-                continue
-
-            race_type = None
-            try:
-                cats = event.categories
-            except Exception:
-                cats = []
-            if cats:
-                for c in cats:
-                    if getattr(c, "name", None):
-                        race_type = c.name
-                        break
-            if not race_type:
-                et = event.event_types or []
-                race_type = et[0] if et else "AthleteReg Event"
-
-            location = ", ".join([x for x in [event.city, event.state] if x]) or None
-
-            comp: dict[str, Any] = {
-                "name": event.name or (f"Outside Event {eid}" if eid else "Outside Event"),
-                "date": iso_date,
-                "race_type": race_type,
-                "priority": self._normalize_priority_value(entry.get("priority")),
-                "target_time": entry.get("target_time", ""),
-            }
-            if location:
-                comp["location"] = location
-
-            resolved.append(comp)
-            self.logger.info("Added OutsideAPI competition: %s on %s", comp["name"], comp["date"])
+            competition = self._resolve_competition_entry(entry)
+            if competition:
+                resolved.append(competition)
 
         if resolved:
             self.logger.info("OutsideAPI: resolved %d competitions", len(resolved))
         else:
             self.logger.info("OutsideAPI: no competitions resolved")
         return resolved
+
+    def _get_competitions_from_sections(self, sections: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+        out: list[dict[str, Any]] = []
+        app_map = {
+            "bikereg": "BIKEREG",
+            "runreg": "RUNREG",
+            "trireg": "TRIREG",
+            "skireg": "SKIREG",
+        }
+        for key, lst in sections.items():
+            if not lst:
+                continue
+            app_type = app_map.get(str(key).strip().lower())
+            if not app_type:
+                self.logger.warning("Unknown Outside app section '%s' ignored", key)
+                continue
+            out.extend(self._get_competitions_from_section(app_type, lst, key))
+        return out
+
+    def _get_competitions_from_section(
+        self,
+        app_type: str,
+        entries: list[dict[str, Any]],
+        section_key: str,
+    ) -> list[dict[str, Any]]:
+        try:
+            sub = OutsideApiGraphQlClient(
+                app_type=app_type,
+                endpoint=self.endpoint,
+                client=self._client,
+            )
+            return sub.get_competitions(entries)
+        except Exception as exc:
+            self.logger.error("Failed resolving competitions for '%s': %s", section_key, exc)
+            return []
+
+    @staticmethod
+    def _to_iso_date(d: Any) -> str | None:
+        if isinstance(d, datetime):
+            return d.date().isoformat()
+        if isinstance(d, date):
+            return d.isoformat()
+        if isinstance(d, str) and d:
+            return d.split("T")[0]
+        return None
+
+    @staticmethod
+    def _entry_ident(event_id: Any, url: Any) -> str:
+        return f"id={event_id}" if event_id else f"url={url}"
+
+    def _resolve_competition_entry(self, entry: dict[str, Any]) -> dict[str, Any] | None:
+        event_id = entry.get("id")
+        url = entry.get("url")
+
+        if not event_id and not url:
+            self.logger.warning("outside entry requires 'id' or 'url': %s", entry)
+            return None
+
+        ident = self._entry_ident(event_id, url)
+        event = self._fetch_event_for_entry(event_id, url, ident)
+        if not event:
+            self.logger.warning("OutsideAPI event not found (%s)", ident)
+            return None
+
+        categories = self._safe_event_categories(event)
+        event_date = self._derive_event_date(event, categories)
+        iso_date = self._to_iso_date(event_date)
+        if not iso_date:
+            self.logger.warning("OutsideAPI event missing usable date; skipping (%s)", ident)
+            return None
+
+        race_type = self._derive_race_type(event, categories)
+        location = self._derive_location(event)
+
+        comp: dict[str, Any] = {
+            "name": event.name or (f"Outside Event {event_id}" if event_id else "Outside Event"),
+            "date": iso_date,
+            "race_type": race_type,
+            "priority": self._normalize_priority_value(entry.get("priority")),
+            "target_time": entry.get("target_time", ""),
+        }
+        if location:
+            comp["location"] = location
+
+        self.logger.info("Added OutsideAPI competition: %s on %s", comp["name"], comp["date"])
+        return comp
+
+    def _fetch_event_for_entry(self, event_id: Any, url: Any, ident: str) -> Event | None:
+        try:
+            if event_id:
+                return self.get_event(int(event_id), precache=True)
+            if url:
+                return self.get_event_by_url(str(url), precache=True)
+        except Exception as exc:
+            self.logger.error("Failed to retrieve event (%s): %s", ident, exc)
+        return None
+
+    def _safe_event_categories(self, event: Event) -> list[EventCategory]:
+        try:
+            return list(event.categories or [])
+        except Exception:
+            return []
+
+    @staticmethod
+    def _earliest_race_date(categories: list[EventCategory]):
+        earliest = None
+        for category in categories:
+            for race_date in category.race_dates or []:
+                if earliest is None or (race_date and race_date < earliest):
+                    earliest = race_date
+        return earliest
+
+    def _derive_event_date(self, event: Event, categories: list[EventCategory]):
+        if event.date is not None:
+            return event.date
+        return self._earliest_race_date(categories) or event.event_end_date
+
+    @staticmethod
+    def _derive_race_type(event: Event, categories: list[EventCategory]) -> str:
+        for category in categories:
+            if getattr(category, "name", None):
+                return category.name
+        event_types = event.event_types or []
+        return event_types[0] if event_types else "AthleteReg Event"
+
+    @staticmethod
+    def _derive_location(event: Event) -> str | None:
+        parts = [part for part in [event.city, event.state] if part]
+        return ", ".join(parts) or None
 
     def _normalize_and_validate_app_type(self, app_type: str) -> str:
         at = (app_type or "").strip().upper()

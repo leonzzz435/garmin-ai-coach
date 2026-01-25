@@ -10,7 +10,7 @@ def basic_test_state():
     return create_initial_state(
         user_id="test_user",
         athlete_name="Test Athlete",
-        garmin_data={'activities': [], 'training_load_history': []},
+        garmin_data={"activities": [], "training_load_history": []},
         execution_id="test_123",
     )
 

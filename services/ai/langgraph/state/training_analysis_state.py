@@ -1,8 +1,7 @@
 from typing import Annotated, Any
 
 from langgraph.graph import MessagesState
-
-from ..schemas import ActivityExpertOutputs, MetricsExpertOutputs, PhysiologyExpertOutputs
+from services.ai.langgraph.schemas import ActivityExpertOutputs, MetricsExpertOutputs, PhysiologyExpertOutputs
 
 
 class TrainingAnalysisState(MessagesState):
@@ -23,16 +22,16 @@ class TrainingAnalysisState(MessagesState):
     metrics_summary: str | None
     physiology_summary: str | None
     activity_summary: str | None
-    
+
     metrics_outputs: MetricsExpertOutputs | None
     activity_outputs: ActivityExpertOutputs | None
     physiology_outputs: PhysiologyExpertOutputs | None
-    
+
     synthesis_result: str | None
 
     season_plan: str | None
     weekly_plan: str | None
-    
+
     synthesis_complete: Annotated[bool, lambda x, y: x or y]
     season_plan_complete: Annotated[bool, lambda x, y: x or y]
 
@@ -48,7 +47,7 @@ class TrainingAnalysisState(MessagesState):
 
     available_plots: Annotated[list[str], lambda x, y: x + y]
     execution_id: str
-    
+
     # Agent-specific HITL message storage (with append reducer)
     metrics_expert_messages: Annotated[list, lambda x, y: (x or []) + y]
     activity_expert_messages: Annotated[list, lambda x, y: (x or []) + y]

@@ -3,6 +3,21 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+_MISSING = object()
+
+
+def _get_field(container: Any, field_name: str) -> Any:
+    if container is None:
+        return _MISSING
+
+    if hasattr(container, field_name):
+        return getattr(container, field_name)
+
+    if isinstance(container, Mapping) and field_name in container:
+        return container[field_name]
+
+    return _MISSING
+
 
 def _render_receiver_payload(payload: Any) -> str:
     if payload is None:
@@ -40,29 +55,19 @@ def extract_expert_output(expert_output: Any, target_field: str) -> str:
     if expert_output is None:
         raise ValueError(f"Expert output is None. Cannot extract '{target_field}'.")
 
+    output_container: Any = _MISSING
     if hasattr(expert_output, "output"):
-        output = expert_output.output
-        
-        if isinstance(output, list):
-            raise ValueError("Expert output contains questions, not analysis. HITL interaction required.")
+        output_container = expert_output.output
+    elif isinstance(expert_output, Mapping):
+        output_container = expert_output.get("output")
 
-        if hasattr(output, target_field):
-            return _render_receiver_payload(getattr(output, target_field))
-            
-        if isinstance(output, dict):
-            if target_field in output:
-                return _render_receiver_payload(output[target_field])
-                
-    elif isinstance(expert_output, dict):
-        if "output" in expert_output:
-            output = expert_output["output"]
-            if isinstance(output, dict) and target_field in output:
-                return _render_receiver_payload(output[target_field])
-            if isinstance(output, object) and hasattr(output, target_field):
-                return _render_receiver_payload(getattr(output, target_field))
-        
-        if target_field in expert_output:
-            return _render_receiver_payload(expert_output[target_field])
+    if isinstance(output_container, list):
+        raise ValueError("Expert output contains questions, not analysis. HITL interaction required.")
+
+    for candidate in (output_container, expert_output):
+        payload = _get_field(candidate, target_field)
+        if payload is not _MISSING:
+            return _render_receiver_payload(payload)
 
     raise ValueError(f"Expert output missing '{target_field}' field. Type: {type(expert_output)}")
 
@@ -70,17 +75,17 @@ def extract_expert_output(expert_output: Any, target_field: str) -> str:
 def extract_agent_content(value: Any) -> str:
     if not value:
         return ""
-        
+
     if hasattr(value, "output"):
         output = value.output
         if isinstance(output, str):
             return output
         raise ValueError("AgentOutput contains questions, not content. HITL interaction required.")
-        
+
     if isinstance(value, dict):
         return value.get("output", value.get("content", value))
-        
+
     if isinstance(value, str):
         return value
-        
+
     return str(value)

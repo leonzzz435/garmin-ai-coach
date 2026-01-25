@@ -43,7 +43,7 @@ class CostTracker:
             with open(config_path) as f:
                 return json.load(f)
         except Exception as e:
-            logger.error(f"Failed to load pricing data: {e}")
+            logger.error("Failed to load pricing data: %s", e)
             return {}
 
     def _normalize_model_name(self, model_name: str) -> str:
@@ -72,7 +72,7 @@ class CostTracker:
                 normalized_name = self._normalize_model_name(model_key)
 
                 if normalized_name not in self.pricing_data:
-                    logger.warning(f"No pricing data for model: {normalized_name}")
+                    logger.warning("No pricing data for model: %s", normalized_name)
                     continue
 
                 rates = self.pricing_data[normalized_name]
@@ -113,16 +113,22 @@ class CostTracker:
 
                 if web_search_requests > 0:
                     logger.info(
-                        f"🔍 WEB SEARCH USED: {web_search_requests} searches by {normalized_name}"
+                        "🔍 WEB SEARCH USED: %d searches by %s",
+                        web_search_requests,
+                        normalized_name,
                     )
 
                 logger.debug(
-                    f"Cost calculated for {normalized_name}: "
-                    f"${total_cost:.4f} ({input_tokens} input + {output_tokens} output tokens{search_info})"
+                    "Cost calculated for %s: $%.4f (%d input + %d output tokens%s)",
+                    normalized_name,
+                    total_cost,
+                    input_tokens,
+                    output_tokens,
+                    search_info,
                 )
 
             except Exception as e:
-                logger.error(f"Error calculating cost for model {model_key}: {e}")
+                logger.error("Error calculating cost for model %s: %s", model_key, e)
                 continue
 
         return model_usages
@@ -146,8 +152,11 @@ class CostTracker:
         self.total_session_cost += total_cost
 
         logger.info(
-            f"Agent {agent_name} cost: ${total_cost:.4f} "
-            f"({total_tokens} tokens, {execution_time:.1f}s)"
+            "Agent %s cost: $%.4f (%d tokens, %.1fs)",
+            agent_name,
+            total_cost,
+            total_tokens,
+            execution_time,
         )
 
         return agent_summary
@@ -226,7 +235,7 @@ class CostTracker:
             for model_name, data in summary["model_breakdown"].items():
                 search_info = (
                     f", {data['web_search_requests']} searches"
-                    if data['web_search_requests'] > 0
+                    if data["web_search_requests"] > 0
                     else ""
                 )
                 lines.append(

@@ -23,7 +23,7 @@ class PlotStorage:
         self.execution_id = execution_id
         self.plots: dict[str, PlotMetadata] = {}
         self.plot_counter = 0
-        logger.info(f"Initialized plot storage for execution {execution_id}")
+        logger.info("Initialized plot storage for execution %s", execution_id)
 
     def generate_plot_id(self, agent_name: str) -> str:
         self.plot_counter += 1
@@ -45,7 +45,7 @@ class PlotStorage:
         )
 
         self.plots[plot_id] = metadata
-        logger.info(f"Stored plot {plot_id} from agent {agent_name}")
+        logger.info("Stored plot %s from agent %s", plot_id, agent_name)
         return plot_id
 
     def get_plot(self, plot_id: str) -> PlotMetadata | None:
@@ -60,15 +60,15 @@ class PlotStorage:
         for plot_id, metadata in self.plots.items():
             plots_list.append(
                 {
-                    'plot_id': plot_id,
-                    'description': metadata.description,
-                    'agent_name': metadata.agent_name,
-                    'created_at': metadata.created_at.isoformat(),
-                    'data_summary': metadata.data_summary,
+                    "plot_id": plot_id,
+                    "description": metadata.description,
+                    "agent_name": metadata.agent_name,
+                    "created_at": metadata.created_at.isoformat(),
+                    "data_summary": metadata.data_summary,
                 }
             )
 
-        plots_list.sort(key=lambda x: x['created_at'])
+        plots_list.sort(key=lambda x: x["created_at"])
         return plots_list
 
     def get_plots_by_agent(self, agent_name: str) -> list[PlotMetadata]:
@@ -83,20 +83,20 @@ class PlotStorage:
         plot_count = len(self.plots)
         self.plots.clear()
         self.plot_counter = 0
-        logger.info(f"Cleared {plot_count} plots from execution {self.execution_id}")
+        logger.info("Cleared %d plots from execution %s", plot_count, self.execution_id)
 
     def get_storage_stats(self) -> dict[str, Any]:
         total_plots = len(self.plots)
-        agents = set(plot.agent_name for plot in self.plots.values())
+        agents = {plot.agent_name for plot in self.plots.values()}
         total_html_size = sum(len(plot.html_content) for plot in self.plots.values())
 
         return {
-            'execution_id': self.execution_id,
-            'total_plots': total_plots,
-            'unique_agents': len(agents),
-            'agents': list(agents),
-            'total_html_size_bytes': total_html_size,
-            'total_html_size_mb': round(total_html_size / (1024 * 1024), 2),
+            "execution_id": self.execution_id,
+            "total_plots": total_plots,
+            "unique_agents": len(agents),
+            "agents": list(agents),
+            "total_html_size_bytes": total_html_size,
+            "total_html_size_mb": round(total_html_size / (1024 * 1024), 2),
         }
 
     def __str__(self) -> str:

@@ -5,7 +5,7 @@ from .plotting import (
 )
 
 __all__ = [
-    'PlotStorage',
-    'PlotReferenceResolver',
-    'ProductionSecureExecutor',
+    "PlotReferenceResolver",
+    "PlotStorage",
+    "ProductionSecureExecutor",
 ]

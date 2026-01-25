@@ -31,7 +31,7 @@ class WorkflowCostTracker:
         workflow_app,
         initial_state: dict[str, Any],
         thread_id: str,
-        user_id: str = None,
+        user_id: str | None = None,
         progress_callback: Callable[[str, WorkflowCostSummary], Awaitable[None]] | None = None,
     ) -> tuple[dict[str, Any], WorkflowExecution]:
 
@@ -46,9 +46,7 @@ class WorkflowCostTracker:
         final_state = dict(initial_state) if initial_state else {}
 
         try:
-            logger.info(
-                f"Starting workflow execution with deterministic root_run_id: {root_run_id}"
-            )
+            logger.info("Starting workflow execution with deterministic root_run_id: %s", root_run_id)
 
             config = {
                 "run_id": root_run_id,
@@ -68,26 +66,27 @@ class WorkflowCostTracker:
             if thread_id:
                 config["configurable"] = {"thread_id": thread_id}
 
-            prev_lengths = {'analysis_html': None, 'planning_html': None}
+            prev_lengths = {"analysis_html": None, "planning_html": None}
 
             async for chunk in workflow_app.astream(
                 initial_state, config=config, stream_mode="values"
             ):
-                logger.debug(f"Workflow step: {list(chunk.keys()) if chunk else 'None'}")
+                logger.debug("Workflow step: %s", list(chunk.keys()) if chunk else "None")
                 if chunk:
                     final_state = chunk  # Take the latest complete state snapshot
 
-                    for _key in ('analysis_html', 'planning_html'):
-                        if _key in chunk and chunk[_key]:
+                    for _key in ("analysis_html", "planning_html"):
+                        if chunk.get(_key):
                             curr_len = len(str(chunk[_key]))
                             if prev_lengths[_key] != curr_len:
-                                logger.info(f"{_key} updated: {curr_len} chars")
+                                logger.info("%s updated: %d chars", _key, curr_len)
                                 prev_lengths[_key] = curr_len
                             else:
-                                logger.debug(f"{_key} unchanged: {curr_len} chars")
+                                logger.debug("%s unchanged: %d chars", _key, curr_len)
 
             logger.info(
-                f"Workflow execution complete with deterministic trace_id: {execution.trace_id}"
+                "Workflow execution complete with deterministic trace_id: %s",
+                execution.trace_id,
             )
 
             execution.end_time = datetime.now()
@@ -96,7 +95,7 @@ class WorkflowCostTracker:
             ).total_seconds()
 
             try:
-                logger.info(f"Extracting costs for deterministic trace: {execution.trace_id}")
+                logger.info("Extracting costs for deterministic trace: %s", execution.trace_id)
                 cost_summary = self.cost_extractor.extract_workflow_costs_by_trace(
                     execution.trace_id, execution.execution_time_seconds
                 )
@@ -107,17 +106,19 @@ class WorkflowCostTracker:
                     await progress_callback("workflow_complete", cost_summary)
 
                 logger.info(
-                    f"Workflow execution complete: ${cost_summary.total_cost_usd:.4f} ({cost_summary.total_tokens} tokens)"
+                    "Workflow execution complete: $%.4f (%d tokens)",
+                    cost_summary.total_cost_usd,
+                    cost_summary.total_tokens,
                 )
 
             except Exception as e:
-                logger.error(f"Error extracting costs for trace {execution.trace_id}: {e}")
+                logger.error("Error extracting costs for trace %s: %s", execution.trace_id, e)
                 execution.cost_summary = self.cost_extractor._zero_workflow_summary(
                     execution.trace_id
                 )
 
         except Exception as e:
-            logger.error(f"Error in workflow execution: {e}")
+            logger.error("Error in workflow execution: %s", e)
             execution.end_time = datetime.now()
             execution.execution_time_seconds = (
                 execution.end_time - execution.start_time
@@ -129,7 +130,7 @@ class WorkflowCostTracker:
 
     def get_legacy_cost_summary(self, execution: WorkflowExecution) -> dict[str, Any]:
         if not execution.cost_summary:
-            return {'total_cost_usd': 0.0, 'total_tokens': 0, 'agents': [], 'model_breakdown': {}}
+            return {"total_cost_usd": 0.0, "total_tokens": 0, "agents": [], "model_breakdown": {}}
 
         cost_summary = execution.cost_summary
 
@@ -139,46 +140,46 @@ class WorkflowCostTracker:
         for node in cost_summary.node_costs:
             agents.append(
                 {
-                    'name': node.name,
-                    'cost_usd': node.cost_usd,
-                    'tokens': node.tokens,
-                    'execution_time_seconds': 0.0,  # Per-node time not available yet
-                    'models': [
+                    "name": node.name,
+                    "cost_usd": node.cost_usd,
+                    "tokens": node.tokens,
+                    "execution_time_seconds": 0.0,  # Per-node time not available yet
+                    "models": [
                         {
-                            'name': node.model or 'unknown',
-                            'cost_usd': node.cost_usd,
-                            'input_tokens': node.input_tokens,
-                            'output_tokens': node.output_tokens,
-                            'total_tokens': node.tokens,
-                            'web_search_requests': node.web_search_requests,
+                            "name": node.model or "unknown",
+                            "cost_usd": node.cost_usd,
+                            "input_tokens": node.input_tokens,
+                            "output_tokens": node.output_tokens,
+                            "total_tokens": node.tokens,
+                            "web_search_requests": node.web_search_requests,
                         }
                     ],
                 }
             )
 
-            model_key = node.model or 'unknown'
+            model_key = node.model or "unknown"
             if model_key not in model_breakdown:
                 model_breakdown[model_key] = {
-                    'cost_usd': 0.0,
-                    'tokens': 0,
-                    'input_tokens': 0,
-                    'output_tokens': 0,
-                    'web_search_requests': 0,
+                    "cost_usd": 0.0,
+                    "tokens": 0,
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "web_search_requests": 0,
                 }
 
-            model_breakdown[model_key]['cost_usd'] += node.cost_usd
-            model_breakdown[model_key]['tokens'] += node.tokens
-            model_breakdown[model_key]['input_tokens'] += node.input_tokens
-            model_breakdown[model_key]['output_tokens'] += node.output_tokens
-            model_breakdown[model_key]['web_search_requests'] += node.web_search_requests
+            model_breakdown[model_key]["cost_usd"] += node.cost_usd
+            model_breakdown[model_key]["tokens"] += node.tokens
+            model_breakdown[model_key]["input_tokens"] += node.input_tokens
+            model_breakdown[model_key]["output_tokens"] += node.output_tokens
+            model_breakdown[model_key]["web_search_requests"] += node.web_search_requests
 
         return {
-            'total_cost_usd': cost_summary.total_cost_usd,
-            'total_tokens': cost_summary.total_tokens,
-            'total_execution_time_seconds': cost_summary.execution_time_seconds,
-            'agent_count': len(cost_summary.node_costs),
-            'agents': agents,
-            'model_breakdown': model_breakdown,
+            "total_cost_usd": cost_summary.total_cost_usd,
+            "total_tokens": cost_summary.total_tokens,
+            "total_execution_time_seconds": cost_summary.execution_time_seconds,
+            "agent_count": len(cost_summary.node_costs),
+            "agents": agents,
+            "model_breakdown": model_breakdown,
         }
 
 
@@ -189,21 +190,22 @@ class ProgressIntegratedCostTracker(WorkflowCostTracker):
         self.progress_manager = progress_manager
 
     async def run_workflow_with_progress(
-        self, workflow_app, initial_state: dict[str, Any], thread_id: str, user_id: str = None
+        self, workflow_app, initial_state: dict[str, Any], thread_id: str, user_id: str | None = None
     ) -> tuple[dict[str, Any], WorkflowExecution]:
 
         async def progress_callback(_event: str, cost_summary: WorkflowCostSummary):
-            if self.progress_manager and hasattr(self.progress_manager, 'analysis_stats'):
-                self.progress_manager.analysis_stats['total_cost_usd'] = cost_summary.total_cost_usd
-                self.progress_manager.analysis_stats['total_tokens'] = cost_summary.total_tokens
+            if self.progress_manager and hasattr(self.progress_manager, "analysis_stats"):
+                self.progress_manager.analysis_stats["total_cost_usd"] = cost_summary.total_cost_usd
+                self.progress_manager.analysis_stats["total_tokens"] = cost_summary.total_tokens
 
                 if cost_summary.node_costs:
-                    self.progress_manager.analysis_stats['agents_completed'] = len(
+                    self.progress_manager.analysis_stats["agents_completed"] = len(
                         cost_summary.node_costs
                     )
 
                 logger.info(
-                    f"Updated progress manager with cost: ${cost_summary.total_cost_usd:.4f}"
+                    "Updated progress manager with cost: $%.4f",
+                    cost_summary.total_cost_usd,
                 )
 
         return await self.run_workflow_with_cost_tracking(

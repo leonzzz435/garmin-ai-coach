@@ -1,10 +1,9 @@
 import logging
 from datetime import datetime
 
+from services.ai.langgraph.state.training_analysis_state import TrainingAnalysisState
 from services.ai.tools.plotting.plot_storage import PlotMetadata, PlotStorage
 from services.ai.tools.plotting.reference_resolver import PlotReferenceResolver
-
-from ..state.training_analysis_state import TrainingAnalysisState
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +34,9 @@ async def plot_resolution_node(state: TrainingAnalysisState) -> dict[str, str | 
         plot_storage = PlotStorage(state["execution_id"])
 
         logger.info(
-            f"Found {len(state.get('plots', []))} plot entries and "
-            f"{len(state.get('plot_storage_data', {}))} plot storage entries"
+            "Found %s plot entries and %s plot storage entries",
+            len(state.get("plots", [])),
+            len(state.get("plot_storage_data", {})),
         )
 
         for plot_id, plot_data in state.get("plot_storage_data", {}).items():
@@ -51,7 +51,7 @@ async def plot_resolution_node(state: TrainingAnalysisState) -> dict[str, str | 
 
         resolver = PlotReferenceResolver(plot_storage)
         validation_result = resolver.validate_plot_references(analysis_html)
-        logger.info(f"Plot validation result: {validation_result}")
+        logger.info("Plot validation result: %s", validation_result)
 
         if validation_result["total_references"] == 0:
             logger.info("No plot references found in HTML content")
@@ -64,20 +64,18 @@ async def plot_resolution_node(state: TrainingAnalysisState) -> dict[str, str | 
                 },
             }
 
-        logger.info(
-            f"About to resolve {validation_result['total_references']} plot references"
-        )
-        logger.info(f"Available plots in storage: {list(plot_storage.plots.keys())}")
+        logger.info("About to resolve %s plot references", validation_result["total_references"])
+        logger.info("Available plots in storage: %s", list(plot_storage.plots.keys()))
 
         for plot_id in validation_result["found_plots"]:
             plot_html = plot_storage.get_plot_html(plot_id)
             if plot_html:
-                logger.info(f"Plot {plot_id} has HTML content: {len(plot_html)} characters")
+                logger.info("Plot %s has HTML content: %s characters", plot_id, len(plot_html))
             else:
-                logger.warning(f"Plot {plot_id} has no HTML content!")
+                logger.warning("Plot %s has no HTML content!", plot_id)
 
         resolved_html = resolver.resolve_plot_references(analysis_html)
-        logger.info(f"Resolution result: {len(resolved_html)} characters")
+        logger.info("Resolution result: %s characters", len(resolved_html))
 
         resolved_count = (
             validation_result["total_references"]
@@ -85,8 +83,9 @@ async def plot_resolution_node(state: TrainingAnalysisState) -> dict[str, str | 
         )
 
         logger.info(
-            f"Plot resolution completed: "
-            f"{resolved_count}/{validation_result['total_references']} plots resolved"
+            "Plot resolution completed: %s/%s plots resolved",
+            resolved_count,
+            validation_result["total_references"],
         )
 
         return {
@@ -97,16 +96,18 @@ async def plot_resolution_node(state: TrainingAnalysisState) -> dict[str, str | 
                 "missing_plots": validation_result["missing_plots"],
                 "available_plots_summary": resolver.get_plot_summary(),
             },
-            "costs": [{
-                "agent": "plot_resolution",
-                "execution_time": 0.1,
-                "timestamp": datetime.now().isoformat(),
-            }],
+            "costs": [
+                {
+                    "agent": "plot_resolution",
+                    "execution_time": 0.1,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            ],
         }
 
-    except Exception as e:
-        logger.error(f"Plot resolution node failed: {e}")
+    except Exception as exc:
+        logger.exception("Plot resolution node failed")
         return {
-            "errors": [f"Plot resolution failed: {str(e)}"],
+            "errors": [f"Plot resolution failed: {exc!s}"],
             "analysis_html": state.get("analysis_html", ""),
         }

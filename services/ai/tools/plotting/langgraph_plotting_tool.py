@@ -1,4 +1,5 @@
 import logging
+import traceback
 
 from langchain_core.tools import tool
 
@@ -13,7 +14,7 @@ class LangGraphPlottingTool:
     def __init__(self, plot_storage: PlotStorage, agent_name: str = "unknown"):
         self.plot_storage = plot_storage
         self.agent_name = agent_name
-        logger.info(f"Initialized LangGraph plotting tool for agent: {agent_name}")
+        logger.info("Initialized LangGraph plotting tool for agent: %s", agent_name)
 
     def _count_agent_plots(self, agent_name: str) -> int:
         return sum(
@@ -25,8 +26,7 @@ class LangGraphPlottingTool:
 
         @tool("python_plotting_tool", return_direct=False)
         def python_plotting_tool(python_code: str, description: str) -> dict:
-            """
-            Execute complete Python code to create interactive Plotly visualizations.
+            """Execute complete Python code to create interactive Plotly visualizations.
 
             ⚠️ IMPORTANT LIMITS: Maximum 2 plots per agent. Use plotting only for insights
             that provide unique value beyond what's available in the Garmin app.
@@ -40,7 +40,7 @@ class LangGraphPlottingTool:
             Available imports: plotly.graph_objects, plotly.express, plotly.io, pandas,
             numpy, datetime, math, statistics, json, collections, re
 
-            RETURNS:
+            Returns:
             - Success: {"ok": True, "plot_id": "...", "message": "..."}
             - Error: {"ok": False, "error": "...", "hint": "..."}
 
@@ -69,21 +69,24 @@ class LangGraphPlottingTool:
                         "hint": "Provide a brief description of what the plot shows (e.g., 'Training load analysis over time showing weekly progression')"
                     }
 
-                logger.info(f"Agent {self.agent_name} executing plotting code")
+                logger.info("Agent %s executing plotting code", self.agent_name)
                 result = run_plot_code_get_html(python_code)
 
                 if not result["ok"]:
-                    logger.error(f"Agent {self.agent_name} plotting failed: {result['error']}")
+                    logger.error("Agent %s plotting failed: %s", self.agent_name, result["error"])
                     return {
                         "ok": False,
-                        "error": result['error'],
+                        "error": result["error"],
                         "hint": "Check: 1) Syntax errors, 2) Import statements (import plotly.graph_objects as go), 3) 'fig' variable creation, 4) Date handling with datetime, 5) Data references"
                     }
 
                 html_content = result["html"]
 
                 if not html_content:
-                    logger.error(f"Agent {self.agent_name} plot HTML conversion failed - no HTML content")
+                    logger.error(
+                        "Agent %s plot HTML conversion failed - no HTML content",
+                        self.agent_name,
+                    )
                     return {
                         "ok": False,
                         "error": "Failed to convert plot to HTML",
@@ -97,7 +100,7 @@ class LangGraphPlottingTool:
                     data_summary="Custom plotting code",
                 )
 
-                logger.info(f"Agent {self.agent_name} created plot {plot_id}")
+                logger.info("Agent %s created plot %s", self.agent_name, plot_id)
                 return {
                     "ok": True,
                     "plot_id": plot_id,
@@ -105,10 +108,11 @@ class LangGraphPlottingTool:
                 }
 
             except Exception as e:
-                import traceback
                 logger.error(
-                    f"Agent {self.agent_name} plotting failed: {e}\n\n"
-                    f"Full traceback:\n{traceback.format_exc()}"
+                    "Agent %s plotting failed: %s\n\nFull traceback:\n%s",
+                    self.agent_name,
+                    e,
+                    traceback.format_exc(),
                 )
                 return {
                     "ok": False,

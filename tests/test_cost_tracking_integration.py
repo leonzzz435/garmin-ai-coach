@@ -13,10 +13,10 @@ from services.ai.langgraph.utils.workflow_cost_tracker import WorkflowCostTracke
 def mock_progress_manager():
     manager = Mock()
     manager.analysis_stats = {
-        'total_cost_usd': 0.0,
-        'total_tokens': 0,
-        'agents_completed': 0,
-        'total_agents': 10,
+        "total_cost_usd": 0.0,
+        "total_tokens": 0,
+        "agents_completed": 0,
+        "total_agents": 10,
     }
     return manager
 

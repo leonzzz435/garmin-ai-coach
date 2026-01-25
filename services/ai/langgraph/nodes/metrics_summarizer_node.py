@@ -1,6 +1,6 @@
 from services.ai.ai_settings import AgentRole
+from services.ai.langgraph.state.training_analysis_state import TrainingAnalysisState
 
-from ..state.training_analysis_state import TrainingAnalysisState
 from .data_summarizer_node import create_data_summarizer_node
 
 

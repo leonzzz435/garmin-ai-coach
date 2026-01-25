@@ -44,8 +44,8 @@ class LangSmithCostExtractor:
             try:
                 self.client = Client()
                 logger.info("LangSmith cost extractor initialized")
-            except Exception as e:
-                logger.warning(f"Failed to initialize LangSmith client: {e}")
+            except Exception as exc:
+                logger.warning("Failed to initialize LangSmith client: %s", exc)
 
     def safe_read_run(
         self, run_id: str, retries: int = 3, backoff: float = 0.5, load_children: bool = True
@@ -57,12 +57,18 @@ class LangSmithCostExtractor:
             try:
                 return self.client.read_run(run_id, load_child_runs=load_children)
             except HTTPError as e:
-                logger.warning(f"HTTP error reading run {run_id}, attempt {i+1}/{retries}: {e}")
+                logger.warning(
+                    "HTTP error reading run %s, attempt %s/%s: %s",
+                    run_id,
+                    i + 1,
+                    retries,
+                    e,
+                )
                 if i == retries - 1:
                     raise
                 time.sleep(backoff * (2**i))
-            except Exception as e:
-                logger.error(f"Unexpected error reading run {run_id}: {e}")
+            except Exception:
+                logger.exception("Unexpected error reading run %s", run_id)
                 if i == retries - 1:
                     raise
                 time.sleep(backoff)
@@ -81,10 +87,14 @@ class LangSmithCostExtractor:
                     trace=trace_id, select=["id", "name", "run_type", "total_cost", "total_tokens"]
                 )
             )
-            logger.info(f"Found {len(all_runs)} total runs for trace {trace_id}")
+            logger.info("Found %s total runs for trace %s", len(all_runs), trace_id)
             for run in all_runs[:5]:  # Log first 5 for debugging
+                run_cost = float(run.total_cost or 0)
                 logger.info(
-                    f"  Run: {run.name} (type: {run.run_type}) - Cost: ${run.total_cost or 0:.4f}"
+                    "  Run: %s (type: %s) - Cost: $%.4f",
+                    run.name,
+                    run.run_type,
+                    run_cost,
                 )
 
             llm_runs = list(
@@ -102,7 +112,7 @@ class LangSmithCostExtractor:
                     ],
                 )
             )
-            logger.info(f"Found {len(llm_runs)} LLM runs for trace {trace_id}")
+            logger.info("Found %s LLM runs for trace %s", len(llm_runs), trace_id)
 
             total_cost = Decimal("0")
             total_tokens = 0
@@ -142,7 +152,10 @@ class LangSmithCostExtractor:
                 )
 
             logger.info(
-                f"Extracted costs for trace {trace_id}: ${float(total_cost):.4f} ({total_tokens} tokens)"
+                "Extracted costs for trace %s: $%.4f (%s tokens)",
+                trace_id,
+                float(total_cost),
+                total_tokens,
             )
 
             return WorkflowCostSummary(
@@ -157,8 +170,8 @@ class LangSmithCostExtractor:
                 execution_time_seconds=execution_time,
             )
 
-        except Exception as e:
-            logger.error(f"Failed to extract workflow costs for trace {trace_id}: {e}")
+        except Exception:
+            logger.exception("Failed to extract workflow costs for trace %s", trace_id)
             return self._zero_workflow_summary(trace_id)
 
     def extract_run_costs(self, run_id: str) -> dict[str, Any]:
@@ -175,39 +188,38 @@ class LangSmithCostExtractor:
                 model_key = node.model or "unknown"
                 if model_key not in model_breakdown:
                     model_breakdown[model_key] = {
-                        'cost_usd': 0.0,
-                        'input_tokens': 0,
-                        'output_tokens': 0,
-                        'total_tokens': 0,
-                        'web_search_requests': 0,
+                        "cost_usd": 0.0,
+                        "input_tokens": 0,
+                        "output_tokens": 0,
+                        "total_tokens": 0,
+                        "web_search_requests": 0,
                     }
 
-                model_breakdown[model_key]['cost_usd'] += node.cost_usd
-                model_breakdown[model_key]['input_tokens'] += node.input_tokens
-                model_breakdown[model_key]['output_tokens'] += node.output_tokens
-                model_breakdown[model_key]['total_tokens'] += node.tokens
-                model_breakdown[model_key]['web_search_requests'] += node.web_search_requests
+                model_breakdown[model_key]["cost_usd"] += node.cost_usd
+                model_breakdown[model_key]["input_tokens"] += node.input_tokens
+                model_breakdown[model_key]["output_tokens"] += node.output_tokens
+                model_breakdown[model_key]["total_tokens"] += node.tokens
+                model_breakdown[model_key]["web_search_requests"] += node.web_search_requests
 
             return {
-                'total_cost_usd': workflow_summary.total_cost_usd,
-                'total_tokens': workflow_summary.total_tokens,
-                'model_breakdown': model_breakdown,
-                'run_id': run_id,
-                'trace_id': workflow_summary.trace_id,
+                "total_cost_usd": workflow_summary.total_cost_usd,
+                "total_tokens": workflow_summary.total_tokens,
+                "model_breakdown": model_breakdown,
+                "run_id": run_id,
+                "trace_id": workflow_summary.trace_id,
             }
 
-        except Exception as e:
-            logger.error(f"Failed to extract costs from LangSmith run {run_id}: {e}")
+        except Exception:
+            logger.exception("Failed to extract costs from LangSmith run %s", run_id)
             return self._zero_cost_summary(run_id)
 
-    def _zero_cost_summary(self, run_id: str = None) -> dict[str, Any]:
-        """Legacy format zero cost summary"""
+    def _zero_cost_summary(self, run_id: str | None = None) -> dict[str, Any]:
         return {
-            'total_cost_usd': 0.0,
-            'total_tokens': 0,
-            'model_breakdown': {},
-            'run_id': run_id,
-            'trace_id': None,
+            "total_cost_usd": 0.0,
+            "total_tokens": 0,
+            "model_breakdown": {},
+            "run_id": run_id,
+            "trace_id": None,
         }
 
     def _zero_workflow_summary(self, trace_id: str) -> WorkflowCostSummary:

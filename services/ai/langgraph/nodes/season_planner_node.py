@@ -3,13 +3,13 @@ import logging
 from datetime import datetime
 
 from services.ai.ai_settings import AgentRole
+from services.ai.langgraph.schemas import AgentOutput
+from services.ai.langgraph.state.training_analysis_state import TrainingAnalysisState
+from services.ai.langgraph.utils.output_helper import extract_expert_output
 from services.ai.model_config import ModelSelector
 from services.ai.utils.plan_storage import FilePlanStorage
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
-from ..schemas import AgentOutput
-from ..state.training_analysis_state import TrainingAnalysisState
-from ..utils.output_helper import extract_expert_output
 from .node_base import (
     configure_node_tools,
     create_cost_entry,
@@ -71,8 +71,8 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
     logger.info("Starting season planner node")
 
     hitl_enabled = state.get("hitl_enabled", True)
-    logger.info(f"Season planner node: HITL {'enabled' if hitl_enabled else 'disabled'}")
-    
+    logger.info("Season planner node: HITL %s", "enabled" if hitl_enabled else "disabled")
+
     agent_start_time = datetime.now()
 
     tools = configure_node_tools(
@@ -86,7 +86,7 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
         get_workflow_context("season_planner") +
         (get_hitl_instructions("season_planner") if hitl_enabled else "")
     )
-    
+
     qa_messages_raw = state.get("season_planner_messages", [])
     qa_messages = []
     for msg in qa_messages_raw:
@@ -95,15 +95,15 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
             qa_messages.append({"role": role, "content": msg.content})
         else:
             qa_messages.append(msg)
-    
+
     existing_season_plan = ""
     try:
         storage = FilePlanStorage()
         loaded_plan = storage.load_plan(state["user_id"], "season_plan")
         if loaded_plan:
             existing_season_plan = loaded_plan
-    except Exception as e:
-        logger.warning(f"Could not read existing season plan: {e}")
+    except Exception as exc:
+        logger.warning("Could not read existing season plan: %s", exc)
 
     base_messages = [
         {"role": "system", "content": system_prompt},
@@ -118,10 +118,10 @@ async def season_planner_node(state: TrainingAnalysisState) -> dict[str, list | 
     ]
 
     base_llm = ModelSelector.get_llm(AgentRole.SEASON_PLANNER)
-    
+
     llm_with_tools = base_llm.bind_tools(tools) if tools else base_llm
     llm_with_structure = llm_with_tools.with_structured_output(AgentOutput)
-    
+
     async def call_season_planning():
         messages_with_qa = base_messages + qa_messages
         if tools:

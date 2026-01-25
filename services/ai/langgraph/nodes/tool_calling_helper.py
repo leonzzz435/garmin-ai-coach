@@ -8,20 +8,20 @@ logger = logging.getLogger(__name__)
 
 
 def extract_text_content(response) -> str:
-    if hasattr(response, 'content_blocks'):
+    if hasattr(response, "content_blocks"):
         try:
             blocks = response.content_blocks
             text_parts = [b["text"] for b in blocks if b.get("type") == "text" and "text" in b]
             if text_parts:
                 return "".join(text_parts)
         except Exception as e:
-            logger.debug(f"Failed to extract from content_blocks: {e}")
-    
-    content = response.content if hasattr(response, 'content') else response
-    
+            logger.debug("Failed to extract from content_blocks: %s", e)
+
+    content = response.content if hasattr(response, "content") else response
+
     if isinstance(content, str):
         return content
-    
+
     if isinstance(content, list):
         text_item = next(
             (item["text"] for item in content
@@ -30,7 +30,7 @@ def extract_text_content(response) -> str:
         )
         if text_item:
             return text_item
-        
+
         text_item = next(
             (item["text"] for item in content
              if isinstance(item, dict) and "text" in item),
@@ -38,7 +38,7 @@ def extract_text_content(response) -> str:
         )
         if text_item:
             return text_item
-    
+
     return str(content)
 
 
@@ -53,12 +53,12 @@ async def handle_tool_calling_in_node(
     iteration = 0
     while iteration < max_iterations:
         iteration += 1
-        logger.debug(f"Tool calling iteration {iteration}")
+        logger.debug("Tool calling iteration %s", iteration)
 
         response = await llm_with_tools.ainvoke(conversation)
 
         if hasattr(response, "tool_calls") and response.tool_calls:
-            logger.info(f"LLM requested {len(response.tool_calls)} tool calls")
+            logger.info("LLM requested %s tool calls", len(response.tool_calls))
 
             conversation.append(response)
 
@@ -67,7 +67,7 @@ async def handle_tool_calling_in_node(
                 tool_args = tool_call["args"]
                 tool_id = tool_call["id"]
 
-                logger.info(f"Executing tool: {tool_name}")
+                logger.info("Executing tool: %s", tool_name)
 
                 tool = next(
                     (tool_candidate for tool_candidate in tools
@@ -90,18 +90,18 @@ async def handle_tool_calling_in_node(
                         else:
                             tool_result = f"Unable to invoke tool {tool_name}"
 
-                        logger.info(f"Tool {tool_name} executed successfully")
-                    
+                        logger.info("Tool %s executed successfully", tool_name)
+
                     except GraphInterrupt:
-                        logger.info(f"Tool {tool_name} triggered HITL interrupt - pausing workflow")
+                        logger.info("Tool %s triggered HITL interrupt - pausing workflow", tool_name)
                         raise
 
                 tool_message = ToolMessage(content=str(tool_result), tool_call_id=tool_id)
                 conversation.append(tool_message)
 
         else:
-            logger.info(f"Final response received after {iteration} iterations")
+            logger.info("Final response received after %s iterations", iteration)
             return response
 
-    logger.warning(f"Max iterations ({max_iterations}) reached in tool calling")
+    logger.warning("Max iterations (%s) reached in tool calling", max_iterations)
     return response

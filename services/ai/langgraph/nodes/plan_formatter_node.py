@@ -2,10 +2,10 @@ import logging
 from datetime import datetime
 
 from services.ai.ai_settings import AgentRole
+from services.ai.langgraph.state.training_analysis_state import TrainingAnalysisState
 from services.ai.model_config import ModelSelector
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
-from ..state.training_analysis_state import TrainingAnalysisState
 from .tool_calling_helper import extract_text_content
 
 logger = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ async def plan_formatter_node(state: TrainingAnalysisState) -> dict[str, list | 
             if isinstance(value, dict):
                 return value.get("output", value.get("content", value))
             return value
-        
+
         async def call_plan_formatting():
             response = await ModelSelector.get_llm(AgentRole.FORMATTER).ainvoke([
                 {"role": "system", "content": PLAN_FORMATTER_SYSTEM_PROMPT},
@@ -88,17 +88,19 @@ async def plan_formatter_node(state: TrainingAnalysisState) -> dict[str, list | 
         )
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
-        logger.info(f"Plan formatting completed in {execution_time:.2f}s")
+        logger.info("Plan formatting completed in %.2fs", execution_time)
 
         return {
             "planning_html": planning_html,
-            "costs": [{
-                "agent": "plan_formatter",
-                "execution_time": execution_time,
-                "timestamp": datetime.now().isoformat(),
-            }],
+            "costs": [
+                {
+                    "agent": "plan_formatter",
+                    "execution_time": execution_time,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            ],
         }
 
-    except Exception as e:
-        logger.error(f"Plan formatter node failed: {e}")
-        return {"errors": [f"Plan formatting failed: {str(e)}"]}
+    except Exception as exc:
+        logger.exception("Plan formatter node failed")
+        return {"errors": [f"Plan formatting failed: {exc!s}"]}

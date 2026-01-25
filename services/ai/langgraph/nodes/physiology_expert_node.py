@@ -3,13 +3,13 @@ import logging
 from datetime import datetime
 
 from services.ai.ai_settings import AgentRole
+from services.ai.langgraph.schemas import PhysiologyExpertOutputs
+from services.ai.langgraph.state.training_analysis_state import TrainingAnalysisState
+from services.ai.langgraph.utils.message_helper import normalize_langchain_messages
 from services.ai.model_config import ModelSelector
 from services.ai.tools.plotting import PlotStorage
 from services.ai.utils.retry_handler import AI_ANALYSIS_CONFIG, retry_with_backoff
 
-from ..schemas import PhysiologyExpertOutputs
-from ..state.training_analysis_state import TrainingAnalysisState
-from ..utils.message_helper import normalize_langchain_messages
 from .node_base import (
     configure_node_tools,
     create_cost_entry,
@@ -87,10 +87,11 @@ async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list
     plot_storage = PlotStorage(state["execution_id"])
     plotting_enabled = state.get("plotting_enabled", False)
     hitl_enabled = state.get("hitl_enabled", True)
-    
+
     logger.info(
-        f"Physiology expert: Plotting {'enabled' if plotting_enabled else 'disabled'}, "
-        f"HITL {'enabled' if hitl_enabled else 'disabled'}"
+        "Physiology expert: Plotting %s, HITL %s",
+        "enabled" if plotting_enabled else "disabled",
+        "enabled" if hitl_enabled else "disabled",
     )
 
     tools = configure_node_tools(
@@ -115,7 +116,7 @@ async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list
 
     async def call_physiology_analysis():
         qa_messages = normalize_langchain_messages(state.get("physiology_expert_messages", []))
-        
+
         base_messages = [
             {"role": "system", "content": system_prompt},
             {
@@ -128,7 +129,7 @@ async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list
                 ),
             },
         ]
-        
+
         return await handle_tool_calling_in_node(
             llm_with_tools=llm_with_structure,
             messages=base_messages + qa_messages,
@@ -143,7 +144,7 @@ async def physiology_expert_node(state: TrainingAnalysisState) -> dict[str, list
 
         execution_time = (datetime.now() - agent_start_time).total_seconds()
         plots, plot_storage_data, available_plots = create_plot_entries("physiology", plot_storage)
-        
+
         log_node_completion("Physiology expert analysis", execution_time, len(available_plots))
 
         return {

@@ -17,7 +17,6 @@ async def test_cli_e2e_smoke_with_mocks(
     tmp_path,
 ):
     """Test CLI end-to-end with all external dependencies mocked."""
-    
     # Configure workflow mock
     mock_workflow.return_value = {
         "analysis_html": "<html><body>Analysis OK</body></html>",
@@ -31,18 +30,18 @@ async def test_cli_e2e_smoke_with_mocks(
         "execution_id": "test-exec",
         "execution_metadata": {"trace_id": "trace-1", "root_run_id": "root-1"},
     }
-    
+
     # Configure extractor mock
     mock_instance = mock_extractor_class.return_value
     mock_instance.extract_data.return_value = GarminData()
-    
+
     # Configure outside client mock
     mock_outside_instance = mock_outside_client.return_value
     mock_outside_instance.get_competitions.return_value = []
-    
+
     # Import after patches are in place
     from cli.garmin_ai_coach_cli import run_analysis_from_config
-    
+
     output_directory = tmp_path / "out"
     config_path = tmp_path / "config.yaml"
     config_path.write_text(
@@ -99,7 +98,6 @@ async def test_cli_e2e_with_hitl_enabled(
     tmp_path,
 ):
     """Test CLI with HITL enabled to ensure user interactions work."""
-    
     # Configure workflow mock
     mock_workflow.return_value = {
         "analysis_html": "<html><body>Analysis with HITL</body></html>",
@@ -113,18 +111,18 @@ async def test_cli_e2e_with_hitl_enabled(
         "execution_id": "test-exec-hitl",
         "execution_metadata": {"trace_id": "trace-hitl", "root_run_id": "root-hitl"},
     }
-    
+
     # Configure extractor mock
     mock_instance = mock_extractor_class.return_value
     mock_instance.extract_data.return_value = GarminData()
-    
+
     # Configure outside client mock
     mock_outside_instance = mock_outside_client.return_value
     mock_outside_instance.get_competitions.return_value = []
-    
+
     # Import after patches are in place
     from cli.garmin_ai_coach_cli import run_analysis_from_config
-    
+
     output_directory = tmp_path / "out_hitl"
     config_path = tmp_path / "config_hitl.yaml"
     config_path.write_text(
