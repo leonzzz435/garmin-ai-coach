@@ -51,6 +51,16 @@ class AISettings:
                 AgentRole.WORKOUT: "claude-4",
                 AgentRole.SEASON_PLANNER: "claude-4",
             },
+            AIMode.PRO: {
+                AgentRole.SUMMARIZER: "gpt-5",
+                AgentRole.FORMATTER: "gpt-5",
+                AgentRole.METRICS_EXPERT: "gpt-5.2-pro-search",
+                AgentRole.PHYSIOLOGY_EXPERT: "gpt-5.2-pro-search",
+                AgentRole.ACTIVITY_EXPERT: "gpt-5.2-pro-search",
+                AgentRole.SYNTHESIS: "gpt-5-search",
+                AgentRole.WORKOUT: "gpt-5.2-pro-search",
+                AgentRole.SEASON_PLANNER: "gpt-5.2-pro-search",
+            },
         }
     )
 

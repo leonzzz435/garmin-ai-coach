@@ -18,12 +18,18 @@ context:
 
 # Data Extraction Settings
 extraction:
-  activities_days: 21      # How many days of activities to extract
+  activities_days: 28      # How many days of activities to extract
   metrics_days: 56         # How many days of metrics to extract
-  ai_mode: "standard"      # Overrides .env AI_MODE for coach-cli runs; one of: "development", "standard", "cost_effective"
+  ai_mode: "standard"      # Overrides .env AI_MODE for coach-cli runs; one of: "development", "standard", "cost_effective", "pro"
+                           # ⚠️  WARNING: "pro" mode can incur high costs (>$10 per run depending on data volume)
   enable_plotting: false   # Enable AI-generated plots (default: false to save costs). Set to true for visual insights.
   hitl_enabled: true       # Enable Human-in-the-Loop interactions - agents can ask questions during analysis (default: true)
   skip_synthesis: false    # Skip synthesis and formatter nodes (default: false). Set to true to save tokens when you only need the weekly plan.
+  
+  # Long-term trends (optional - provides historical context for VO2 max and training load)
+  include_long_term_trends: true  # Include long-term trends in analysis (default: true)
+  long_term_range: 360     # How many days to look back for long-term trends (default: 360)
+  long_term_interval: 7    # Interval in days between trend data points (default: 7)
 
 # Upcoming Competitions
 competitions:

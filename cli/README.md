@@ -46,7 +46,7 @@ Notes:
 Top-level keys:
 - athlete: name, email
 - context: analysis, planning (freeform text; the AI will follow these constraints)
-- extraction: activities_days, metrics_days, ai_mode ("development" | "standard" | "cost_effective")
+- extraction: activities_days, metrics_days, ai_mode ("development" | "standard" | "cost_effective" | "pro")
 - competitions: list of {name, date (YYYY-MM-DD), race_type, priority (A/B/C), target_time (HH:MM:SS)}
 - output: directory
 - credentials: password (optional; leave empty for interactive prompt)
@@ -169,6 +169,8 @@ Provider selection depends on AI mode mapping:
   - `standard` → `gpt-5` / `gpt-5-search` (OpenAI, with web search for experts/planners)
   - `development` → `claude-4` (Anthropic)
   - `cost_effective` → `claude-3-haiku` (Anthropic)
+  - `pro` → `gpt-5-search` / `gpt-5.2-pro-search` (OpenAI, with gpt-5.2-pro-search for experts and planners)
+    - ⚠️ **WARNING**: PRO mode can incur high costs (>$10 per run depending on data volume and configuration)
 - Model IDs and providers are declared in [`python.ModelSelector.CONFIGURATIONS`](../services/ai/model_config.py:22), and the provider API key is auto-selected in [`python.ModelSelector.get_llm()`](../services/ai/model_config.py:61).
 
 Practical guidance:

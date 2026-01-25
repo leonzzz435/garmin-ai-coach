@@ -33,6 +33,7 @@ The system uses a **role-based model assignment strategy** that optimizes model 
 - **STANDARD (Production)**: Balances reasoning depth with performance, utilizing "thinking" models for complex tasks and faster models for formatting.
 - **COST_EFFECTIVE**: Prioritizes budget-friendly models (e.g., smaller, faster variants) across all nodes.
 - **DEVELOPMENT**: optimized for fast iteration and testing cycles.
+- **PRO**: Maximum performance mode using GPT-5.2 Pro with web search for expert nodes (metrics, physiology, activity) and planners (season, weekly), with standard GPT-5.2 for other nodes. ⚠️ **High cost mode** (>$10 per run depending on data volume).
 
 ### AI Orchestration & Observability
 - **LangGraph 1.0+** - State-based workflow orchestration ✅ **ACTIVE**
