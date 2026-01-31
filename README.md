@@ -165,8 +165,9 @@ Set at least one provider API key (e.g. in `.env`):
 - `OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
 - `OPENROUTER_API_KEY` (DeepSeek/Gemini/Grok, and can also act as a fallback router)
+- Azure AI Foundry: `AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_API_KEY` (see [`.env.example`](.env.example))
 
-The run’s `ai_mode` comes from `extraction.ai_mode` (the CLI exports it to `AI_MODE` internally).
+The run's `ai_mode` comes from `extraction.ai_mode` (the CLI exports it to `AI_MODE` internally).
 
 Defaults (role→model mapping) live in:
 

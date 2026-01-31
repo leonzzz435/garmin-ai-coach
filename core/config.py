@@ -28,6 +28,11 @@ class Config:
     deepseek_api_key: str | None = None
     openrouter_api_key: str | None = None
 
+    azure_openai_api_key: str | None = None
+    azure_openai_endpoint: str | None = None
+    azure_openai_api_version: str | None = None
+    azure_openai_deployment_name: str | None = None
+
     ai_mode: AIMode = AIMode.STANDARD
 
     @classmethod
@@ -36,6 +41,11 @@ class Config:
         openai_api_key = os.getenv("OPENAI_API_KEY")
         deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
         openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+
+        azure_openai_api_key = os.getenv("AZURE_OPENAI_API_KEY")
+        azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        azure_openai_api_version = os.getenv("AZURE_OPENAI_API_VERSION")
+        azure_openai_deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
 
         ai_mode_str = os.getenv("AI_MODE", "standard").lower()
         try:
@@ -56,6 +66,10 @@ class Config:
             openai_api_key=openai_api_key,
             deepseek_api_key=deepseek_api_key,
             openrouter_api_key=openrouter_api_key,
+            azure_openai_api_key=azure_openai_api_key,
+            azure_openai_endpoint=azure_openai_endpoint,
+            azure_openai_api_version=azure_openai_api_version,
+            azure_openai_deployment_name=azure_openai_deployment_name,
         )
 
 
