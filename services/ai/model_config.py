@@ -225,17 +225,50 @@ class ModelSelector:
             logger.info(str(log_msg).format(role=role.value))
 
     @classmethod
-    def get_llm(cls, role: AgentRole):
-        model_name = ai_settings.get_model_for_role(role)
-        selected_config = cls.CONFIGURATIONS.get(model_name)
-        if not selected_config:
-            raise RuntimeError(f"Unknown model '{model_name}' in configuration")
-        config = get_config()
+    def _configure_azure_openai(cls, model_name: str, role: AgentRole, selected_config: ModelConfiguration, config):
+        if not config.azure_openai_api_key:
+            raise RuntimeError("AZURE_OPENAI_API_KEY is required when AZURE_OPENAI_ENDPOINT is set")
+        if not config.azure_openai_deployment_name:
+            raise RuntimeError("AZURE_OPENAI_DEPLOYMENT_NAME is required when AZURE_OPENAI_ENDPOINT is set")
 
-        base_url = selected_config.base_url
-        final_model_name = selected_config.name
-        provider = cls._detect_provider(base_url)
+        provider = cls._detect_provider(selected_config.base_url)
+        if provider not in ("openai", "openrouter"):
+            raise RuntimeError(
+                f"Azure OpenAI mode is enabled but model '{model_name}' is a {provider} model. "
+                f"When using Azure, configure OpenAI-family models (gpt-*, o*) in ai_settings."
+            )
 
+        endpoint_normalized = config.azure_openai_endpoint.rstrip("/")
+        if not endpoint_normalized.endswith("/openai/v1"):
+            azure_base_url = endpoint_normalized + "/openai/v1/"
+        else:
+            azure_base_url = endpoint_normalized + "/"
+
+        logger.info(
+            "Using Azure OpenAI v1 for role %s with deployment %s (base_url: %s)",
+            role.value,
+            config.azure_openai_deployment_name,
+            azure_base_url,
+        )
+
+        llm_params: dict[str, Any] = {
+            "model": config.azure_openai_deployment_name,
+            "api_key": config.azure_openai_api_key,
+            "base_url": azure_base_url,
+        }
+
+        cls._apply_model_config(model_name, role, llm_params)
+
+        if "thinking" in llm_params:
+            raise RuntimeError(
+                f"Model config '{model_name}' includes 'thinking' (Anthropic-specific). "
+                f"Azure OpenAI does not support this parameter."
+            )
+
+        return ChatOpenAI(**llm_params)
+
+    @classmethod
+    def _resolve_api_key(cls, provider: str, selected_config: ModelConfiguration, config):
         key_map = {
             "anthropic": config.anthropic_api_key,
             "openai": config.openai_api_key,
@@ -243,6 +276,8 @@ class ModelSelector:
         }
 
         api_key = key_map.get(provider)
+        base_url = selected_config.base_url
+        final_model_name = selected_config.name
         use_fallback = False
 
         if not api_key and provider in ("anthropic", "openai"):
@@ -266,19 +301,40 @@ class ModelSelector:
         elif not api_key:
             raise RuntimeError("OpenRouter API key is required for OpenRouter-hosted models")
 
+        return api_key, base_url, final_model_name, use_fallback
+
+    @classmethod
+    def _cleanup_openrouter_params(cls, llm_params: dict[str, Any], provider: str):
+        llm_params.pop("use_responses_api", None)
+        llm_params.pop("reasoning", None)
+        llm_params.pop("model_kwargs", None)
+        llm_params.pop("extra_body", None)
+        if provider == "anthropic":
+            llm_params.pop("thinking", None)
+
+    @classmethod
+    def get_llm(cls, role: AgentRole):
+        model_name = ai_settings.get_model_for_role(role)
+        selected_config = cls.CONFIGURATIONS.get(model_name)
+        if not selected_config:
+            raise RuntimeError(f"Unknown model '{model_name}' in configuration")
+        config = get_config()
+
+        if config.azure_openai_endpoint:
+            return cls._configure_azure_openai(model_name, role, selected_config, config)
+
+        provider = cls._detect_provider(selected_config.base_url)
+        api_key, base_url, final_model_name, use_fallback = cls._resolve_api_key(
+            provider, selected_config, config
+        )
+
         logger.info("Configuring LLM for role %s with model %s", role.value, final_model_name)
 
-        llm_params: dict[str, Any] = {"model": final_model_name, "api_key": api_key}
-
+        llm_params = {"model": final_model_name, "api_key": api_key}
         cls._apply_model_config(model_name, role, llm_params)
 
         if base_url == OPENROUTER_BASE_URL:
-            llm_params.pop("use_responses_api", None)
-            llm_params.pop("reasoning", None)
-            llm_params.pop("model_kwargs", None)
-            llm_params.pop("extra_body", None)
-            if provider == "anthropic":
-                llm_params.pop("thinking", None)
+            cls._cleanup_openrouter_params(llm_params, provider)
 
         if provider == "anthropic" and not use_fallback:
             return ChatAnthropic(**llm_params)
